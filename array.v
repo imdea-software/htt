@@ -29,6 +29,8 @@ Notation array := {array I -> T}.
 Definition shape (a : array) (f : {ffun I -> T}) := 
   [Pred h | h = updi a (fgraph f) /\ valid h].
 
+(* helper lemmas *)
+
 Lemma enum_split k : 
         enum I = take (indx k) (enum I) ++ k :: drop (indx k).+1 (enum I). 
 Proof.
@@ -70,6 +72,9 @@ move=>y H5; rewrite /f' /= !ffunE /=; case: eqP H5 H4=>// -> ->.
 by rewrite !andbF.
 Qed.    
 
+
+(* main methods *)
+
 Program Definition new (x : T) : 
   STsep (emp, fun y i h => exists a, y = Val a /\ h \In shape a [ffun => x]) :=
   Do (x <-- allocb x #|I|; 
@@ -79,6 +84,7 @@ move=>i ->; step=>y; step; vauto; rewrite unitR; congr updi.
 rewrite fgraph_codom /= codomE cardE.
 by elim: (enum I)=>[|t ts] //= ->; rewrite (ffunE _ _). 
 Qed.
+
 
 Definition newf_loop a (f : {ffun I -> T}) : Type :=
   forall s : seq I, STsep (fun i => exists g, exists s', [/\ i \In shape a g, 
@@ -118,6 +124,7 @@ apply: val_do=>[|x m|e m [g][]]; try by rewrite unitR.
 by exists [ffun => f v], nil. 
 Qed.
 
+
 Definition loop_inv (a : array) : Type := 
   forall k, STsep (fun i => exists xs:seq T, [/\ i = updi (a .+ k) xs, valid i &
                               size xs + k = #|I|],
@@ -153,6 +160,7 @@ Program Definition read (a : array) (k : I) :
 Next Obligation.
 by apply: ghE=>// _ f [->] _ _ _; rewrite /shape (updi_split a k); step.
 Qed.
+
 
 Program Definition write (a : array) (k : I) (x : T) : 
           STsep (fun i => exists f, i \In shape a f, 
