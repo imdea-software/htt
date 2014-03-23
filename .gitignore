@@ -1,3 +1,59 @@
+# -----------------------------------------------------------------------------
+# generic generated file patterns
+
+Thumbs.db
+.DS_Store
+.svn
+
+*~
+#*#
+*.bak
+*.BAK
+*.orig
+*.prof
+*.rej
+
+
+*.hi
+*.hi-boot
+*.o-boot
+*.p_o
+*.t_o
+*.debug_o
+*.thr_o
+*.thr_p_o
+*.thr_debug_o
+*.o
 *.vo
-*.glob
+*.a
+*.o.cmd
+*.depend*
+.#*
+log
+tags
+
+# -----------------------------------------------------------------------------
+#  Emacs-generated TeX files
+_region_.*
+cv/*.out
+*.rel
+*.log
+*.blg
+*.aux
+*.bbl
+*.synctex.gz
+*.out.ps
+.#*
+
+# -----------------------------------------------------------------------------
+#  Coq-generated stuff
+
+\#*\#
+*.vo 
 *.v.d
+*.glob
+
+# -----------------------------------------------------------------------------
+# HTT specific stuff
+Makefile.coq
+loadpath.v
