@@ -84,9 +84,8 @@ Proof. by apply: lseg_neq. Qed.
 
 Program 
 Definition insert p x : 
-  STsep (fun i => exists xs, i \In lseq p xs, 
-         fun y i m => forall xs, i \In lseq p xs -> 
-                        exists q, m \In lseq q (x::xs) /\ y = Val q) :=
+  {xs}, STsep (fun i => i \In lseq p xs, 
+               fun y m => exists q, m \In lseq q (x::xs) /\ y = Val q) :=
   Do (q <-- allocb p 2; 
       q ::= x;;
       ret q). 
@@ -94,12 +93,10 @@ Next Obligation.
 by apply: ghE=>// i xs H _ _; step=>q; rewrite unitR -joinA; heval.
 Qed.
 
-
 Program 
 Definition remove p : 
-  STsep (fun i => exists xs, i \In lseq p xs,
-         fun y i m => forall xs, i \In lseq p xs -> 
-                        exists q, m \In lseq q (behead xs) /\ y = Val q) :=
+  {xs}, STsep (fun i => i \In lseq p xs,
+               fun y m => exists q, m \In lseq q (behead xs) /\ y = Val q) :=
   Do (if p == null then ret p 
       else pnext <-- !(p .+ 1);
            dealloc p;; 
@@ -119,22 +116,21 @@ Definition shape_rev p s := [Pred h | h \In lseq p.1 s.1 # lseq p.2 s.2].
    of proof, if revT is exactly the same as the spec of reverse p *)
 
 Definition revT : Type := 
-  forall p, STsep (fun i => exists ps, i \In shape_rev p ps,
-                   fun y i m => forall ps, i \In shape_rev p ps -> 
-                     exists r, m \In lseq r (rev ps.1 ++ ps.2) /\ y = Val r). 
+  forall p, {ps}, STsep (fun i => i \In shape_rev p ps,
+                         fun y m => exists r, m \In lseq r (rev ps.1 ++ ps.2) /\
+                                              y = Val r). 
 
 Program 
 Definition reverse p : 
-  STsep (fun i => exists xs, i \In lseq p xs, 
-         fun y i m => forall xs, i \In lseq p xs -> 
-                        exists q, m \In lseq q (rev xs) /\ y = Val q) :=        
+  {xs}, STsep (fun i => i \In lseq p xs, 
+               fun y m => exists q, m \In lseq q (rev xs) /\ y = Val q) :=        
   Do (let: reverse := Fix (fun (reverse : revT) p => 
                         Do (if p.1 == null then ret p.2 
                             else xnext <-- !p.1 .+ 1;
                                  p.1 .+ 1 ::= p.2;;
                                  reverse (xnext, p.1)))
       in reverse (p, null)).
-Next Obligation.
+Next Obligation. 
 apply: ghE=>// i [x1 x2][i1][i2][->] /= [H1 H2] _ D; case: eqP H1=>[->|E].
 - by case/(lseq_null (validL D))=>->->; rewrite unitL; heval. 
 case/lseq_pos=>[|xd [xn][h'][->] <- /= H1]; first by case: eqP.

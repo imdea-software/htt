@@ -76,7 +76,7 @@ Qed.
 (* main methods *)
 
 Program Definition new (x : T) : 
-  STsep (emp, fun y i h => exists a, y = Val a /\ h \In shape a [ffun => x]) :=
+  STbin (emp, fun y i h => exists a, y = Val a /\ h \In shape a [ffun => x]) :=
   Do (x <-- allocb x #|I|; 
       ret (Array x)).
 Next Obligation.
@@ -87,13 +87,13 @@ Qed.
 
 
 Definition newf_loop a (f : {ffun I -> T}) : Type :=
-  forall s : seq I, STsep (fun i => exists g, exists s', [/\ i \In shape a g, 
+  forall s : seq I, STbin (fun i => exists g, exists s', [/\ i \In shape a g, 
                                       s' ++ s = enum I & 
                                       forall x, x \in s' -> g x = f x], 
                            fun y i m => exists a, y = Val a /\ m \In shape a f).
 
 Program Definition newf (f : {ffun I -> T}) : 
-          STsep (emp, fun y i h => exists a, y = Val a /\ h \In shape a f) :=
+          STbin (emp, fun y i h => exists a, y = Val a /\ h \In shape a f) :=
   Do (if [pick x in I] is Some v return _ then 
         x <-- new (f v); 
         let f := Fix (fun (loop : newf_loop x f) s =>  
@@ -126,12 +126,12 @@ Qed.
 
 
 Definition loop_inv (a : array) : Type := 
-  forall k, STsep (fun i => exists xs:seq T, [/\ i = updi (a .+ k) xs, valid i &
+  forall k, STbin (fun i => exists xs:seq T, [/\ i = updi (a .+ k) xs, valid i &
                               size xs + k = #|I|],
                    fun y i m => y = Val tt /\ m = Unit).
  
 Program 
-Definition free (a : array) : STsep (fun i => exists f, i \In shape a f, 
+Definition free (a : array) : STbin (fun i => exists f, i \In shape a f, 
                                      fun y i m => y = Val tt /\ m = Unit) :=
   Do (let: f := Fix (fun (f : loop_inv a) k =>  
                   Do (if k == #|I| then ret tt 
@@ -154,7 +154,7 @@ Qed.
 
 
 Program Definition read (a : array) (k : I) : 
-          STsep (fun i => exists f, i \In shape a f, 
+          STbin (fun i => exists f, i \In shape a f, 
                  fun y i m => forall f, i \In shape a f -> y = Val (f k) /\ i = m) := 
   Do (!a .+ (indx k)).
 Next Obligation.
@@ -163,7 +163,7 @@ Qed.
 
 
 Program Definition write (a : array) (k : I) (x : T) : 
-          STsep (fun i => exists f, i \In shape a f, 
+          STbin (fun i => exists f, i \In shape a f, 
                  fun y i m => forall f, i \In shape a f -> 
                    m \In shape a [ffun z => [eta f with k |-> x] z] /\ y = Val tt) :=
   Do (a .+ (indx k) ::= x). 

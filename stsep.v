@@ -56,23 +56,23 @@ Prenex Implicits fr.
 
 Notation "[ s ]" := (fr s).
 
-Definition STsep A (s : spec A) := STspec [s]. 
+Definition STbin A (s : spec A) := STspec [s]. 
 
 (* hide the spec *)
-Structure ST A := with_spec (s : spec A) of STsep s.
+Structure ST A := with_spec (s : spec A) of STbin s.
 
 Definition spec_of A (e : ST A) := let: with_spec s _ := e in s.
 Definition pre_of A := [fun e : ST A => (spec_of e).1]. 
 Definition post_of A := [fun e : ST A => (spec_of e).2]. 
 Definition code_of A (e : ST A) := 
-  let: with_spec _ c := e return STsep (spec_of e) in c.
+  let: with_spec _ c := e return STbin (spec_of e) in c.
 
 Implicit Arguments pre_of [A].
 Implicit Arguments post_of [A].
 Implicit Arguments with_spec [A].
 Prenex Implicits pre_of post_of.
 
-Coercion with_spec : STsep >-> ST.
+Coercion with_spec : STbin >-> ST.
 
 Section SepReturn.
 Variable (A : Type) (x : A).
@@ -178,7 +178,7 @@ case: (locality D2 H1 S)=>m1 [->][D3] {S}.
 by move/T1; move/(_ (validL D3))=>T2; exists m1.
 Qed.
 
-Definition do' : STsep s2 := Model.Do (code_of e) doP.
+Definition do' : STbin s2 := Model.Do (code_of e) doP.
 
 End SepConseq.
 
@@ -340,12 +340,28 @@ End SepTry.
 
 Section SepFix.
 Variables (A : Type) (B : A -> Type) (s : forall x, spec (B x)).
-Notation tp := (forall x, STsep (s x)).
+Notation tp := (forall x, STbin (s x)).
 
 Definition Fix (f : tp -> tp) : tp := Model.ffix f.
 
 End SepFix.
 
+(****************************************************)
+(* Notation to move from binary posts to unary ones *)
+(****************************************************)
+
+Definition logvar {B A} (s : A -> spec B) : spec B := 
+  (fun i => exists x : A, let 'pair p _ := s x in p i, 
+   fun y i m => forall x : A, let 'pair _ q := s x in q y i m).
+
+Definition binarify {A} (p : pre) (q : ans A -> pre) : spec A := 
+  (p, fun y i m => p i -> q y m).
+
+Notation "'STsep' ( p , q ) " := (STbin (binarify p q)) (at level 0).  
+
+Notation "{ x .. y }, 'STsep' ( p , q ) " :=
+  (STbin (logvar (fun x => .. (logvar (fun y => binarify p q)) .. )))
+   (at level 0, x binder, y binder, right associativity).
 
 
 (******************************************)
@@ -410,3 +426,7 @@ Notation "'ttry' E 'then' E1 'else' [ x ] E2" :=
 Notation "'ttry' E 'then' E1 'else' E2" := 
   (try E (fun _ => E1) (fun _ => E2)) (at level 80) : stsep_scope.
 *)
+
+
+
+
