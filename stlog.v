@@ -258,7 +258,70 @@ Qed.
 
 End EvalThrow.
 
-(* packaging up the lemmas into a tactic that selects them appropriately *)             
+
+(* specialized versions of do lemmas, to handle ghost variables. *)
+
+Section EvalGhost.
+Variables (A B C : Type) (t : C) (p : C -> Pred heap) (q : C -> post A).
+Variables (i j : heap) (P : Pred heap).
+
+Lemma val_gh {e} (r : cont A) : 
+        let: s := (fun i => exists x, i \In p x, 
+                   fun y i m => forall x, i \In p x -> q x y i m) in
+        (forall x m, q t (Val x) i m -> valid (m \+ j) -> r (Val x) (m \+ j)) ->
+        (forall x m, q t (Exn x) i m -> valid (m \+ j) -> r (Exn x) (m \+ j)) ->            
+        i \In p t -> 
+        verify (i \+ j) (with_spec s e) r.
+Proof. by move=>*; apply: val_do=>/=; eauto. Qed.
+
+Lemma val_gh1 {e} (r : cont A) : 
+        let: Q := fun y i m => forall x, i \In p x -> q x y i m in 
+        (i \In p t -> P i) -> 
+        (forall x m, q t (Val x) i m -> valid (m \+ j) -> r (Val x) (m \+ j)) -> 
+        (forall x m, q t (Exn x) i m -> valid (m \+ j) -> r (Exn x) (m \+ j)) ->            
+        i \In p t ->
+        verify (i \+ j) (with_spec (P, Q) e) r.
+Proof. by move=>*; apply: val_do=>/=; eauto. Qed.
+
+Lemma try_gh {e e1 e2} (r : cont B) : 
+        let: s := (fun i => exists x, i \In p x, 
+                   fun y i m => forall x, i \In p x -> q x y i m) in 
+        (forall x m, q t (Val x) i m -> verify (m \+ j) (e1 x) r) ->
+        (forall x m, q t (Exn x) i m -> verify (m \+ j) (e2 x) r) ->
+        i \In p t -> 
+        verify (i \+ j) (ttry (with_spec s e) e1 e2) r.
+Proof. by move=>*; apply: try_do=>/=; eauto. Qed.
+
+Lemma try_gh1 {e e1 e2} (r : cont B) : 
+        let: Q := fun y i m => forall x, i \In p x -> q x y i m in 
+        (i \In p t -> P i) -> 
+        (forall x m, q t (Val x) i m -> verify (m \+ j) (e1 x) r) ->
+        (forall x m, q t (Exn x) i m -> verify (m \+ j) (e2 x) r) ->
+        i \In p t -> 
+        verify (i \+ j) (ttry (with_spec (P, Q) e) e1 e2) r.
+Proof. by move=>*; apply: try_do=>/=; eauto. Qed.
+
+Lemma bnd_gh {e e1} (r : cont B) : 
+        let: s := (fun i => exists x, i \In p x, 
+                   fun y i m => forall x, i \In p x -> q x y i m) in 
+        (forall x m, q t (Val x) i m -> verify (m \+ j) (e1 x) r) -> 
+        (forall x m, q t (Exn x) i m -> valid (m \+ j) -> r (Exn x) (m \+ j)) ->
+        i \In p t ->
+        verify (i \+ j) (bind (with_spec s e) e1) r.
+Proof. by move=>*; apply: bnd_do=>/=; eauto. Qed.
+
+Lemma bnd_gh1 {e e1} (r : cont B) : 
+        let: Q := fun y i m => forall x, i \In p x -> q x y i m in 
+        (i \In p t -> P i) ->
+        (forall x m, q t (Val x) i m -> verify (m \+ j) (e1 x) r) -> 
+        (forall x m, q t (Exn x) i m -> valid (m \+ j) -> r (Exn x) (m \+ j)) ->
+        i \In p t -> 
+        verify (i \+ j) (bind (with_spec (P, Q) e) e1) r.
+Proof. by move=>*; apply: bnd_do=>/=; eauto. Qed.
+
+
+End EvalGhost.
+
 
 Definition pull (A : Type) x (v:A) := (joinC (x :-> v), joinCA (x :-> v)).
 Definition push (A : Type) x (v:A) := (joinCA (x :-> v), joinC (x :-> v)).

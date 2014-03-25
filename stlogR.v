@@ -263,6 +263,100 @@ Canonical Structure bnd_dealloc_form A B s v x r j f :=
 Canonical Structure try_dealloc_form A B s1 s2 v x r j f := 
   TryForm (@try_deallocR A B s1 s2 v x j f r).
 
+
+(* specialized versions of do lemmas, to handle ghost variables. *)
+
+Section EvalGhostR.
+Variables (A B C : Type) (t : C) (p : C -> Pred heap) (q : C -> post A).
+Variables (i j : heap) (f : forall k, form k j) (P : Pred heap).
+
+Lemma val_ghR {e} (r : cont A) : 
+        let: s := (fun i => exists x, i \In p x, 
+                   fun y i m => forall x, i \In p x -> q x y i m) in 
+        (forall x m, q t (Val x) i m -> valid (untag (f m)) -> 
+                     r (Val x) (f m)) ->
+        (forall x m, q t (Exn x) i m -> valid (untag (f m)) -> 
+                     r (Exn x) (f m)) ->
+        i \In p t -> 
+        verify (f i) (with_spec s e) r.
+Proof. 
+move=>H1 H2; rewrite formE; apply: val_gh.
+- by move=>x m; move: (H1 x m); rewrite formE.
+by move=>x m; move: (H2 x m); rewrite formE.
+Qed.
+
+Lemma val_gh1R {e} (r : cont A) : 
+        let: Q := fun y i m => forall x, i \In p x -> q x y i m in 
+        (i \In p t -> P i) -> 
+        (forall x m, q t (Val x) i m -> valid (untag (f m)) -> 
+                     r (Val x) (f m)) ->
+        (forall x m, q t (Exn x) i m -> valid (untag (f m)) -> 
+                     r (Exn x) (f m)) ->
+        i \In p t ->
+        verify (f i) (with_spec (P, Q) e) r.
+Proof.
+move=>H1 H2 H3; rewrite formE; apply: (val_gh1 H1).
+- by move=>x m; move: (H2 x m); rewrite formE.
+by move=>x m; move: (H3 x m); rewrite formE.
+Qed.
+
+Lemma try_ghR {e e1 e2} (r : cont B) : 
+        let: s := (fun i => exists x, i \In p x, 
+                   fun y i m => forall x, i \In p x -> q x y i m) in 
+        (forall x m, q t (Val x) i m -> verify (f m) (e1 x) r) ->
+        (forall x m, q t (Exn x) i m -> verify (f m) (e2 x) r) ->
+        i \In p t -> 
+        verify (f i) (ttry (with_spec s e) e1 e2) r.
+Proof.
+move=>H1 H2; rewrite formE; apply: try_gh.
+- by move=>x m; move: (H1 x m); rewrite formE.
+by move=>x m; move: (H2 x m); rewrite formE.
+Qed.
+
+Lemma try_gh1R {e e1 e2} (r : cont B) : 
+        let: Q := fun y i m => forall x, i \In p x -> q x y i m in 
+        (i \In p t -> P i) -> 
+        (forall x m, q t (Val x) i m -> verify (f m) (e1 x) r) ->
+        (forall x m, q t (Exn x) i m -> verify (f m) (e2 x) r) ->
+        i \In p t -> 
+        verify (f i) (ttry (with_spec (P, Q) e) e1 e2) r.
+Proof.
+move=>H1 H2 H3; rewrite formE; apply: (try_gh1 H1).
+- by move=>x m; move: (H2 x m); rewrite formE.
+by move=>x m; move: (H3 x m); rewrite formE.
+Qed.
+
+Lemma bnd_ghR {e e1} (r : cont B) : 
+        let: s := (fun i => exists x, i \In p x, 
+                   fun y i m => forall x, i \In p x -> q x y i m) in 
+        (forall x m, q t (Val x) i m -> verify (f m) (e1 x) r) -> 
+        (forall x m, q t (Exn x) i m -> valid (untag (f m)) -> 
+                     r (Exn x) (f m)) ->
+        i \In p t ->
+        verify (f i) (bind (with_spec s e) e1) r.
+Proof.
+move=>H1 H2; rewrite formE; apply: bnd_gh.
+- by move=>x m; move: (H1 x m); rewrite formE.
+by move=>x m; move: (H2 x m); rewrite formE.
+Qed.
+
+Lemma bnd_gh1R {e e1} (r : cont B) : 
+        let: Q := fun y i m => forall x, i \In p x -> q x y i m in 
+        (i \In p t -> P i) ->
+        (forall x m, q t (Val x) i m -> verify (f m) (e1 x) r) -> 
+        (forall x m, q t (Exn x) i m -> valid (untag (f m)) -> 
+                     r (Exn x) (f m)) ->
+        i \In p t -> 
+        verify (f i) (bind (with_spec (P, Q) e) e1) r.
+Proof.
+move=>H1 H2 H3; rewrite formE; apply: (bnd_gh1 H1).
+- by move=>x m; move: (H2 x m); rewrite formE.
+by move=>x m; move: (H3 x m); rewrite formE.
+Qed.
+
+End EvalGhostR.
+
+
 (* we keep some tactics to kill final goals, which *)
 (* are usually full of existentials *)
 Ltac vauto := (do ?econstructor=>//).
