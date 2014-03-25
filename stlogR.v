@@ -56,12 +56,12 @@ Section EvalDoR.
 Variables (A B : Type) (p : heap -> Prop) (q : ans A -> heap -> Prop).
 
 Lemma val_doR e i j (f : forall k, form k j) (r : cont A) :
-         (valid i -> p i) -> 
-         (forall x m, q (Val x) m -> 
-            valid (untag (f m)) -> r (Val x) (f m)) ->
-         (forall x m, q (Exn x) m -> 
-            valid (untag (f m)) -> r (Exn x) (f m)) -> 
-         verify (f i) (with_spec (binarify p q) e) r.
+        (valid i -> p i) -> 
+        (forall x m, q (Val x) m -> 
+           valid (untag (f m)) -> r (Val x) (f m)) ->
+        (forall x m, q (Exn x) m -> 
+           valid (untag (f m)) -> r (Exn x) (f m)) -> 
+        verify (f i) (with_spec (binarify p q) e) r.
 Proof.
 move=>H1 H2 H3; rewrite formE; apply: (val_do H1).
 - by move=>x m; move: (H2 x m); rewrite formE.
@@ -76,9 +76,21 @@ End EvalDoR.
 (* are there just to remove some spurious hypotheses about validity, and make the *)
 (* verification flow easier *)
 
+(* Each call to some bnd_* or try_* lemma is really a call to bnd_seq or try_seq *)
+(* followed by a val_* lemma. Except that doing things in such a sequence *)
+(* actually gives us some additional, spurious, valididity hypotheses, which we *)
+(* always discard anyway. However the discarding interrupts automation, so we want to avoid it *)
+ 
+(* However, we only need only val_doR lemma *)
+(* This one is always applied by hand, not automatically, so *)
+(* if we need to prefix it with a call to bnd_seq or try_seq, we can *)
+(* do that by hand *)
+
+(* If we were to do this by hand, whenever *)
 (* there should be a nicer way to do this *)
-(* e.g., suppress all the hypothesis about validity by default *)
-(* and let the user generate them by hand at the leaves *)
+(* e.g., suppress all the spruious validity as a default *)
+(* and let the user generate them by hand at the leaves, when necessary *)
+
 
 Section EvalRetR.
 Variables (A B : Type). 
@@ -194,6 +206,7 @@ Lemma bnd_deallocR e (v : A) x i (f : forall k, form k i) (r : cont B) :
 Proof. by move=>H; apply: bnd_seq; apply: val_deallocR. Qed.
 
 End EvalDeallocR.
+
 
 Section EvalThrowR.
 Variables (A B : Type).
