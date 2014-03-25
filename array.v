@@ -76,7 +76,7 @@ Qed.
 (* main methods *)
 
 Program Definition new (x : T) : 
-  STbin (emp, fun y i h => exists a, y = Val a /\ h \In shape a [ffun => x]) :=
+  STsep (emp, fun y h => exists a, y = Val a /\ h \In shape a [ffun => x]) :=
   Do (x <-- allocb x #|I|; 
       ret (Array x)).
 Next Obligation.
@@ -87,13 +87,13 @@ Qed.
 
 
 Definition newf_loop a (f : {ffun I -> T}) : Type :=
-  forall s : seq I, STbin (fun i => exists g, exists s', [/\ i \In shape a g, 
+  forall s : seq I, STsep (fun i => exists g, exists s', [/\ i \In shape a g, 
                                       s' ++ s = enum I & 
                                       forall x, x \in s' -> g x = f x], 
-                           fun y i m => exists a, y = Val a /\ m \In shape a f).
+                           fun y m => exists a, y = Val a /\ m \In shape a f).
 
 Program Definition newf (f : {ffun I -> T}) : 
-          STbin (emp, fun y i h => exists a, y = Val a /\ h \In shape a f) :=
+          STsep (emp, fun y h => exists a, y = Val a /\ h \In shape a f) :=
   Do (if [pick x in I] is Some v return _ then 
         x <-- new (f v); 
         let f := Fix (fun (loop : newf_loop x f) s =>  
@@ -107,8 +107,7 @@ Next Obligation.
 move=>_ /= [g][s'][[->]]; case: s=>[|k t] /= _ H1 H2.
 - rewrite cats0 in H1; step; vauto.  
   by rewrite (_ : g = f) // -ffunP=>y; apply: H2; rewrite H1 mem_enum.
-rewrite (updi_split x k); step; rewrite -[_ \+ _]unitR.
-apply: val_do=>/= D; last by [move=>m [a][]]; last by [move=>m; rewrite unitR].
+rewrite (updi_split x k); step; apply: val_do0=>//. 
 exists (finfun [eta g with k |-> f k]), (s' ++ [:: k]).
 rewrite /shape (updi_split x k) takeord dropord (ffunE _ _) /= eq_refl -catA.
 split=>// y; rewrite ffunE /= mem_cat inE /=.
@@ -119,20 +118,19 @@ move=>_ ->; case: fintype.pickP=>[v|] H /=; last first.
 - step; exists (@Array I T null); do !split=>//.
   have L: #|I| = 0 by rewrite cardE; case: (enum I)=>[|x s] //; move: (H x).
   by case: (fgraph f)=>/=; rewrite L; case.
-rewrite -[Unit]unitR; apply: bnd_do=>[|_ i1' [a][[->]] H1| e m [a][]] //. 
-apply: val_do=>[|x m|e m [g][]]; try by rewrite unitR.
-by exists [ffun => f v], nil. 
+apply: vrf_seq; apply: val_do0=>[|x m [_][[<-]] K _|??[?][]] //.  
+by apply: val_do0=>//; exists [ffun => f v], nil. 
 Qed.
 
 
 Definition loop_inv (a : array) : Type := 
-  forall k, STbin (fun i => exists xs:seq T, [/\ i = updi (a .+ k) xs, valid i &
+  forall k, STsep (fun i => exists xs:seq T, [/\ i = updi (a .+ k) xs, valid i &
                               size xs + k = #|I|],
-                   fun y i m => y = Val tt /\ m = Unit).
+                   fun y m => y = Val tt /\ m = Unit).
  
 Program 
-Definition free (a : array) : STbin (fun i => exists f, i \In shape a f, 
-                                     fun y i m => y = Val tt /\ m = Unit) :=
+Definition free (a : array) : STsep (fun i => exists f, i \In shape a f, 
+                                     fun y m => y = Val tt /\ m = Unit) :=
   Do (let: f := Fix (fun (f : loop_inv a) k =>  
                   Do (if k == #|I| then ret tt 
                       else 
@@ -142,8 +140,8 @@ Definition free (a : array) : STbin (fun i => exists f, i \In shape a f,
 Next Obligation.
 move=>_ /= [[|v xs]][->] /= _; first by rewrite add0n=>/eqP ->; apply: val_ret. 
 case: eqP=>[->|_ H]; first by move/eqP; rewrite -{2}(add0n #|I|) eqn_add2r. 
-step; rewrite joinC; apply: val_do=>[V|[] m|e m []]; try by rewrite unitR.
-by exists xs; rewrite V ptrA addn1 -addSnnS.  
+step; apply: val_doR=>[V|[] m|e m []] //. 
+by exists xs; rewrite V ptrA addn1 -addSnnS unitL.  
 Qed.
 Next Obligation.
 move=>_ /= [f][->] _; rewrite -[updi _ _]unitR. 
@@ -153,9 +151,9 @@ by rewrite ptr0 V {3}fgraph_codom /= codomE size_map -cardE.
 Qed.
 
 
-Program Definition read (a : array) (k : I) : 
-          STbin (fun i => exists f, i \In shape a f, 
-                 fun y i m => forall f, i \In shape a f -> y = Val (f k) /\ i = m) := 
+Program Definition read (a : array) (k : I) :
+   STbin (fun i => exists f, i \In shape a f, 
+          fun y i m => forall f, i \In shape a f -> y = Val (f k) /\ i = m) :=
   Do (!a .+ (indx k)).
 Next Obligation.
 by apply: ghE=>// _ f [->] _ _ _; rewrite /shape (updi_split a k); step.
@@ -163,9 +161,9 @@ Qed.
 
 
 Program Definition write (a : array) (k : I) (x : T) : 
-          STbin (fun i => exists f, i \In shape a f, 
-                 fun y i m => forall f, i \In shape a f -> 
-                   m \In shape a [ffun z => [eta f with k |-> x] z] /\ y = Val tt) :=
+  {f}, STsep (fun i => i \In shape a f, 
+              fun y m => m \In shape a [ffun z => [eta f with k |-> x] z] /\ 
+                         y = Val tt) :=
   Do (a .+ (indx k) ::= x). 
 Next Obligation.
 apply: ghE=>// i f [->] _ _ V; rewrite /shape !(updi_split a k).
