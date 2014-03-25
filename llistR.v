@@ -135,13 +135,12 @@ apply: ghE=>// i [x1 x2][i1][i2][->] /= [H1 H2] _ D; case: eqP H1=>[->|E].
 - by case/(lseq_null (validL D))=>->->; rewrite unitL; heval. 
 case/lseq_pos=>[|xd [xn][h'][->] <- /= H1]; first by case: eqP.
 do !step; rewrite -!joinA -!(joinCA h').
-apply: (gh_inst (behead x1, xd::x2)).
-apply: val_doR; first by vauto.
+apply: (gh_ex (behead x1, xd::x2)); apply: val_doR; first by vauto.
 - by move=>x m [r][/=]; rewrite rev_cons cat_rcons=>H [->] _; vauto.
 by move=>e m [r][_].
 Qed.
 Next Obligation.
-apply: ghE=>// i xs H _ _; apply: (gh_inst (xs, Nil T)).
+apply: ghE=>// i xs H _ _; apply: (gh_ex (xs, Nil T)).
 apply: val_do0=>//; first by exists i; hhauto. 
 - by move=>x m [r][/= H1][->] _; rewrite cats0 in H1 *; vauto. 
 by move=>e m [r][_].

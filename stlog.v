@@ -273,7 +273,7 @@ Qed.
 
 (* a lemma for instantiating a ghost *)
 
-Lemma gh_inst A C (t : C) i (s : C -> spec A) e (r : cont A) : 
+Lemma gh_ex A C (t : C) i (s : C -> spec A) e (r : cont A) : 
         verify i (do' (gh_conseq (t:=t) e)) r ->
         verify i (with_spec (logvar s) e) r.
 Proof.
@@ -287,7 +287,7 @@ case/(H3 _ _ E1 Vi)=>m1 [->][Vm] /(_ t).
 by rewrite E; exists m1.
 Qed.
 
-Implicit Arguments gh_inst [A C i s e r].
+Implicit Arguments gh_ex [A C i s e r].
 
 (* sequential composition: bind e1 e2 can be reduced to *)
 (* a verify e1 followed by verify e2. We have some branching *)
