@@ -55,10 +55,6 @@ Notation cont A := (ans A -> heap -> Prop).
 Section EvalDoR.
 Variables (A B : Type) (p : heap -> Prop) (q : ans A -> heap -> Prop).
 
-(* TODO: We only need the val_do form; the bnd_do and try_do *)
-(* should be removed, as they can be avoided by using vrf_seq *)
-(* some cleanup required *)
-
 Lemma val_doR e i j (f : forall k, form k j) (r : cont A) :
          (valid i -> p i) -> 
          (forall x m, q (Val x) m -> 
@@ -72,39 +68,33 @@ move=>H1 H2 H3; rewrite formE; apply: (val_do H1).
 by move=>x m; move: (H3 x m); rewrite formE.
 Qed.
 
-(*
-Lemma try_doR (e : ST A) e1 e2 i j (f : forall k, form k j) (r : cont B) : 
-        (valid i -> pre_of e i) -> 
-        (forall x m, post_of e (Val x) i m -> verify (f m) (e1 x) r) ->
-        (forall x m, post_of e (Exn x) i m -> verify (f m) (e2 x) r) ->
-        verify (f i) (ttry e e1 e2) r.
-Proof.
-move=>H1 H2 H3; rewrite formE; apply: (try_do' H1).
-- by move=>x m; move: (H2 x m); rewrite formE.
-by move=>x m; move: (H3 x m); rewrite formE.
-Qed.
-
-Lemma bnd_doR (e : ST A) e2 i j (f : forall k, form k j) (r : cont B) : 
-        (valid i -> pre_of e i) -> 
-        (forall x m, post_of e (Val x) i m -> verify (f m) (e2 x) r) -> 
-        (forall x m, post_of e (Exn x) i m -> 
-                       valid (untag (f m)) -> r (Exn x) (f m)) ->
-        verify (f i) (bind e e2) r.
-Proof.
-move=>H1 H2 H3; rewrite formE; apply: (bnd_do' H1).
-- by move=>x m; move: (H2 x m); rewrite formE.
-by move=>x m; move: (H3 x m); rewrite formE.
-Qed.
-*)
-
 End EvalDoR.
 
-(* ret lemmas need no reflection, as they operate on any heap; still *)
-(* rename them for uniformity *)
+(* We maintain three different kinds of lemmas *)
+(* in order to streamline the stepping *)
+(* The only important ones are the val lemmas, the bnd and try *)
+(* are there just to remove some spurious hypotheses about validity, and make the *)
+(* verification flow easier *)
+
+(* there should be a nicer way to do this *)
+(* e.g., suppress all the hypothesis about validity by default *)
+(* and let the user generate them by hand at the leaves *)
+
+Section EvalRetR.
+Variables (A B : Type). 
 
 Definition val_retR := val_ret.
-Definition try_retR := try_ret.
-Definition bnd_retR := bnd_ret.
+
+Lemma try_retR e1 e2 (v : A) i (r : cont B) :
+        verify i (e1 v) r -> verify i (ttry (ret v) e1 e2) r.
+Proof. by move=>H; apply: try_seq; apply: val_ret. Qed.
+
+Lemma bnd_retR e (v : A) i (r : cont B) : 
+        verify i (e v) r -> verify i (bind (ret v) e) r.
+Proof. by move=>H; apply: bnd_seq; apply: val_ret. Qed. 
+
+End EvalRetR.
+
 
 Section EvalReadR.
 Variables (A B : Type).
@@ -113,18 +103,19 @@ Lemma val_readR v x i (f : form (x :-> v) i) (r : cont A) :
         (valid (untag f) -> r (Val v) f) -> 
         verify f (read A x) r.
 Proof. by rewrite formE; apply: val_read. Qed.
- 
+
 Lemma try_readR e1 e2 v x i (f : form (x :-> v) i) (r : cont B) : 
         verify f (e1 v) r -> 
         verify f (ttry (read A x) e1 e2) r. 
-Proof. by rewrite formE; apply: try_read. Qed.
+Proof. by move=>H; apply: try_seq; apply: val_readR. Qed.
 
 Lemma bnd_readR e v x i (f : form (x :-> v) i) (r : cont B) : 
         verify f (e v) r -> 
         verify f (bind (read A x) e) r.
-Proof. by rewrite formE; apply: bnd_read. Qed. 
+Proof. by move=>H; apply: bnd_seq; apply: val_readR. Qed.
 
 End EvalReadR.
+
 
 Section EvalWriteR. 
 Variables (A B C : Type).
@@ -134,25 +125,55 @@ Lemma val_writeR (v : A) (w : B) x i (f : forall k, form k i) (r : cont unit) :
         verify (f (x :-> w)) (write x v) r.
 Proof. by rewrite !formE; apply: val_write. Qed.
 
-Lemma try_writeR e1 e2 (v : A) (w : C) x i 
-                 (f : forall k, form k i) (r : cont B) : 
+Lemma try_writeR e1 e2 (v : A) (w : B) x i 
+                 (f : forall k, form k i) (r : cont C) : 
         verify (f (x :-> v)) (e1 tt) r -> 
         verify (f (x :-> w)) (ttry (write x v) e1 e2) r. 
-Proof. rewrite !formE; apply: try_write. Qed.
+Proof. by move=>H; apply: try_seq; apply: val_writeR. Qed.
 
-Lemma bnd_writeR e (v : A) (w : C) x i (f : forall k, form k i) (r : cont B) : 
+Lemma bnd_writeR e (v : A) (w : B) x i (f : forall k, form k i) (r : cont C) : 
         verify (f (x :-> v)) (e tt) r -> 
         verify (f (x :-> w)) (bind (write x v) e) r. 
-Proof. by rewrite !formE; apply: bnd_write. Qed.
+Proof. by move=>H; apply: bnd_seq; apply: val_writeR. Qed.
 
 End EvalWriteR.
 
+
+Section EvalAllocR.
+Variables (A B : Type). 
+
 Definition val_allocR := val_alloc.
-Definition try_allocR := try_alloc.
-Definition bnd_allocR := bnd_alloc.
-Definition val_allocbR := val_allocb.
-Definition try_allocbR := try_allocb.
-Definition bnd_allocbR := bnd_allocb.
+
+Lemma try_allocR e1 e2 (v : A) i (r : cont B) : 
+        (forall x, verify (x :-> v \+ i) (e1 x) r) ->
+        verify i (ttry (alloc v) e1 e2) r.
+Proof. by move=>H; apply: try_seq; apply: val_alloc. Qed.
+
+Lemma bnd_allocR e (v : A) i (r : cont B) : 
+        (forall x, verify (x :-> v \+ i) (e x) r) ->
+        verify i (bind (alloc v) e) r.
+Proof. by move=>H; apply: bnd_seq; apply: val_alloc. Qed.
+
+End EvalAllocR. 
+
+
+Section EvalAllocbR.
+Variables (A B : Type). 
+
+Definition val_allocbR := val_allocb. 
+
+Lemma try_allocbR e1 e2 (v : A) n i (r : cont B) : 
+        (forall x, verify (updi x (nseq n v) \+ i) (e1 x) r) ->
+        verify i (ttry (allocb v n) e1 e2) r.
+Proof. by move=>H; apply: try_seq; apply: val_allocb. Qed.
+
+Lemma bnd_allocbR e (v : A) n i (r : cont B) : 
+        (forall x, verify (updi x (nseq n v) \+ i) (e x) r) ->
+        verify i (bind (allocb v n) e) r.
+Proof. by move=>H; apply: bnd_seq; apply: val_allocb. Qed.
+
+End EvalAllocbR. 
+
 
 Section EvalDeallocR.
 Variables (A B : Type).
@@ -162,21 +183,34 @@ Lemma val_deallocR (v : A) x i (f : forall k, form k i) (r : cont unit) :
         verify (f (x :-> v)) (dealloc x) r.
 Proof. by rewrite !formE unitL; apply: val_dealloc. Qed.
 
-Lemma try_deallocR e1 e2 (v : B) x i (f : forall k, form k i) (r : cont A) :
+Lemma try_deallocR e1 e2 (v : A) x i (f : forall k, form k i) (r : cont B) :
         verify (f Unit) (e1 tt) r -> 
         verify (f (x :-> v)) (ttry (dealloc x) e1 e2) r.
-Proof. by rewrite !formE unitL; apply: try_dealloc. Qed.
+Proof. by move=>H; apply: try_seq; apply: val_deallocR. Qed.
 
-Lemma bnd_deallocR e (v : B) x i (f : forall k, form k i) (r : cont A) : 
+Lemma bnd_deallocR e (v : A) x i (f : forall k, form k i) (r : cont B) : 
         verify (f Unit) (e tt) r -> 
         verify (f (x :-> v)) (bind (dealloc x) e) r.
-Proof. by rewrite !formE unitL; apply: bnd_dealloc. Qed.
+Proof. by move=>H; apply: bnd_seq; apply: val_deallocR. Qed.
 
 End EvalDeallocR.
 
-Definition val_throwR := val_throw.
-Definition try_throwR := try_throw. 
-Definition bnd_throwR := bnd_throw.
+Section EvalThrowR.
+Variables (A B : Type).
+
+Definition val_throwR := val_throw. 
+
+Lemma try_throwR e e1 e2 i (r : cont B) : 
+        verify i (e2 e) r -> 
+        verify i (ttry (throw A e) e1 e2) r.
+Proof. by move=>H; apply: try_seq; apply: val_throw. Qed.
+ 
+Lemma bnd_throwR e e1 i (r : cont B) : 
+        (valid i -> r (Exn e) i) -> 
+        verify i (bind (throw A e) e1) r.
+Proof. by move=>H; apply: bnd_seq; apply: val_throw. Qed.
+
+End EvalThrowR.
 
 
 (****************************************************)
@@ -268,9 +302,6 @@ Canonical Structure bnd_dealloc_form A B s v x r j f :=
   BndForm (@bnd_deallocR A B s v x j f r).
 Canonical Structure try_dealloc_form A B s1 s2 v x r j f := 
   TryForm (@try_deallocR A B s1 s2 v x j f r).
-
-
-
 
 (* we keep some tactics to kill final goals, which *)
 (* are usually full of existentials *)

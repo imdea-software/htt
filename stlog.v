@@ -1,9 +1,17 @@
 Set Automatic Coercions Import.
 Require Import ssreflect ssrbool ssrnat eqtype seq ssrfun.
-Require Import pred pcm unionmap heap stmod stsep. 
+Require Import pred domain pcm unionmap heap stmod stsep. 
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive. 
+
+Local Notation cont A := (ans A -> heap -> Prop).
+
+Lemma vrf_mono A (e : ST A) i (r1 r2 : cont A) : 
+        r1 <== r2 -> verify i e r1 -> verify i e r2. 
+Proof. 
+by move=>H H1 /H1 {H1} [H1 H2]; split=>// y m H3 /(H2 _ _ H3); apply: H. 
+Qed.
 
 Lemma bnd_is_try (A B : Type) (e1 : ST A) (e2 : A -> ST B) i r : 
         verify i (ttry e1 e2 (throw B)) r ->
@@ -25,18 +33,7 @@ move=>j1 j2 E D _; rewrite {m1 D2}E in T1 D H4 *.
 by exists j1; do !split=>//; move=>k1 k2 -> D2 ->.
 Qed. 
 
-Local Notation cont A := (ans A -> heap -> Prop).
-
-
-(* The duplication of the lemmas for the bnd and try cases is spurious!!! *)
-(* All are a simple composition of Hoare rule for sequential composition *)
-(* with the rule for the specific command being stepped *)
-(* But I can't bother now with optimizing *)
-
-Section EvalDo.
-Variables (A B : Type).
-
-Lemma val_do' (e : ST A) i j (r : cont A) :
+Lemma val_do' A (e : ST A) i j (r : cont A) :
         (valid i -> pre_of e i) -> 
         (forall x m, post_of e (Val x) i m -> 
                        valid (m \+ j) -> r (Val x) (m \+ j)) ->
@@ -48,113 +45,27 @@ move=>H1 H2 H3; apply: frame; apply: frame0=>D; split; first by apply: H1.
 by case=>x m H4 D1 D2; [apply: H2 | apply: H3].
 Qed.
 
-Lemma try_do' (e : ST A) e1 e2 i j (r : cont B) : 
-        (valid i -> pre_of e i) -> 
-        (forall x m, post_of e (Val x) i m -> verify (m \+ j) (e1 x) r) ->
-        (forall x m, post_of e (Exn x) i m -> verify (m \+ j) (e2 x) r) ->
-        verify (i \+ j) (ttry e e1 e2) r.
-Proof.
-move=>H1 H2 H3; apply: frame0=>D; split=>[|y m]; move: (H1 (validL D))=>H.
-- split; first by apply: fr_pre; exists i, Unit; rewrite unitR.
-  by split=>y m /(_ i j (erefl _) D H) [m1][->][D2]; [case/H2 | case/H3].
-by case=>[[x]|[x]][h][] /(_ i j (erefl _) D H) [m1][->][D2];
-   [case/H2 | case/H3]=>// _; apply.
-Qed.
-
-Lemma bnd_do' (e : ST A) e2 i j (r : cont B) : 
-        (valid i -> pre_of e i) -> 
-        (forall x m, post_of e (Val x) i m -> verify (m \+ j) (e2 x) r) -> 
-        (forall x m, post_of e (Exn x) i m -> 
-                       valid (m \+ j) -> r (Exn x) (m \+ j)) ->
-        verify (i \+ j) (bind e e2) r.
-Proof.
-move=>H1 H2 H3; apply: bnd_is_try; apply: try_do'=>// x m H4. 
-by apply: frame1; split=>// y m1 [->->] _; rewrite unitL; apply: H3. 
-Qed.
-
-End EvalDo.
-
-
-Section EvalReturn.
-Variables (A B : Type). 
-
-Lemma val_ret v i (r : cont A) : 
+Lemma val_ret A v i (r : cont A) : 
        (valid i -> r (Val v) i) -> verify i (ret v) r. 
-Proof.
-by rewrite -[i]unitL=>H; apply: val_do'=>// x m [->] // [->].
-Qed.
+Proof. by rewrite -[i]unitL=>H; apply: val_do'=>// x m [->] // [->]. Qed.
 
-Lemma try_ret e1 e2 (v : A) i (r : cont B) :
-        verify i (e1 v) r -> verify i (ttry (ret v) e1 e2) r.
-Proof. 
-by rewrite -[i]unitL=>H; apply: try_do'=>// x m [->] // [->].
-Qed. 
-
-Lemma bnd_ret e (v : A) i (r : cont B) : 
-        verify i (e v) r -> verify i (bind (ret v) e) r.
-Proof. by move=>H; apply: bnd_is_try; apply: try_ret. Qed.
-
-End EvalReturn.
-
-
-Section EvalRead.
-Variables (A B : Type).
-
-Lemma val_read v x i (r : cont A) : 
+Lemma val_read A v x i (r : cont A) : 
         (valid (x :-> v \+ i) -> r (Val v) (x :-> v \+ i)) -> 
         verify (x :-> v \+ i) (read A x) r.
 Proof.
 move=>*; apply: val_do'; first by [exists v];
 by move=>y m [<-]; move/(_ v (erefl _))=>// [->].
 Qed.
- 
-Lemma try_read e1 e2 v x i (r : cont B) : 
-        verify (x :-> v \+ i) (e1 v) r -> 
-        verify (x :-> v \+ i) (ttry (read A x) e1 e2) r. 
-Proof.
-move=>*; apply: try_do'; first by [exists v];
-by move=>y m [<-]; move/(_ v (erefl _))=>// [->].
-Qed.
 
-Lemma bnd_read e v x i (r : cont B) : 
-        verify (x :-> v \+ i) (e v) r -> 
-        verify (x :-> v \+ i) (bind (read A x) e) r.
-Proof. by move=>*; apply: bnd_is_try; apply: try_read. Qed.
-
-End EvalRead.
-
-
-Section EvalWrite. 
-Variables (A B C : Type).
-
-Lemma val_write (v : A) (w : B) x i (r : cont unit) : 
+Lemma val_write A B (v : A) (w : B) x i (r : cont unit) : 
         (valid (x :-> v \+ i) -> r (Val tt) (x :-> v \+ i)) -> 
         verify (x :-> w \+ i) (write x v) r.
 Proof.
-move=>*; apply: val_do'; first by [exists B; exists w];
+move=>*; apply: val_do'; first by [exists B, w];
 by move=>y m [// [->] ->].
 Qed.
 
-Lemma try_write e1 e2 (v: A) (w : C) x i (r : cont B) : 
-        verify (x :-> v \+ i) (e1 tt) r -> 
-        verify (x :-> w \+ i) (ttry (write x v) e1 e2) r. 
-Proof.
-move=>*; apply: try_do'; first by [exists C; exists w];
-by move=>y m [// [->] ->].
-Qed.
-
-Lemma bnd_write e (v : A) (w : C) x i (r : cont B) : 
-        verify (x :-> v \+ i) (e tt) r -> 
-        verify (x :-> w \+ i) (bind (write x v) e) r. 
-Proof. by move=>*; apply: bnd_is_try; apply: try_write. Qed.
-
-End EvalWrite.
-
-
-Section EvalAlloc.
-Variables (A B : Type).
-
-Lemma val_alloc (v : A) i (r : cont ptr) : 
+Lemma val_alloc A (v : A) i (r : cont ptr) : 
         (forall x, valid (x :-> v \+ i) -> r (Val x) (x :-> v \+ i)) -> 
         verify i (alloc v) r.
 Proof.
@@ -162,26 +73,7 @@ move=>H; rewrite -[i]unitL; apply: val_do'=>//;
 by move=>y m [x][//][-> ->]; apply: H.
 Qed.
 
-Lemma try_alloc e1 e2 (v : A) i (r : cont B) : 
-        (forall x, verify (x :-> v \+ i) (e1 x) r) ->
-        verify i (ttry (alloc v) e1 e2) r.
-Proof.
-move=>H; rewrite -[i]unitL; apply: try_do'=>//;
-by move=>y m [x][//][-> ->]; apply: H.
-Qed.
-
-Lemma bnd_alloc e (v : A) i (r : cont B) : 
-        (forall x, verify (x :-> v \+ i) (e x) r) ->
-        verify i (bind (alloc v) e) r.
-Proof. by move=>*; apply: bnd_is_try; apply: try_alloc. Qed.
-
-End EvalAlloc.
-
-
-Section EvalBlockAlloc.
-Variables (A B : Type).
-
-Lemma val_allocb (v : A) n i (r : cont ptr) : 
+Lemma val_allocb A (v : A) n i (r : cont ptr) : 
         (forall x, valid (updi x (nseq n v) \+ i) -> 
            r (Val x) (updi x (nseq n v) \+ i)) -> 
         verify i (allocb v n) r.
@@ -190,49 +82,13 @@ move=>H; rewrite -[i]unitL; apply: val_do'=>//;
 by move=>y m [x][//][->->]; apply: H.
 Qed.
 
-Lemma try_allocb e1 e2 (v : A) n i (r : cont B) : 
-        (forall x, verify (updi x (nseq n v) \+ i) (e1 x) r) ->
-        verify i (ttry (allocb v n) e1 e2) r.
-Proof.
-move=>H; rewrite -[i]unitL; apply: try_do'=>//;
-by move=>y m [x][//][->->]; apply: H.
-Qed.
-
-Lemma bnd_allocb e (v : A) n i (r : cont B) : 
-        (forall x, verify (updi x (nseq n v) \+ i) (e x) r) ->
-        verify i (bind (allocb v n) e) r.
-Proof. by move=>*; apply: bnd_is_try; apply: try_allocb. Qed.
-
-End EvalBlockAlloc.
-
-Section EvalDealloc.
-Variables (A B : Type).
-
-Lemma val_dealloc (v : A) x i (r : cont unit) : 
+Lemma val_dealloc A (v : A) x i (r : cont unit) : 
         (valid i -> r (Val tt) i) -> 
         verify (x :-> v \+ i) (dealloc x) r.
 Proof.
 move=>H; apply: val_do'; first by [exists A; exists v];
 by move=>y m [//][->] ->; rewrite unitL.
 Qed.
-
-Lemma try_dealloc e1 e2 (v : B) x i (r : cont A) :
-        verify i (e1 tt) r -> 
-        verify (x :-> v \+ i) (ttry (dealloc x) e1 e2) r.
-Proof.
-move=>H; apply: try_do'; first by [exists B; exists v];
-by move=>y m [//][->] ->; rewrite unitL.
-Qed.
-
-Lemma bnd_dealloc e (v : B) x i (r : cont A) : 
-        verify i (e tt) r -> 
-        verify (x :-> v \+ i) (bind (dealloc x) e) r.
-Proof. by move=>*; apply: bnd_is_try; apply: try_dealloc. Qed.
-
-End EvalDealloc.
-
-
-Section EvalThrow.
 
 Lemma val_throw A x i (r : cont A) : 
         (valid i -> r (Exn x) i) -> verify i (throw A x) r.
@@ -241,22 +97,44 @@ move=>H; rewrite -[i]unitL; apply: val_do'=>//;
 by move=>y m [->] // [->]; rewrite unitL.
 Qed.
 
-Lemma try_throw A B e1 e2 x i (r : cont B) : 
-        verify i (e2 x) r -> 
-        verify i (ttry (throw A x) e1 e2) r.
+(* sequential composition: try e e1 e2 or bind e1 e2 can be reduced to *)
+(* a verify e1 followed by verify of the continuations. *)
+
+Lemma try_seq A B e (e1 : A -> ST B) e2 i (r : cont B) :
+        verify i e (fun y m => 
+          match y with 
+            Val x => verify m (e1 x) r
+          | Exn x => verify m (e2 x) r
+          end) ->
+        verify i (ttry e e1 e2) r. 
 Proof.
-move=>H; rewrite -[i]unitL; apply: try_do'=>//;
-by move=>y m [->] // [->]; rewrite unitL.
-Qed.
- 
-Lemma bnd_throw A B e x i (r : cont B) : 
-        (valid i -> r (Exn x) i) -> 
-        verify i (bind (throw A x) e) r.
-Proof.
-by move=>H; apply: bnd_is_try; apply: try_throw; apply: val_throw.
+have L P Q j k : valid j -> (P # top) j -> (P --o Q) j k -> valid k.
+- move=>V H1; rewrite -[j]unitR in V *.
+  by case/(locality V H1)=>k' [->][]; rewrite unitR.
+move=>H Vi; case: (H Vi)=>H1 H2 {H}; split.
+- exists i, Unit; rewrite unitR; do !split=>//;
+  move=>x m H; move: (L _ _ _ _ Vi H1 H)=>Vm;
+  by case: (H2 _ _ H Vm Vm).
+move=>x m H Vm; case: {H} (H i Unit)=>//; first by rewrite unitR.
+- do !split=>//; move=>x' m' H; move: (L _ _ _ _ Vi H1 H)=>Vm';
+  by case: (H2 _ _ H Vm' Vm'). 
+move=>m'; rewrite unitR; case=><-{m'} [_]; case;
+case=>y [m'][H]; move: (L _ _ _ _ Vi H1 H)=>Vm';
+by case: (H2 _ _ H Vm' Vm')=>T1 T2 T3; apply: T2.
 Qed.
 
-End EvalThrow.
+Lemma bnd_seq A B e1 (e2 : A -> ST B) i (r : cont B) :
+        verify i e1 (fun y m => 
+          match y with 
+            Val x => verify m (e2 x) r
+          | Exn x => valid m -> r (Exn x) m
+          end) ->
+        verify i (bind e1 e2) r. 
+Proof.
+move=>H; apply: bnd_is_try; apply: try_seq.
+by apply: vrf_mono H=>y m; case: y=>// e; apply: val_throw. 
+Qed.
+
 
 (***********************************************)
 (* Specialized lemmas for instantiating ghosts *)
@@ -289,35 +167,6 @@ Qed.
 
 Implicit Arguments gh_ex [A C i s e r].
 
-(* sequential composition: bind e1 e2 can be reduced to *)
-(* a verify e1 followed by verify e2. We have some branching *)
-(* depending on exceptions *)
-(* A similar lemma should be proved for ttry e e1 e2 *)
-(* but I can't bother now *)
-
-Lemma vrf_seq A B e1 (e2 : A -> ST B) i (r : cont B) :
-        verify i e1 (fun y m => 
-          match y with 
-            Val x => verify m (e2 x) r
-          | Exn x => valid m -> r (Exn x) m
-          end) ->
-        verify i (bind e1 e2) r. 
-Proof.
-have L P Q j k : valid j -> (P # top) j -> (P --o Q) j k -> valid k.
-- move=>V H1; rewrite -[j]unitR in V *.
-  by case/(locality V H1)=>k' [->][]; rewrite unitR.
-move=>H Vi; case: (H Vi)=>H1 H2 {H}; split.
-- exists i, Unit; rewrite unitR; do 3!split=>//.
-  move=>x m H; move: (L _ _ _ _ Vi H1 H)=>Vm.
-  by case: (H2 _ _ H Vm Vm).
-move=>x m H Vm; case: {H} (H i Unit)=>//; first by rewrite unitR.
-- split=>// x' m' H; move: (L _ _ _ _ Vi H1 H)=>Vm'. 
-  by case: (H2 _ _ H Vm' Vm'). 
-move=>m'; rewrite unitR; case=><-{m'} [_]; case. 
-- case=>y [m'][H]; move: (L _ _ _ _ Vi H1 H)=>Vm'.
-  by case: (H2 _ _ H Vm' Vm')=>T1 T2 T3; apply: T2.
-by case=>e [->] /H2; apply.
-Qed.
 
 (* Two val_do lemmas which simplify binary posts *)
 (* The first lemma applies framing as well; the second is frameless *)

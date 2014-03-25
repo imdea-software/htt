@@ -80,7 +80,7 @@ Program Definition new (x : T) :
   Do (x <-- allocb x #|I|; 
       ret (Array x)).
 Next Obligation.
-move=>i ->; step=>y; step; vauto; rewrite unitR; congr updi. 
+move=>i ->; step=>y; heval; rewrite unitR; vauto; congr updi. 
 rewrite fgraph_codom /= codomE cardE.
 by elim: (enum I)=>[|t ts] //= ->; rewrite (ffunE _ _). 
 Qed.
@@ -118,7 +118,7 @@ move=>_ ->; case: fintype.pickP=>[v|] H /=; last first.
 - step; exists (@Array I T null); do !split=>//.
   have L: #|I| = 0 by rewrite cardE; case: (enum I)=>[|x s] //; move: (H x).
   by case: (fgraph f)=>/=; rewrite L; case.
-apply: vrf_seq; apply: val_do0=>[|x m [_][[<-]] K _|??[?][]] //.  
+apply: bnd_seq; apply: val_do0=>[|x m [_][[<-]] K _|??[?][]] //.  
 by apply: val_do0=>//; exists [ffun => f v], nil. 
 Qed.
 
@@ -144,8 +144,7 @@ step; apply: val_doR=>[V|[] m|e m []] //.
 by exists xs; rewrite V ptrA addn1 -addSnnS unitL.  
 Qed.
 Next Obligation.
-move=>_ /= [f][->] _; rewrite -[updi _ _]unitR. 
-apply: val_do=>[V|x m|e m []] /=; try by rewrite unitR.
+move=>_ /= [f][->] _; apply: val_do0=>[V|x m|e m []] //=. 
 exists (tval (fgraph f)).
 by rewrite ptr0 V {3}fgraph_codom /= codomE size_map -cardE. 
 Qed.

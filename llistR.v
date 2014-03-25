@@ -90,7 +90,7 @@ Definition insert p x :
       q ::= x;;
       ret q). 
 Next Obligation.
-by apply: ghE=>// i xs H _ _; step=>q; rewrite unitR -joinA; heval.
+by apply: ghE=>// i xs H _ _; step=>q; rewrite unitR -joinA; heval. 
 Qed.
 
 Program 
@@ -134,7 +134,7 @@ Next Obligation.
 apply: ghE=>// i [x1 x2][i1][i2][->] /= [H1 H2] _ D; case: eqP H1=>[->|E].
 - by case/(lseq_null (validL D))=>->->; rewrite unitL; heval. 
 case/lseq_pos=>[|xd [xn][h'][->] <- /= H1]; first by case: eqP.
-do !step; rewrite -!joinA -!(joinCA h').
+heval; rewrite -!joinA -!(joinCA h').
 apply: (gh_ex (behead x1, xd::x2)); apply: val_doR; first by vauto.
 - by move=>x m [r][/=]; rewrite rev_cons cat_rcons=>H [->] _; vauto.
 by move=>e m [r][_].
