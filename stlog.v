@@ -240,39 +240,45 @@ End Ghosts.
 (*
 Structure conseq_form A (e : ST A) (p : pre) (q : cont A) := 
   ValForm {conseq_pivot :> spec A;
-           _ : (forall i, p i -> verify i e q) -> conseq1 e conseq_pivot}.
+           _ : conseq_pivot.1 = p; 
+           _ : (forall i, p i -> verify i e q) -> conseq e conseq_pivot}.
 
 
 (* base case *)
 
 Lemma conseq_binarify A (e : ST A) (p : pre) (q : cont A) : 
          (forall i, p i -> verify i e q) -> 
-          conseq1 e (binarify p q).
+          conseq e (binarify p q).
 Proof.
 move=>H. simpl. rewrite /conseq.
 move=>i H1. move: (H _ H1).
-by apply: vrf_mono=>y m.
+apply: vrf_mono=>y m. simpl. by [].
 Qed.
 
 
 Lemma conseq_logvar A B (e : ST A) (p : B -> pre) (q : B -> cont A)
                     (f : forall (x : B), @conseq_form A e (p x) (q x)) :
          (forall x i, p x i -> verify i e (q x)) ->
-         conseq1 e (logvar (fun x => f x)).
+         conseq e (logvar (fun x => f x)).
 Proof.
 move=>H1 i /= [x] H2 V. 
-case: (f x) H2=>[s H3] /= H2.
-move: (H3 (H1 x)). 
-move=>H4.
+case: (f x) H2=>[[/= a b] PP H3] /= H2.
+move: (H3 (H1 x)). move=>H4.
 rewrite /conseq /= in H4. 
-have: (let '(x, _) := s in x) i.
-- by case: s {H3 H4} H2.
-move/H4. 
-move/(_ V).
-case=>T1 T2.
+
+subst a.
+
+move: (H1 _ _ H2 V). case=>T1 T2.
+
 split=>//.
 move=>y m /= T Vm z. 
+
+case: (f z)=>[[/= c d] PP1 H31]. simpl.
+move: (H31 (H1 z)). move=>H41.
+rewrite /conseq /= in H41.
+subst c.
 *)
+
 
 Definition pull (A : Type) x (v:A) := (joinC (x :-> v), joinCA (x :-> v)).
 Definition push (A : Type) x (v:A) := (joinCA (x :-> v), joinC (x :-> v)).
