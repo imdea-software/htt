@@ -13,6 +13,10 @@ Proof.
 by move=>H H1 /H1 {H1} [H1 H2]; split=>// y m H3 /(H2 _ _ H3); apply: H. 
 Qed.
 
+Lemma vrfV A (e : ST A) i (r : cont A) : 
+       (valid i -> verify i e r) -> verify i e r. 
+Proof. by move=>H V; apply: H. Qed.
+
 Lemma bnd_is_try (A B : Type) (e1 : ST A) (e2 : A -> ST B) i r : 
         verify i (ttry e1 e2 (throw B)) r ->
         verify i (bind e1 e2) r.
@@ -142,7 +146,7 @@ Qed.
 (***********************************************)
 
 Lemma gh_conseq A C t (s : C -> spec A) (e : STbin (logvar s)) :  
-        conseq e (s t).1 (s t).2.
+        conseq e (s t).
 Proof.
 case E: (s t)=>[a b] /= h H; rewrite -[h]unitR.
 apply: val_do'=>[|x m|x m]; try by move/(_ t); rewrite E !unitR.
@@ -199,7 +203,97 @@ Qed.
 End ValDoLemmas.
 
 
+(******************************************)
+(* Lemmas for pulling out ghost variables *)
+(******************************************)
+
+Section Ghosts.
+Variables (A B C : Type) (e : ST A).
+
+Lemma ghE (s : B -> C -> spec A) : 
+        conseq e (logvar (fun x => logvar (s x))) <->
+        conseq e (logvar (fun xy => s xy.1 xy.2)).
+Proof.
+split.
+- move=>/= H1 i [[x y]] H2.
+  have: exists x1 y1, let '(p, _) := s x1 y1 in p i by exists x, y. 
+  by move/H1; apply: vrf_mono=>y1 m1 T1 [x2 y2]; apply: (T1 x2 y2). 
+move=>/= H1 i [x][y] H2.  
+have: exists x, let '(p, _) := s x.1 x.2 in p i by exists (x, y). 
+by move/H1; apply: vrf_mono=>y1 m1 T1 x2 y2; apply: (T1 (x2, y2)).
+Qed.
+
+Lemma gh (p : B -> pre) (q : B -> ans A -> pre) :
+        (forall i x, p x i -> valid i -> verify i e (q x)) ->
+        conseq e (logvar (fun x => binarify (p x) (q x))).
+Proof.
+move=>H1 i /= [x] H2 V; case: (H1 _ _ H2 V V)=>H3 _.
+by split=>// y m H5 H6 z H7; case: (H1  _ _ H7 V V)=>_; apply. 
+Qed.
+
+End Ghosts.
+
+(* I really want something with canonical structures here *)
+(* but I can't get it; there's some invariant missing *)
+(* to signify that the leaf case must always be binarify *)
+
+(*
+Structure conseq_form A (e : ST A) (p : pre) (q : cont A) := 
+  ValForm {conseq_pivot :> spec A;
+           _ : (forall i, p i -> verify i e q) -> conseq1 e conseq_pivot}.
+
+
+(* base case *)
+
+Lemma conseq_binarify A (e : ST A) (p : pre) (q : cont A) : 
+         (forall i, p i -> verify i e q) -> 
+          conseq1 e (binarify p q).
+Proof.
+move=>H. simpl. rewrite /conseq.
+move=>i H1. move: (H _ H1).
+by apply: vrf_mono=>y m.
+Qed.
+
+
+Lemma conseq_logvar A B (e : ST A) (p : B -> pre) (q : B -> cont A)
+                    (f : forall (x : B), @conseq_form A e (p x) (q x)) :
+         (forall x i, p x i -> verify i e (q x)) ->
+         conseq1 e (logvar (fun x => f x)).
+Proof.
+move=>H1 i /= [x] H2 V. 
+case: (f x) H2=>[s H3] /= H2.
+move: (H3 (H1 x)). 
+move=>H4.
+rewrite /conseq /= in H4. 
+have: (let '(x, _) := s in x) i.
+- by case: s {H3 H4} H2.
+move/H4. 
+move/(_ V).
+case=>T1 T2.
+split=>//.
+move=>y m /= T Vm z. 
+*)
+
 Definition pull (A : Type) x (v:A) := (joinC (x :-> v), joinCA (x :-> v)).
 Definition push (A : Type) x (v:A) := (joinCA (x :-> v), joinC (x :-> v)).
+
+(* some notation for writing posts that signify no exceptions are raised *)
+
+Definition vfun' A (f : A -> heap -> Prop) : cont A := 
+  fun y i => if y is Val v then f v i else false.
+
+Notation "[ 'vfun' x => p ]" := (vfun' (fun x => p)) 
+  (at level 0, x ident, format "[ 'vfun'  x  =>  p ]") : fun_scope.
+
+Notation "[ 'vfun' x : aT => p ]" := (vfun' (fun (x : aT) => p)) 
+  (at level 0, x ident, only parsing) : fun_scope.
+
+Notation "[ 'vfun' x i => p ]" := (vfun' (fun x i => p)) 
+  (at level 0, x ident, format "[ 'vfun'  x  i  =>  p ]") : fun_scope.
+
+Notation "[ 'vfun' ( x : aT ) i => p ]" := (vfun' (fun (x : aT) i => p)) 
+  (at level 0, x ident, only parsing) : fun_scope.
+
+
 
 

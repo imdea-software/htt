@@ -84,27 +84,24 @@ Proof. by apply: lseg_neq. Qed.
 
 Program 
 Definition insert p x : 
-  {xs}, STsep (fun i => i \In lseq p xs, 
-               fun y m => exists q, m \In lseq q (x::xs) /\ y = Val q) :=
+  {xs}, STsep (lseq p xs, [vfun y => lseq y (x::xs)]) :=
   Do (q <-- allocb p 2; 
       q ::= x;;
       ret q). 
-Next Obligation.
-by apply: ghE=>// i xs H _ _; step=>q; rewrite unitR -joinA; heval. 
+Next Obligation. 
+by apply: gh=>i xs H _; step=>q; rewrite unitR -joinA; heval. 
 Qed.
 
 Program 
-Definition remove p : 
-  {xs}, STsep (fun i => i \In lseq p xs,
-               fun y m => exists q, m \In lseq q (behead xs) /\ y = Val q) :=
+Definition remove p : {xs}, STsep (lseq p xs, [vfun y => lseq y (behead xs)]) :=
   Do (if p == null then ret p 
       else pnext <-- !(p .+ 1);
            dealloc p;; 
            dealloc p .+ 1;;
            ret pnext). 
 Next Obligation.
-apply: ghE=>// i xs H _ D.
-case: ifP H=>H1; first by rewrite (eqP H1); case/(lseq_null D)=>->->; heval. 
+apply: gh=>i xs H V; case: ifP H=>H1.
+- by rewrite (eqP H1); case/(lseq_null V)=>->->; heval. 
 case/(lseq_pos (negbT H1))=>x [q][h][->] <- /= H2.
 by heval; rewrite 2!unitL; vauto.
 Qed.
@@ -116,14 +113,10 @@ Definition shape_rev p s := [Pred h | h \In lseq p.1 s.1 # lseq p.2 s.2].
    of proof, if revT is exactly the same as the spec of reverse p *)
 
 Definition revT : Type := 
-  forall p, {ps}, STsep (fun i => i \In shape_rev p ps,
-                         fun y m => exists r, m \In lseq r (rev ps.1 ++ ps.2) /\
-                                              y = Val r). 
+  forall p, {ps}, STsep (shape_rev p ps, [vfun y => lseq y (rev ps.1 ++ ps.2)]).
 
 Program 
-Definition reverse p : 
-  {xs}, STsep (fun i => i \In lseq p xs, 
-               fun y m => exists q, m \In lseq q (rev xs) /\ y = Val q) :=        
+Definition reverse p : {xs}, STsep (lseq p xs, [vfun y => lseq y (rev xs)]) :=
   Do (let: reverse := Fix (fun (reverse : revT) p => 
                         Do (if p.1 == null then ret p.2 
                             else xnext <-- !p.1 .+ 1;
@@ -131,19 +124,15 @@ Definition reverse p :
                                  reverse (xnext, p.1)))
       in reverse (p, null)).
 Next Obligation. 
-apply: ghE=>// i [x1 x2][i1][i2][->] /= [H1 H2] _ D; case: eqP H1=>[->|E].
-- by case/(lseq_null (validL D))=>->->; rewrite unitL; heval. 
+apply: gh=>i [x1 x2][i1][i2][->] /= [H1 H2] V; case: eqP H1=>[->|E].
+- by case/(lseq_null (validL V))=>->->; rewrite unitL; heval. 
 case/lseq_pos=>[|xd [xn][h'][->] <- /= H1]; first by case: eqP.
-heval; rewrite -!joinA -!(joinCA h').
-apply: (gh_ex (behead x1, xd::x2)); apply: val_doR; first by vauto.
-- by move=>x m [r][/=]; rewrite rev_cons cat_rcons=>H [->] _; vauto.
-by move=>e m [r][_].
+heval; rewrite -!joinA -!(joinCA h'); apply: (gh_ex (behead x1, xd::x2)).
+by apply: val_doR=>//; [vauto | move=>x m; rewrite rev_cons cat_rcons]. 
 Qed.
 Next Obligation.
-apply: ghE=>// i xs H _ _; apply: (gh_ex (xs, Nil T)).
-apply: val_do0=>//; first by exists i; hhauto. 
-- by move=>x m [r][/= H1][->] _; rewrite cats0 in H1 *; vauto. 
-by move=>e m [r][_].
+apply: gh=>i xs H _; apply: (gh_ex (xs, Nil T)).
+by apply: val_do0=>//; [exists i; hhauto | move=>x m /=; rewrite cats0]. 
 Qed.
 
 End LList. 

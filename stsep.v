@@ -152,20 +152,22 @@ Proof. by move=>H; rewrite -[i]unitL; apply: frame; apply: frame0. Qed.
 
 End SepFrame.
 
-Definition conseq A (e : ST A) (p : pre) (q : post A) := 
-  forall i, p i -> verify i e (fun y m => q y i m).
+Definition conseq A (e : ST A) (s : spec A) := 
+  forall i, s.1 i -> verify i e (fun y m => s.2 y i m).
 
+(*
 Local Notation conseq1 e s := 
   (conseq e (let 'pair x _ := s in x) 
             (let 'pair _ x := s in x)).
+*)
 
-Lemma conseq_refl A (e : ST A) : conseq1 e (spec_of e). 
+Lemma conseq_refl A (e : ST A) : conseq e (spec_of e). 
 Proof. by case: e=>s e i H; apply: frame0. Qed.
 
 Hint Resolve conseq_refl. 
 
 Section SepConseq.
-Variables (A : Type) (s2 : spec A) (e : ST A) (pf : conseq1 e s2).
+Variables (A : Type) (s2 : spec A) (e : ST A) (pf : conseq e s2).
 
 Lemma doP : Model.conseq [spec_of e] [s2].
 Proof.
@@ -364,68 +366,13 @@ Notation "{ x .. y }, 'STsep' ( p , q ) " :=
    (at level 0, x binder, y binder, right associativity).
 
 
-(******************************************)
-(* Lemmas for pulling out ghost variables *)
-(******************************************)
-
-(* the conseq lemmas should really pattern match on p as well *)
-(* but I can't be fixing that now *)
-
-Section Ghosts.
-Variables (A : Type) (e : ST A) (p : pre). 
-Notation s := (spec_of e). 
-
-Lemma allC (B1 B2 : Type) (q : B1 -> B2 -> post A) :
-       conseq e p (fun y i m => forall x1 x2, q x1 x2 y i m) <->
-       conseq e p (fun y i m => forall x, q x.1 x.2 y i m).
-Proof.
-split=>H1 i H2 D1; case: (H1 i H2 D1)=>S1 S2.
-- by split=>// y m H D [x1 x2]; apply: S2.
-by split=>// y m H D x1 x2; apply: (S2 y m H D (x1, x2)).
-Qed. 
-   
-Lemma impC (B : Type) (q1 q2 : heap -> B -> Prop) (r : B -> post A) :
-        conseq e p (fun y i m => forall x, q1 i x -> q2 i x -> r x y i m) <->
-        conseq e p (fun y i m => forall x, q1 i x /\ q2 i x -> r x y i m).
-Proof.
-split=>H1 i H2 D1; case: (H1 i H2 D1)=>S1 S2.
-- by split=>// y m H D x []; apply: S2.
-by split=>// *; apply: S2.
-Qed.
-
-Lemma ghE (B : Type) (q : heap -> B -> Prop) (r : B -> post A) : 
-        (forall i, p i -> valid i -> exists x, q i x) ->
-        (forall i x, q i x -> p i -> valid i ->
-           verify i e (fun y m => r x y i m)) ->
-        conseq e p (fun y i m => forall x, q i x -> r x y i m).
-Proof.
-move=>H1 H2 i H3 D1; case: (H1 i H3 D1)=>x H4.
-case: (H2 i x H4 H3 D1 D1)=>H5 _; split=>// y m H6 D2 z H7.
-by case: (H2 i z H7 H3 D1 D1)=>_; apply.
-Qed.
-
-End Ghosts.
-
-Definition gh := (allC, impC).
-
 Notation "x '<--' c1 ';' c2" := (bind c1 (fun x => c2)) 
   (at level 78, right associativity) : stsep_scope.
 Notation "c1 ';;' c2" := (bind c1 (fun _ => c2)) 
   (at level 78, right associativity) : stsep_scope.
 Notation "'!' x" := (read _ x) (at level 50) : stsep_scope.
 Notation "e1 '::=' e2" := (write e1 e2) (at level 60) : stsep_scope.
-(*
-Notation "'throw' [ t ] E" := (throw t E) 
-  (at level 70, no associativity) : stsep_scope.
-Notation "'ttry' E 'then' [ r ] E1 'else' [ x ] E2" := 
-  (try E (fun r => E1) (fun x => E2)) (at level 80) : stsep_scope.
-Notation "'ttry' E 'then' [ r ] E1 'else' E2" := 
-  (try E (fun r => E1) (fun _ => E2)) (at level 80) : stsep_scope.
-Notation "'ttry' E 'then' E1 'else' [ x ] E2" := 
-  (try E (fun _ => E1) (fun x => E2)) (at level 80) : stsep_scope.
-Notation "'ttry' E 'then' E1 'else' E2" := 
-  (try E (fun _ => E1) (fun _ => E2)) (at level 80) : stsep_scope.
-*)
+
 
 
 
