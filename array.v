@@ -152,8 +152,7 @@ Program Definition read (a : array) (k : I) :
                  [vfun y m => m = h /\ y = (f k)]) :=
   Do (!a .+ (indx k)).
 Next Obligation.
-rewrite ghE; apply: gh=>x [f h][->][/= ->] _ _.
-by rewrite /shape (updi_split a k); step. 
+by apply: ghR=>x [f h][->][/= ->] _ _; rewrite /shape (updi_split a k); step. 
 Qed.
 
 
@@ -162,7 +161,7 @@ Program Definition write (a : array) (k : I) (x : T) :
               [vfun _ => shape a [ffun z => [eta f with k |-> x] z]]) :=
   Do (a .+ (indx k) ::= x). 
 Next Obligation.
-apply: gh=>_ f [->] _ _; rewrite /shape !(updi_split a k).
+apply: ghR=>_ f [->] _ _; rewrite /shape !(updi_split a k).
 by step; rewrite takeord dropord ffunE eq_refl.
 Qed.
 

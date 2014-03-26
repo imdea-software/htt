@@ -89,7 +89,7 @@ Definition insert p x :
       q ::= x;;
       ret q). 
 Next Obligation. 
-by apply: gh=>i xs H _; step=>q; rewrite unitR -joinA; heval. 
+by apply: ghR=>i xs H _; step=>q; rewrite unitR -joinA; heval. 
 Qed.
 
 Program 
@@ -100,17 +100,13 @@ Definition remove p : {xs}, STsep (lseq p xs, [vfun y => lseq y (behead xs)]) :=
            dealloc p .+ 1;;
            ret pnext). 
 Next Obligation.
-apply: gh=>i xs H V; case: ifP H=>H1.
+apply: ghR=>i xs H V; case: ifP H=>H1.
 - by rewrite (eqP H1); case/(lseq_null V)=>->->; heval. 
 case/(lseq_pos (negbT H1))=>x [q][h][->] <- /= H2.
 by heval; rewrite 2!unitL; vauto.
 Qed.
 
 Definition shape_rev p s := [Pred h | h \In lseq p.1 s.1 # lseq p.2 s.2].
-
-
-(* hmm, this is a tail recursive program; probably could shave off a few lines
-   of proof, if revT is exactly the same as the spec of reverse p *)
 
 Definition revT : Type := 
   forall p, {ps}, STsep (shape_rev p ps, [vfun y => lseq y (rev ps.1 ++ ps.2)]).
@@ -124,14 +120,14 @@ Definition reverse p : {xs}, STsep (lseq p xs, [vfun y => lseq y (rev xs)]) :=
                                  reverse (xnext, p.1)))
       in reverse (p, null)).
 Next Obligation. 
-apply: gh=>i [x1 x2][i1][i2][->] /= [H1 H2] V; case: eqP H1=>[->|E].
+apply: ghR=>i [x1 x2][i1][i2][->] /= [H1 H2] V; case: eqP H1=>[->|E].
 - by case/(lseq_null (validL V))=>->->; rewrite unitL; heval. 
 case/lseq_pos=>[|xd [xn][h'][->] <- /= H1]; first by case: eqP.
 heval; rewrite -!joinA -!(joinCA h'); apply: (gh_ex (behead x1, xd::x2)).
 by apply: val_doR=>//; [vauto | move=>x m; rewrite rev_cons cat_rcons]. 
 Qed.
 Next Obligation.
-apply: gh=>i xs H _; apply: (gh_ex (xs, Nil T)).
+apply: ghR=>i xs H _; apply: (gh_ex (xs, Nil T)).
 by apply: val_do0=>//; [exists i; hhauto | move=>x m /=; rewrite cats0]. 
 Qed.
 
