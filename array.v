@@ -72,7 +72,6 @@ move=>y H5; rewrite /f' /= !ffunE /=; case: eqP H5 H4=>// -> ->.
 by rewrite !andbF.
 Qed.    
 
-
 (* main methods *)
 
 Program Definition new (x : T) : STsep (emp, [vfun y => shape y [ffun => x]]) :=

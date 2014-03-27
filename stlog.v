@@ -1,6 +1,6 @@
 Set Automatic Coercions Import.
 Require Import ssreflect ssrbool ssrnat eqtype seq ssrfun.
-Require Import pred prelude domain pcm unionmap heap stmod stsep. 
+Require Import pred domain pcm unionmap heap stmod stsep. 
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -232,64 +232,6 @@ by split=>// y m H5 H6 z H7; case: (H1  _ _ H7 V V)=>_; apply.
 Qed.
 
 End Ghosts.
-
-(**************************************************************************)
-(* A simple canonical structure program to automate applying ghE and gh.  *)
-(*                                                                        *)
-(* The gh_form pivots on a spec, and computes as output the following.    *)
-(* - rT is a product of types of all encounted ghost vars.                *)
-(* - p and q are pre and post parametrized by rT that should be output by *)
-(*   the main lemma.                                                      *)
-(*                                                                        *)
-(* In the future, rT should be a list of types, rather than a product,    *)
-(* but that leads to arity polimorphism, and dependent programming, which *)
-(* I want to avoid for now.                                               *)
-(**************************************************************************)
-
-Section Automation.
-Structure tagged_spec A := gh_step {gh_untag :> spec A}.
-Canonical Structure gh_base A (s : spec A) := gh_step s.
-
-Definition gh_axiom A rT p q (pivot : tagged_spec A) := 
-  gh_untag pivot = logvar (fun x : rT => binarify (p x) (q x)).
-
-Structure gh_form A rT (p : rT -> pre) (q : rT -> cont A) := GhForm {
-   gh_pivot :> tagged_spec A;
-   _ : gh_axiom p q gh_pivot}. 
-
-(* the main lemma for simplification *)
-
-Lemma ghR A e rT p q (f : @gh_form A rT p q) : 
-        (forall i x, p x i -> valid i -> verify i e (q x)) ->
-        conseq e f. 
-Proof. by case: f=>p' ->; apply: gh. Qed.
-
-(* base case; check if we reached binarify *)
-
-Lemma gh_base_pf A rT (p : rT -> pre) (q : rT -> cont A) :
-        gh_axiom p q (gh_base (logvar (fun x => binarify (p x) (q x)))).
-Proof. by []. Qed.
-
-Canonical gh_base_struct A rT p q := GhForm (@gh_base_pf A rT p q).
-                 
-(* inductive step case; merge logvars and continue *)
-
-Lemma gh_step_pf A B rT p q (f : forall x : A, @gh_form B rT (p x) (q x)) : 
-        gh_axiom (fun xy => p xy.1 xy.2) (fun xy => q xy.1 xy.2)
-                 (gh_step (logvar (fun x => f x))).
-Proof. 
-congr (_, _).
-- apply: fext=>i; apply: pext; split. 
-  - by case=>x; case: (f x)=>[_ ->] /= [y H]; exists (x, y). 
-  by case; case=>x y; exists x; case: (f x)=>[_ ->]; exists y.  
-apply: fext=>y; apply: fext=>i; apply: fext=>m; apply: pext; split.
-- by move=>H [x z] /= H1; case: (f x) (H x)=>[_ ->]; apply.  
-by move=>H x; case: (f x)=>[_ ->] z; apply: (H (x, z)).
-Qed.
-
-Canonical gh_step_struct A B rT p q f := GhForm (@gh_step_pf A B rT p q f). 
-
-End Automation.
 
 (* some additional stuff *)
 
