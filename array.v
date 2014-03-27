@@ -85,7 +85,7 @@ Qed.
 
 
 Definition newf_loop a (f : {ffun I -> T}) : Type :=
-  forall s : seq I, STsep (fun i => exists g, exists s', [/\ i \In shape a g, 
+  forall s : seq I, STsep (fun i => exists g s', [/\ i \In shape a g, 
                                       s' ++ s = enum I & 
                                       forall x, x \in s' -> g x = f x], 
                            [vfun y => shape y f]).
