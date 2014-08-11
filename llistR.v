@@ -127,7 +127,7 @@ heval; rewrite -!joinA -!(joinCA h'); apply: (gh_ex (behead x1, xd::x2)).
 by apply: val_doR=>//; [vauto | move=>x m; rewrite rev_cons cat_rcons]. 
 Qed.
 Next Obligation.
-apply: ghR=>i xs H _; apply: (gh_ex (xs, Nil T)).
+apply: ghR=>i xs H _; apply: (gh_ex (xs, [::])).
 by apply: val_do0=>//; [exists i; hhauto | move=>x m /=; rewrite cats0]. 
 Qed.
 
