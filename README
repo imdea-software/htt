@@ -1,0 +1,32 @@
+Fine-grained Concurrent Separation Logic
+========================================
+
+This repository contains the main libraries of Hoare Type Theory (HTT)
+for reasoning about sequential heap-manipulating programs.
+
+Building and executing artifacts
+================================
+
+*** REQUIREMENTS ***
+
+Coq 8.4       http://racky.imdeasoftware.org/constructive/htt/coq-8.4.tar.gz 
+SSReflect 1.4 http://racky.imdeasoftware.org/constructive/htt/ssreflect-1.4-coq8.4.tar.gz
+
+After installing SSReflect, make sure to have the following
+environment variables properly declared.
+
+*** ENVIRONMENT VARIABLES ***
+
+COQC=[...]/ssreflect-1.4/bin/ssrcoq
+COQBIN=[...]/coq-8.4/bin/
+COQ_MK=[...]/coq-8.4/bin/coq_makefile
+SSRCOQ_LIB=[...]/ssreflect-1.4/theories
+
+COQBIN and COQ_MK can be empty if they are in the PATH.
+
+For further information or assistance compiling this files contact
+aleks.nanevski@imdea.org
+
+*** BUILD ***
+
+make clean; make
