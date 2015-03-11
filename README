@@ -1,5 +1,5 @@
-Fine-grained Concurrent Separation Logic
-========================================
+Hoare Type Theory
+=================
 
 This repository contains the main libraries of Hoare Type Theory (HTT)
 for reasoning about sequential heap-manipulating programs.
