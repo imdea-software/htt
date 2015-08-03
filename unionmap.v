@@ -82,7 +82,7 @@ Definition dom_eq f1 f2 :=
   | _, _ => false
   end.
 
-emacs Definition free k f := 
+Definition free k f := 
   if f is Def fs pf then Def (all_supp_remP k pf)
   else Undef.
 
