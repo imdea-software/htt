@@ -82,7 +82,7 @@ Definition dom_eq f1 f2 :=
   | _, _ => false
   end.
 
-Definition free k f := 
+emacs Definition free k f := 
   if f is Def fs pf then Def (all_supp_remP k pf)
   else Undef.
 
@@ -1669,7 +1669,7 @@ Lemma um_ind' (P : U -> Prop) :
          P um_undef -> P Unit ->
          (forall k v f, P f -> valid (k \\-> v \+ f) -> P (k \\-> v \+ f)) ->
          forall f, P f.
-Proof. exact: gen_ind'. Qed.
+Proof. by move=>H1 H2 H3; apply: gen_ind'. Qed.
 
 End UMPointsToLemmas.
 
