@@ -108,7 +108,7 @@ Lemma base_ind' (P : base -> Prop) :
                         P (union (pts k v) f)) ->
          forall f, P f.
 Proof.
-rewrite /empty => H1 H2 H3; apply: base_ind=>//. 
+rewrite /empty => H1 H2 H3; apply: UM.base_ind=>//. 
 apply: fmap_ind'=>[|k v f S IH] H. 
 - by set f := Def _ in H2; rewrite (_ : Def H = f) // /f umapE.
 have N : k \notin supp f by apply: notin_path S.
