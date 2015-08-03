@@ -1,5 +1,6 @@
 Require Import Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrnat. 
-Require Import MathComp.div Ssreflect.ssrbool Ssreflect.seq Ssreflect.path Ssreflect.eqtype.
+Require Import MathComp.div Ssreflect.ssrbool Ssreflect.seq. 
+Require Import MathComp.path Ssreflect.eqtype.
 Require Import Eqdep pred idynamic ordtype pcm finmap unionmap. 
 Set Implicit Arguments.
 Unset Strict Implicit.
