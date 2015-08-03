@@ -1,4 +1,4 @@
-Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq.
+Require Import Ssreflect.ssreflect Ssreflect.ssrbool Ssreflect.ssrnat Ssreflect.eqtype Ssreflect.ssrfun Ssreflect.seq.
 Require Import idynamic ordtype finmap pcm.
 Set Implicit Arguments.
 Unset Strict Implicit.
