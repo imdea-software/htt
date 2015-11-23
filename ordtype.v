@@ -1,4 +1,5 @@
-Require Import Ssreflect.ssreflect Ssreflect.ssrbool Ssreflect.ssrnat Ssreflect.eqtype Ssreflect.ssrfun Ssreflect.seq. 
+Require Import Ssreflect.ssreflect Ssreflect.ssrbool Ssreflect.ssrnat.
+Require Import Ssreflect.eqtype Ssreflect.ssrfun Ssreflect.seq.
 Require Import MathComp.path Ssreflect.fintype.
 Set Implicit Arguments.
 Unset Strict Implicit.

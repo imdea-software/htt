@@ -1,4 +1,5 @@
-Require Import Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool Ssreflect.eqtype Ssreflect.seq Setoid Morphisms.
+Require Import Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool.
+Require Import Ssreflect.eqtype Ssreflect.seq Setoid Morphisms.
 Set Implicit Arguments.
 Unset Strict Implicit. 
 Unset Printing Implicit Defensive. 
