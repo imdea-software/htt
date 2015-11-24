@@ -1,4 +1,5 @@
-Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq.
+Require Import Ssreflect.ssreflect Ssreflect.ssrbool Ssreflect.ssrnat.
+Require Import Ssreflect.eqtype Ssreflect.ssrfun Ssreflect.seq.
 Require Import pred prelude ordtype domain finmap.
 Set Implicit Arguments.
 Unset Strict Implicit.

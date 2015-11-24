@@ -1,4 +1,5 @@
-Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq pred.
+Require Import Ssreflect.ssreflect Ssreflect.ssrbool Ssreflect.ssrnat.
+Require Import Ssreflect.eqtype Ssreflect.ssrfun Ssreflect.seq pred.
 Require Import Eqdep ClassicalFacts.
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -160,5 +161,3 @@ Implicit Arguments and6P [b1 b2 b3 b4 b5 b6].
 Implicit Arguments or5P [b1 b2 b3 b4 b5].
 Implicit Arguments or6P [b1 b2 b3 b4 b5 b6].
 Prenex Implicits and6P or5P or6P.
-
-

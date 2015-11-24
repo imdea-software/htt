@@ -57,3 +57,4 @@ cv/*.out
 # HTT specific stuff
 Makefile.coq
 loadpath.v
+.*
