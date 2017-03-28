@@ -77,7 +77,7 @@ Qed.
 (* main methods *)
 
 Program Definition new (x : T) : STsep (emp, [vfun y => shape y [ffun => x]]) :=
-  Do (x <-- allocb x #|I|; 
+  Do (x <-- allocb x #|I|;
       ret (Array x)).
 Next Obligation.
 move=>i ->; step=>y; heval; rewrite unitR; vauto; congr updi. 
@@ -105,9 +105,9 @@ Program Definition newf (f : {ffun I -> T}) :
       else ret (Array null)).
 Next Obligation. 
 move=>_ /= [g][s'][[->]]; case: s=>[|k t] /= _ H1 H2.
-- rewrite cats0 in H1; step; vauto.  
+- rewrite cats0 in H1; step; vauto.
   by rewrite (_ : g = f) // -ffunP=>y; apply: H2; rewrite H1 mem_enum.
-rewrite (updi_split x k); step; apply: val_do0=>//. 
+rewrite (updi_split x k); step; apply: val_do0=>//.
 exists (finfun [eta g with k |-> f k]), (s' ++ [:: k]).
 rewrite /shape (updi_split x k) takeord dropord (ffunE _ _) /= eq_refl -catA.
 split=>// y; rewrite ffunE /= mem_cat inE /=.
@@ -138,13 +138,13 @@ Definition free (a : array) :
                         f k.+1)) 
       in f 0).
 Next Obligation.
-move=>_ /= [[|v xs]][->] /= _; first by rewrite add0n=>/eqP ->; apply: val_ret. 
-case: eqP=>[->|_ H]; first by move/eqP; rewrite -{2}(add0n #|I|) eqn_add2r. 
-by step; apply: val_doR=>// V; exists xs; rewrite V ptrA addn1 -addSnnS unitL.  
+move=>_ /= [[|v xs]][->] /= _; first by rewrite add0n=>/eqP ->; apply: val_ret.
+case: eqP=>[->|_ H]; first by move/eqP; rewrite -{2}(add0n #|I|) eqn_add2r.
+by step; apply: val_doR=>// V; exists xs; rewrite V ptrA addn1 -addSnnS unitL.
 Qed.
 Next Obligation.
 move=>_ /= [f][->] _; apply: val_do0=>// V; exists (tval (fgraph f)).
-by rewrite ptr0 V {3}fgraph_codom /= codomE size_map -cardE. 
+by rewrite ptr0 V {3}fgraph_codom /= codomE size_map -cardE.
 Qed.
 
 
