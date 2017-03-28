@@ -1,9 +1,10 @@
-Require Import Ssreflect.ssreflect Ssreflect.ssrbool Ssreflect.ssrnat. 
-Require Import Ssreflect.eqtype Ssreflect.seq Ssreflect.ssrfun.
-Require Import pred pcm unionmap heap heaptac stmod stsep stlog stlogR. 
-Set Implicit Arguments. 
-Unset Strict Implicit. 
-Set Automatic Coercions Import.
+From mathcomp.ssreflect
+Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq fintype.
+From mathcomp.ssreflect
+Require Import tuple finfun finset.
+Require Import pred pcm unionmap heap heaptac domain stmod stsep stlog stlogR. 
+Set Implicit Arguments.
+Unset Strict Implicit.
 Unset Printing Implicit Defensive. 
 
 (* linked lists, storing a value and next pointer in consecutive locations *)
