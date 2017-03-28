@@ -43,19 +43,20 @@ by move=>E; rewrite E eq_refl in H.
 Qed.
 (******************************************************************)
 
+(* Type of recursive map *)
 Definition llist_map_type (f : T -> S) :=
   forall (p : ptr),   
     {xs : seq T}, STsep (fun h => llist p xs h,
                          fun (_ : ans unit) h => llist p (map f xs) h).
 
 Program Definition llist_map f : llist_map_type f := 
-  Fix (fun (map : llist_map_type f) p => 
+  Fix (fun (lmap : llist_map_type f) p => 
     Do (if p == null
         then ret tt 
         else t <-- !p;
              p ::= f t;;
              nxt <-- !p .+ 1;
-             map nxt)).
+             lmap nxt)).
 
 Next Obligation.
 (* Deconstruct the precondition *)
