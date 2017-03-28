@@ -41,6 +41,7 @@ Proof.
 case: xs=>[|x xs] /= H []; last by move=>y [h'][->] H1; hhauto.
 by move=>E; rewrite E eq_refl in H.
 Qed.
+
 (******************************************************************)
 
 (* Type of recursive map *)
