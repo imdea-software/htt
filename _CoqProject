@@ -1,4 +1,6 @@
--R . ""
+-Q . HTT
+-arg "-w -notation-overridden,-local-declaration,-redundant-canonical-projection,-projection-no-head-constant"
+
 Core/pred.v
 Core/prelude.v
 Core/idynamic.v

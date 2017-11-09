@@ -1,8 +1,6 @@
-From mathcomp.ssreflect
-Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq fintype.
-From mathcomp.ssreflect
-Require Import tuple finfun finset.
-Require Import pred pcm unionmap heap heaptac domain stmod stsep stlog stlogR. 
+From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq fintype.
+From mathcomp Require Import tuple finfun finset.
+From HTT Require Import pred pcm unionmap heap heaptac domain stmod stsep stlog stlogR. 
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive. 
@@ -16,7 +14,7 @@ Prenex Implicits indx.
 (***********************************)
 
 Record array (I : finType) (T : Type) : Type := Array {orig :> ptr}.
-Implicit Arguments Array [I T]. 
+Arguments Array [I T]. 
 
 Definition array_for (I : finType) (T : Type) of phant (I -> T) := array I T. 
 Identity Coercion array_for_array : array_for >-> array.

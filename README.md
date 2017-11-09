@@ -7,12 +7,22 @@ for reasoning about sequential heap-manipulating programs.
 
 ### Requirements 
 
-* Coq 8.5pl3 (available from https://coq.inria.fr/coq-85)
-* Mathematical Components 1.6.1 (http://math-comp.github.io/math-comp/)
+* Coq 8.7 (available from https://coq.inria.fr/download))
+* Mathematical Components 1.6.2 (http://math-comp.github.io/math-comp/)
 
-After installing SSReflect, make sure to have the following
-environment variables properly declared.
+For the installation, follow instructions in the corresponding
+`README` files.
 
-### Build 
+Alternatively, Coq and mathcomp can be installed via the `opam`
+package manager, by executing the following commands in the console:
 
+```
+opam repo add coq-released https://coq.inria.fr/opam/released
+opam install coq-mathcomp-ssreflect
+```
+
+### Build
+
+```
 make clean; make
+```
