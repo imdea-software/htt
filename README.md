@@ -8,7 +8,7 @@ for reasoning about sequential heap-manipulating programs.
 ### Requirements 
 
 * Coq 8.7 (available from https://coq.inria.fr/download))
-* Mathematical Components 1.6.2 (http://math-comp.github.io/math-comp/)
+* Mathematical Components 1.6.4 (http://math-comp.github.io/math-comp/)
 
 For the installation, follow instructions in the corresponding
 `README` files.
