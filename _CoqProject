@@ -1,4 +1,5 @@
--Q . HTT
+-Q Core HTT
+-Q Examples HTT
 -arg "-w -notation-overridden,-local-declaration,-redundant-canonical-projection,-projection-no-head-constant"
 
 Core/pred.v

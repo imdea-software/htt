@@ -1,12 +1,19 @@
-all: default doc
+all: default
+
 default: Makefile.coq
-	make -f Makefile.coq
+	$(MAKE) -f Makefile.coq
+
+quick: Makefile.coq
+	$(MAKE) -f Makefile.coq quick
+
+install: Makefile.coq
+	$(MAKE) -f Makefile.coq install
 
 clean: Makefile.coq
-	make -f Makefile.coq clean
+	$(MAKE) -f Makefile.coq cleanall
 	rm -f Makefile.coq
 
 Makefile.coq: _CoqProject
-	coq_makefile -f _CoqProject > Makefile.coq
+	coq_makefile -f _CoqProject -o Makefile.coq
 
-.PHONY: coq clean doc
+.PHONY: all default quick clean install
