@@ -3,7 +3,7 @@
 This repository contains the main libraries of Hoare Type Theory (HTT)
 for reasoning about sequential heap-manipulating programs.
 
-## Building and executing artifacts
+## Building and installing artifacts
 
 ### Requirements 
 
@@ -25,4 +25,10 @@ opam install coq-mathcomp-ssreflect
 
 ```
 make clean; make
+```
+
+### Install
+
+```
+make install
 ```
