@@ -7,18 +7,19 @@ for reasoning about sequential heap-manipulating programs.
 
 ### Requirements 
 
-* Coq 8.7 (available from https://coq.inria.fr/download))
-* Mathematical Components 1.6.4 (http://math-comp.github.io/math-comp/)
+* [Coq](https://coq.inria.fr/download), versions from 8.7 to 8.11.1
+* [Mathematical Components](http://math-comp.github.io/math-comp/), versions from 1.6.2 to 1.10.0 (`ssreflect` package)
+* [FCSL-PCM](https://github.com/imdea-software/fcsl-pcm), versions 1.0.0, 1.1.0, or 1.2.0
 
 For the installation, follow instructions in the corresponding
 `README` files.
 
-Alternatively, Coq and mathcomp can be installed via the `opam`
+Alternatively, Coq and mathcomp can be installed via the [`opam`](https://opam.ocaml.org/doc/Install.html)
 package manager, by executing the following commands in the console:
 
 ```
 opam repo add coq-released https://coq.inria.fr/opam/released
-opam install coq-mathcomp-ssreflect
+opam install coq-mathcomp-ssreflect coq-fcsl-pcm
 ```
 
 ### Build

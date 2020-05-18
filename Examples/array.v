@@ -1,6 +1,11 @@
-From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq fintype.
-From mathcomp Require Import tuple finfun finset.
-From HTT Require Import pred pcm unionmap heap heaptac domain stmod stsep stlog stlogR. 
+From mathcomp
+Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq fintype.
+From mathcomp
+Require Import tuple finfun finset.
+From fcsl
+Require Import pred pcm unionmap heap.
+From HTT
+Require Import domain stmod stsep stlog stlogR.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive. 
@@ -79,7 +84,7 @@ Program Definition new (x : T) : STsep (emp, [vfun y => shape y [ffun => x]]) :=
       ret (Array x)).
 Next Obligation.
 move=>i ->; step=>y; heval; rewrite unitR; vauto; congr updi. 
-rewrite fgraph_codom /= codomE cardE.
+rewrite ?fgraph_codom /= codomE cardE.
 by elim: (enum I)=>[|t ts] //= ->; rewrite (ffunE _ _). 
 Qed.
 
@@ -116,6 +121,7 @@ move=>_ ->; case: fintype.pickP=>[v|] H /=.
 - apply: bnd_seq; apply: val_do0=>//= x m [->] _ _.
   by apply: val_do0=>//; exists [ffun => f v], nil. 
 step; do !split=>//. 
+rewrite ?codom_ffun.
 suff L: #|I| = 0 by case: (fgraph f)=>/=; rewrite L; case.
 by rewrite cardE; case: (enum I)=>[|x s] //; move: (H x).
 Qed.
@@ -142,7 +148,7 @@ by step; apply: val_doR=>// V; exists xs; rewrite V ptrA addn1 -addSnnS unitL.
 Qed.
 Next Obligation.
 move=>_ /= [f][->] _; apply: val_do0=>// V; exists (tval (fgraph f)).
-by rewrite ptr0 V {3}fgraph_codom /= codomE size_map -cardE.
+by rewrite ptr0 V {3}fgraph_codom /= codomE size_map -cardE addn0.
 Qed.
 
 

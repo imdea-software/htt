@@ -1,6 +1,6 @@
 From mathcomp Require Import ssrbool ssreflect ssrfun ssrnat div seq path eqtype.
 Require Import Eqdep.
-From HTT Require Import pred idynamic ordtype pcm finmap unionmap heap. 
+From fcsl Require Import axioms pred ordtype pcm finmap unionmap heap.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive. 
@@ -31,7 +31,7 @@ Proof. by rewrite -!(joinC (x :-> _))=>D /(hcancelV D) [->]. Qed.
 
 Lemma eqUh h1 h2 h : 
         valid (h1 \+ h) -> h1 \+ h = h2 \+ h -> valid h1 /\ h1 = h2. 
-Proof. by move=>D E; rewrite {2}(joinKf D E) (validL D). Qed.
+Proof. by move=>D E; rewrite {2}(joinKx D E) (validL D). Qed.
 
 Lemma exit1 h1 h2 h : valid (h1 \+ h) -> h1 \+ h = h \+ h2 -> valid h1 /\ h1 = h2.
 Proof. by move=>D; rewrite (joinC h); apply: eqUh. Qed.
@@ -42,7 +42,7 @@ Proof. by move=>H1; rewrite -{2}(unitR h)=>H2; apply: exit1 H2. Qed.
 Lemma exit3 h1 h : valid h -> h = h \+ h1 -> valid (Unit : heap) /\ Unit = h1.
 Proof.
 move=>H1 H2; split=>//; rewrite -{1}(unitR h) in H2.
-by move/joinfK: H2; rewrite unitR; apply.
+by move/joinxK: H2; rewrite unitR; apply.
 Qed.
 
 Lemma exit4 h : valid h -> h = h -> valid (Unit : heap) /\ Unit = Unit :> heap. 
@@ -198,7 +198,7 @@ Proof. by move=>H1 H2; heap_congr. Qed.
 (* and a tactic for computing the subdom relation *)
 
 Section Defcheck.
-Local Notation idyn v := (@idyn _ id _ v).
+Local Notation idyn v := (@dyn _ id _ v).
 
 Implicit Type h : heap. 
 
@@ -242,7 +242,7 @@ Proof. by case: h=>[//|h H _]; apply/allP. Qed.
 Lemma subdomD h1 h2 h : subdom h1 h2 -> valid (h2 \+ h) -> valid (h1 \+ h).
 Proof.
 case: h1 h2 h=>[|h1 H1]; case=>[|h2 H2]; case=>[|h H] //=.
-rewrite /subdom /valid /PCM.join /= !umE /UM.valid /UM.union /=.
+rewrite /subdom /valid /PCM.join /= !umEX /UM.valid /UM.union /=.
 case: ifP=>E1 //; case: ifP=>E2 // E _.
 case: disjP E2=>// x H3 H4 _; case: disjP E1=>// X1 _.
 by case: (allP (s := supp h1)) E=>//; move/(_ _ H3); move/X1; rewrite H4.
@@ -252,7 +252,7 @@ Lemma subdomE h1 h2 h :
         valid (h2 \+ h) -> subdom h1 h2 -> subdom (h1 \+ h) (h2 \+ h).
 Proof.
 case: h1 h2 h=>[|h1 H1]; case=>[|h2 H2]; case=>[|h H] //=.
-rewrite /subdom /valid /PCM.join /= !umE /UM.valid /UM.union /=.
+rewrite /subdom /valid /PCM.join /= !umEX /UM.valid /UM.union /=.
 case: ifP=>E1 // _; case: ifP=>E2 /=; 
 case: (allP (s:=supp h1))=>// E _; last first.
 - case: disjP E2=>// x H3 H4; move/E: H3.
@@ -268,7 +268,7 @@ Lemma subdomUE h1 h2 h1' h2' :
 Proof.
 case: h1 h2 h1' h2'=>[|h1 H1]; case=>[|h2 H2]; 
 case=>[|h1' H1']; case=>[|h2' H2'] //.
-rewrite /subdom /valid /PCM.join /= !umE /UM.valid /UM.union /=.
+rewrite /subdom /valid /PCM.join /= !umEX /UM.valid /UM.union /=.
 case: ifP=>E1 // _; case: ifP=>E2 //= T1 T2; last first.
 - case: disjP E2=>// x; case: allP T1=>// X _; move/X=>{X}. 
   case: disjP E1=>// X _; move/X=>{X}.
@@ -309,7 +309,7 @@ apply/subdomP=>[//||x in1]; first by apply negbT.
 by apply: (subdomQ H2) (subdomQ H1 in1).
 Qed.
 
-Hint Resolve subdom_emp subdomPE.
+Hint Resolve subdom_emp subdomPE : core.
 
 
 (* swap the arguments *)
@@ -351,7 +351,10 @@ Lemma supdomUh A B h1 h2 x (v1 : A) (v2 : B) :
 Proof.
 move=>H1 H2.
 apply: subdomUE=>//; first by apply: H2; apply: validL H1.
-by apply: subdomPE; apply: (@hvalidPt_cond _ x v2 h2); rewrite joinC.
+apply: subdomPE.
+move: H1.
+rewrite validUnPt.
+by move/and3P; case.
 Qed.
 
 Lemma supdomeqUh h1 h2 h : 
@@ -371,10 +374,10 @@ Ltac supdom_checker t H :=
      let j := fresh "j" in
      set j := {1}(h1 \+ t); 
      rewrite -1?joinA /j {j};
-     (apply: (sexit1 H)=>{H} H || apply: (sexit2 H)=>{H} H)
+     (apply: (sexit1 H)=>{H} -H || apply: (sexit2 H)=>{H} -H)
   | |- is_true (supdom t ?h1) => 
      rewrite -1?joinA;
-     (apply: (sexit3 H)=>{H} H || apply: (sexit4 H)=>{H} H)
+     (apply: (sexit3 H)=>{H} -H || apply: (sexit4 H)=>{H} -H)
   | |- is_true (supdom (?h1 \+ (?x :-> ?v)) ?h2) => 
     let j := fresh "j" in 
     set j := {1}(h1 \+ (x :-> v));
@@ -382,7 +385,7 @@ Ltac supdom_checker t H :=
     rewrite 1?(joinC (x :-> _)) -?(joinAC _ _ (x :-> _)) /j {j}; 
     (* then one of the following must apply *)
     (* if x is in the second union then cancel *)
-    (apply: (supdomUh _ H)=>{H} H || 
+    (apply: (supdomUh _ H)=>{H} -H ||
     (* if not, rotate x in the first union *)
      (rewrite (joinC h1) ?joinA in H * )); supdom_checker t H
   (* if the heap is not a points-to relation, also try to cancel *)
@@ -393,7 +396,7 @@ Ltac supdom_checker t H :=
     rewrite 1?(joinC h) -?(joinAC _ _ h) /j {j}; 
     (* then one of the following must apply *)
     (* if h is in the second union then cancel *)
-    (apply: (supdomeqUh H)=>{H} H || 
+    (apply: (supdomeqUh H)=>{H} -H ||
     (* if not, rotate h in the first union *)
     (rewrite (joinC h1) ?joinA in H * )); 
     (* and proceed *)
