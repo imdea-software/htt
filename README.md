@@ -27,3 +27,9 @@ opam install coq-mathcomp-ssreflect coq-fcsl-pcm
 ```
 make clean; make
 ```
+
+### Install
+
+```
+make install
+```
