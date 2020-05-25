@@ -31,5 +31,5 @@ tags: [
   "logpath:htt"
 ]
 url {
-  src: "git+https://github.com/TyGuS/htt.git#update-deps"
+  src: "git+https://github.com/TyGuS/htt.git"
 }
