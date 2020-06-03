@@ -7,9 +7,9 @@ maintainer: [
   "Germán Andrés Delbianco"
 ]
 authors: [
-  "Aleks Nanevski"
-  "Ilya Sergey"
-  "Germán Andrés Delbianco"
+  "Aleks Nanevski <aleks.nanevski@imdea.org>"
+  "Alex Gryzlov <aliaksandr.hryzlou@imdea.org>"
+  "Germán Andrés Delbianco <german@nomadic-labs.com>"
 ]
 homepage: ["https://github.com/imdea-software/htt"]
 bug-reports: ["https://github.com/imdea-software/htt"]
