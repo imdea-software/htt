@@ -1,8 +1,12 @@
+
 From mathcomp.ssreflect
 Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq fintype.
 From mathcomp.ssreflect
 Require Import tuple finfun finset.
-Require Import pred pcm unionmap heap heaptac domain stmod stsep stlog stlogR. 
+From fcsl
+Require Import pred pcm unionmap heap.
+From HTT
+Require Import heaptac domain stmod stsep stlog stlogR.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive. 
@@ -79,4 +83,3 @@ by apply: (@val_do _ _ _ h')=>//=_ h2 Q V'; rewrite joinC;
 Qed.
 
 End LList.
-

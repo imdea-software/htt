@@ -49,13 +49,16 @@ cv/*.out
 #  Coq-generated stuff
 
 \#*\#
-*.vo 
-*.v.d
-*.glob
+**/*.vo 
+**/*.v.d
+**/*.glob
+**/*.vok
+**/*.vos
 
 # -----------------------------------------------------------------------------
 # HTT specific stuff
 Makefile.coq
+Makefile.coq.conf
 CoqMakefile.conf
 loadpath.v
 .*

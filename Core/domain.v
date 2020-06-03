@@ -1,5 +1,5 @@
 From mathcomp Require Import ssreflect ssrbool ssrfun ssrnat eqtype seq.
-From HTT Require Import pred prelude.
+From fcsl Require Import axioms pred prelude.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive. 
@@ -61,7 +61,7 @@ Notation "[ 'poset' 'of' T ]" := (@clone T _ _ id)
 Notation "x <== y" := (Poset.leq x y) (at level 70).
 Notation bot := Poset.bot.
 
-Arguments Poset.bot [cT].
+Arguments Poset.bot {cT}.
 Prenex Implicits Poset.bot.
 
 (* re-state lattice properties using the exported notation *)
@@ -82,7 +82,7 @@ Proof. by case: T y x z=>S [[l b B R A Tr]] ? x y z; apply: (Tr). Qed.
 
 End Laws.
 
-Hint Resolve botP poset_refl.
+Hint Resolve botP poset_refl : core.
 
 Add Parametric Relation (T : poset) : T (@Poset.leq T) 
   reflexivity proved by (@poset_refl _) 
@@ -138,7 +138,7 @@ Lemma sub_asym x y : sub_leq x y -> sub_leq y x -> x = y.
 Proof.
 move: x y=>[x Hx][y Hy]; rewrite /sub_leq /= => H1 H2.
 move: (poset_asym H1 H2) Hy=> <- Hy; congr exist.
-by apply: proof_irrelevance.
+by apply: pf_irr.
 Qed.
 
 Lemma sub_trans x y z : sub_leq x y -> sub_leq y z -> sub_leq x z.
@@ -267,7 +267,7 @@ Lemma ideal_asym x y : ideal_leq x y -> ideal_leq y x -> x = y.
 Proof.
 move: x y=>[x1 H1][x2 H2]; rewrite /ideal_leq /= => H3 H4; move: H1 H2. 
 rewrite (poset_asym H3 H4)=>H1 H2.
-congr Ideal; apply: proof_irrelevance.
+congr Ideal; apply: pf_irr.
 Qed.   
 
 Lemma ideal_trans x y z : ideal_leq x y -> ideal_leq y z -> ideal_leq x z.
@@ -449,7 +449,7 @@ Definition sup_closure (T : lattice) (s : Pred T) :=
 
 End Lat.
 
-Arguments sup_closed [T].
+Arguments sup_closed {T}.
 Arguments sup_closure [T].
 Prenex Implicits sup_closed sup_closure.
 
@@ -498,7 +498,7 @@ Proof. by move=>t H1 H2 p; move/(_ _ H1 H2). Qed.
 Lemma sup_closP (s : Pred T) : sup_closed (sup_closure s).
 Proof.
 split; first by move=>t _ [].
-move=>d H1 t H3 H4; move: (sup_clos_min H3 H4)=>{H3} H3.
+move=>d H1 t H3 H4; move: (sup_clos_min H3 H4)=>{H3} -H3.
 by case: H4=>_; apply=>// x; move/H1; move/H3.
 Qed.
 
@@ -693,7 +693,7 @@ Lemma chainE (T : poset) (s1 s2 : chain T) :
         s1 = s2 <-> pred_of s1 =p pred_of s2.
 Proof.
 split=>[->//|]; move: s1 s2=>[s1 H1][s2 H2] /= E; move: H1 H2.
-suff: s1 = s2 by move=>-> H1 H2; congr Chain; apply: proof_irrelevance.
+suff: s1 = s2 by move=>-> H1 H2; congr Chain; apply: pf_irr.
 by apply: fext=>x; apply: pext; split; move/E.
 Qed.
 
@@ -1124,7 +1124,7 @@ Proof. by move=>H1 H2 p; move/(_ _ H1 H2). Qed.
 Lemma chain_closP (s : Pred T) : chain_closed (chain_closure s).
 Proof.
 split; first by move=>t _ [].
-move=>d H1 t H3 H4; move: (chain_clos_min H3 H4)=>{H3} H3.
+move=>d H1 t H3 H4; move: (chain_clos_min H3 H4)=>{H3} -H3.
 by case: H4=>_; apply=>// x; move/H1; move/H3.
 Qed.
 
@@ -1152,7 +1152,7 @@ Qed.
 
 End AdmissibleClosure.
 
-Arguments chain_closed [T].
+Arguments chain_closed {T}.
 Prenex Implicits chain_closed.
 
 (* diagonal of an admissible set of pairs is admissible *)
@@ -1235,7 +1235,7 @@ Lemma contE (s : chain D1) (C : continuous) :
        f (lim s) = lim [f ^^ s by cont_mono C]. 
 Proof.
 case: C=>M E; rewrite E; congr (lim (image_chain _ _)). 
-apply: proof_irrelevance.
+by apply: pf_irr.
 Qed.
 
 End Continuity.
@@ -1285,7 +1285,7 @@ End Kleene.
 Lemma id_cont (D : cpo) : continuous (@id D).
 Proof. by exists id_mono; move=>d; rewrite id_chainE. Qed.
 
-Arguments id_cont [D].
+Arguments id_cont {D}.
 Prenex Implicits id_cont.
 
 Lemma const_cont (D1 D2 : cpo) (y : D2) : continuous (fun x : D1 => y).
@@ -1295,7 +1295,7 @@ exists const_mono; move=>s; apply: poset_asym.
 by apply: limM=>_ [x][->].
 Qed.
 
-Arguments const_cont [D1 D2 y].
+Arguments const_cont {D1 D2 y}.
 Prenex Implicits const_cont.
 
 Lemma comp_cont (D1 D2 D3 : cpo) (f1 : D2 -> D1) (f2 : D3 -> D2) : 
@@ -1314,8 +1314,8 @@ Proof. by exists proj1_mono. Qed.
 Lemma proj2_cont (D1 D2 : cpo) : continuous (@snd D1 D2).
 Proof. by exists proj2_mono. Qed.
 
-Arguments proj1_cont [D1 D2].
-Arguments proj2_cont [D1 D2].
+Arguments proj1_cont {D1 D2}.
+Arguments proj2_cont {D1 D2}.
 Prenex Implicits proj1_cont proj2_cont.
 
 Lemma diag_cont (D : cpo) : continuous (fun x : D => (x, x)).
@@ -1324,7 +1324,7 @@ exists diag_mono=>d; apply: poset_asym;
 by split=>/=; [rewrite proj1_diagE | rewrite proj2_diagE].
 Qed.
 
-Arguments diag_cont [D].
+Arguments diag_cont {D}.
 Prenex Implicits diag_cont.
 
 Lemma app_cont A (D : cpo) x : continuous (fun f : A -> D => f x).

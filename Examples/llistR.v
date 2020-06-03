@@ -1,6 +1,8 @@
+
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq fintype.
 From mathcomp Require Import tuple finfun finset.
-From HTT Require Import pred pcm unionmap heap heaptac domain stmod stsep stlog stlogR. 
+From fcsl Require Import pred pcm unionmap heap.
+From HTT Require Import heaptac domain stmod stsep stlog stlogR. 
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive. 
@@ -37,9 +39,10 @@ Lemma lseg_null xs q h :
          valid h -> h \In lseg null q xs -> 
          [/\ q = null, xs = [::] & h = Unit].
 Proof.
-case: xs=>[|x xs] D /= H; first by case: H=><- ->.
-by case: H D=>r [h'][->] _; rewrite hvalidPtUn eq_refl.
-Qed. 
+  case: xs=>[|x xs] D /= H; first by case: H=><- ->.
+  Search "hvalid" _ _.
+  by case: H D=>r [h'][->] _; rewrite validPtUn; hhauto.
+Qed.
 
 Lemma lseg_neq xs p q h : 
         p != q -> h \In lseg p q xs -> 
@@ -53,7 +56,7 @@ Qed.
 
 Lemma lseg_empty xs p q : Unit \In lseg p q xs -> p = q /\ xs = [::].
 Proof. 
-by case: xs=>[|x xs][] // r [h][/esym/join0E][/empbE]; rewrite gen_empbPt. 
+by case: xs=>[|x xs][] // r [h][/esym/join0E][/empbE]; rewrite empbPt. 
 Qed.
 
 Lemma lseg_case xs p q h : 
@@ -132,5 +135,3 @@ by apply: val_do0=>//; [exists i; hhauto | move=>x m /=; rewrite cats0].
 Qed.
 
 End LList. 
-
-

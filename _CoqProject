@@ -4,13 +4,8 @@
 Core/pred.v
 Core/prelude.v
 Core/idynamic.v
-Core/ordtype.v
 Core/pperm.v
-Core/finmap.v
 Core/domain.v
-Core/pcm.v
-Core/unionmap.v
-Core/heap.v
 Core/heaptac.v
 Core/stmod.v
 Core/stsep.v
@@ -18,3 +13,4 @@ Core/stlog.v
 Core/stlogR.v
 Examples/array.v
 Examples/llistR.v
+Examples/llistMapDemo.v
