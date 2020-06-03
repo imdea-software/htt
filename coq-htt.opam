@@ -2,17 +2,18 @@ opam-version: "2.0"
 version: "dev"
 
 maintainer: [
-  "Ilya Sergey <ilya.sergey@yale-nus.edu.sg>"
-  "Yasunari Watanabe <yasunari@comp.nus.edu.sg>"
+  "Aleks Nanevski"
+  "Alex Gryzlov"
+  "Germán Andrés Delbianco"
 ]
 authors: [
   "Aleks Nanevski"
   "Ilya Sergey"
-  "Germán Delbianco"
+  "Germán Andrés Delbianco"
 ]
-homepage: ["https://github.com/TyGuS/htt"]
-bug-reports: ["https://github.com/TyGuS/htt"]
-dev-repo: "git+https://github.com/TyGuS/htt.git"
+homepage: ["https://github.com/imdea-software/htt"]
+bug-reports: ["https://github.com/imdea-software/htt"]
+dev-repo: "git+https://github.com/imdea-software/htt.git"
 synopsis: "Hoare Type Theory"
 description: ""
 
@@ -31,5 +32,5 @@ tags: [
   "logpath:htt"
 ]
 url {
-  src: "git+https://github.com/TyGuS/htt.git"
+  src: "git+https://github.com/imdea-software/htt.git"
 }
