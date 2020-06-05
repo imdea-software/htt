@@ -52,7 +52,7 @@ To install HTT as a opam package from your local repository, run the [following 
 opam install .
 ```
 
-## Supplementary material
+##  References
 
 * [Partiality, State and Dependent Types](http://software.imdea.org/~aleks/htt/tlca11.pdf)
 
