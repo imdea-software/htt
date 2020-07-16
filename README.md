@@ -17,8 +17,8 @@ of) Hoare logic, corresponds to a command in HTT which has that rule as the type
 
 ### Requirements
 
-* [Coq](https://coq.inria.fr/download) (>= "8.9.0" & < "8.12~")
-* [Mathematical Components](http://math-comp.github.io/math-comp/) `ssreflect` (>= "1.10.0" & < "1.11~")
+* [Coq](https://coq.inria.fr/download) (>= "8.10.0" & < "8.12~")
+* [Mathematical Components](http://math-comp.github.io/math-comp/) `ssreflect` (>= "1.10.0" & < "1.12~")
 * [FCSL-PCM](https://github.com/imdea-software/fcsl-pcm) (>= "1.0.0" & < "1.3~")
 
 For the installation, follow instructions in the corresponding

@@ -1,4 +1,4 @@
-Require Import ssreflect ssrbool ssrfun. 
+Require Import ssreflect ssrbool ssrfun.
 Require Import Eqdep ClassicalFacts.
 From mathcomp Require Import ssrnat eqtype seq.
 From HTT Require Import pred.
@@ -61,7 +61,7 @@ Proof. by []. Qed.
 
 (* inferrable reflexivity axiom *)
 Definition erefli A (x : A) := erefl x.
-Arguments erefli [A x].
+Arguments erefli {A x}.
 
 (* selecting a list element *)
 (* should really be in seq.v *)
@@ -158,7 +158,7 @@ Qed.
 
 End ReflectConnectives.
 
-Arguments and6P [b1 b2 b3 b4 b5 b6].
-Arguments or5P [b1 b2 b3 b4 b5].
-Arguments or6P [b1 b2 b3 b4 b5 b6].
+Arguments and6P {b1 b2 b3 b4 b5 b6}.
+Arguments or5P {b1 b2 b3 b4 b5}.
+Arguments or6P {b1 b2 b3 b4 b5 b6}.
 Prenex Implicits and6P or5P or6P.

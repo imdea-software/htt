@@ -52,7 +52,7 @@ Definition ijmeq A B (v1 : sort A) (v2 : sort B) :=
 Lemma ijmeq_refl A (v : sort A) : ijmeq v v.
 Proof. by move=>pf; rewrite ieqc. Qed.
 
-Hint Resolve ijmeq_refl.
+Hint Resolve ijmeq_refl : core.
 
 Lemma ijmE A (v1 v2 : sort A) : ijmeq v1 v2 <-> v1 = v2.
 Proof. by split=>[|->]; first by move/(_ (erefl _)). Qed.
@@ -65,7 +65,4 @@ End IndexedDynamic.
 
 Prenex Implicits idyn_tp idyn_val idyn_injT idyn_inj.
 Arguments icoerce [I] sort [A B].
-Hint Resolve ijmeq_refl.
-
-
-
+Hint Resolve ijmeq_refl : core.
