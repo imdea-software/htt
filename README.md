@@ -6,7 +6,7 @@ for reasoning about sequential heap-manipulating programs.
 HTT is a verification system which incorporates Hoare style specifications via preconditions and
 postconditions, into types. A Hoare type `{P}x : A{Q}` denotes computations with a precondition `P`
 and postcondition `Q`, returning a value of type `A`. Hoare types are a dependently typed version
-of monads, as used in the programming language Haskell. Monads higenically combine the language
+of monads, as used in the programming language Haskell. Monads hygienically combine the language
 features for pure functional programming, with those for imperative programming, such as state or
 exceptions. In this sense, HTT establishes a formal connection between Hoare logic and monads, in
 the style of Curry-Howard isomorphism: every effectful command in HTT has a type which corresponds
