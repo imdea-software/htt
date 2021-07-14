@@ -65,4 +65,6 @@ End IndexedDynamic.
 
 Prenex Implicits idyn_tp idyn_val idyn_injT idyn_inj.
 Arguments icoerce [I] sort [A B].
+
+#[export]
 Hint Resolve ijmeq_refl : core.
