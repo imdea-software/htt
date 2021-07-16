@@ -1,5 +1,6 @@
 From mathcomp Require Import ssreflect ssrbool ssrfun ssrnat eqtype seq.
-From fcsl Require Import axioms pred prelude pcm unionmap heap.
+From fcsl Require Import axioms pred prelude.
+From fcsl Require Import pcm unionmap heap.
 From HTT Require Import domain.
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -16,7 +17,7 @@ Definition eqexn (e1 e2 : exn) : bool :=
 
 Lemma eqexnP : Equality.axiom eqexn.
 Proof.
-move=>[x][y]//=; case: eqP=>[->|*];constructor=>//.
+move=>[x][y]//=; case: eqP=>[->|*]; constructor=>//.
 by move=>[*].
 Qed.
 
@@ -608,4 +609,3 @@ Definition dealloc :=
 End Deallocation.
 
 End Model.
-

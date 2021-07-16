@@ -1,6 +1,7 @@
+From Coq Require Import Eqdep.
 From mathcomp Require Import ssrbool ssreflect ssrfun ssrnat div seq path eqtype.
-Require Import Eqdep.
-From fcsl Require Import axioms pred ordtype pcm finmap unionmap heap.
+From fcsl Require Import axioms pred ordtype finmap.
+From fcsl Require Import pcm unionmap heap.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -8,9 +9,9 @@ Unset Printing Implicit Defensive.
 
 (**************************************************************************)
 (* Several tactics for canceling common terms in disjoint unions          *)
-(* Currently, they don't deal with weak pointers. I.e.  they only if they *)
+(* Currently, they don't deal with weak pointers. I.e. they only if they  *)
 (* see iterms like x :-> v1 and x :-> v2, they will reduce to v1 = v2     *)
-(* only if v1, v2 are of the same type A more general tactic would emit   *)
+(* only if v1, v2 are of the same type. A more general tactic would emit  *)
 (* obligation dyn v1 = dyn v2, but I don't bother with this now.          *)
 (**************************************************************************)
 
@@ -429,4 +430,3 @@ Ltac defcheck :=
 Lemma test2 h1 h2 x (v1 v2 : nat) : subdom h1 h2 ->
         valid (h2 \+ (x :-> v2)) -> valid (h1 \+ (x :-> v1)).
 Proof. by move=>H; defcheck. Qed.
-

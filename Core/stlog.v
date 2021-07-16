@@ -1,5 +1,6 @@
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype seq ssrfun.
-From fcsl Require Import pred pcm unionmap heap.
+From fcsl Require Import pred.
+From fcsl Require Import pcm unionmap heap.
 From HTT Require Import domain stmod stsep.
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -254,7 +255,3 @@ Notation "[ 'vfun' x i => p ]" := (vfun' (fun x i => p))
 
 Notation "[ 'vfun' ( x : aT ) i => p ]" := (vfun' (fun (x : aT) i => p))
   (at level 0, x name, only parsing) : fun_scope.
-
-
-
-

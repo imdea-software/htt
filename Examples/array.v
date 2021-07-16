@@ -1,11 +1,7 @@
-From mathcomp
-Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq fintype.
-From mathcomp
-Require Import tuple finfun finset.
-From fcsl
-Require Import pred pcm unionmap heap.
-From HTT
-Require Import domain stmod stsep stlog stlogR.
+From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq fintype tuple finfun.
+From fcsl Require Import pred.
+From fcsl Require Import pcm unionmap heap.
+From HTT Require Import domain stmod stsep stlog stlogR.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -89,7 +85,6 @@ rewrite ?fgraph_codom /= codomE cardE.
 by elim: (enum I)=>[|t ts] //= ->; rewrite (ffunE _ _).
 Qed.
 
-
 Definition newf_loop a (f : {ffun I -> T}) : Type :=
   forall s : seq I, STsep (fun i => exists g s', [/\ i \In shape a g,
                                       s' ++ s = enum I &
@@ -127,15 +122,13 @@ suff L: #|I| = 0 by case: (fgraph f)=>/=; rewrite L; case.
 by rewrite cardE; case: (enum I)=>[|x s] //; move: (H x).
 Qed.
 
-
 Definition loop_inv (a : array) : Type :=
   forall k, STsep (fun i => exists xs:seq T, [/\ i = updi (a .+ k) xs, valid i &
                               size xs + k = #|I|],
-                   [vfun y : unit => emp]).
+                   [vfun _ : unit => emp]).
 
-Program
-Definition free (a : array) :
-    STsep (fun i => exists f, i \In shape a f, [vfun y => emp]) :=
+Program Definition free (a : array) :
+    STsep (fun i => exists f, i \In shape a f, [vfun _ => emp]) :=
   Do (let: f := Fix (fun (f : loop_inv a) k =>
                   Do (if k == #|I| then ret tt
                       else
@@ -152,16 +145,14 @@ move=>a _ /= [f][->] _; apply: val_do0=>// V; exists (tval (fgraph f)).
 by rewrite ptr0 V {3}fgraph_codom /= codomE size_map -cardE addn0.
 Qed.
 
-
 Program Definition read (a : array) (k : I) :
    {f h}, STsep (fun i => i = h /\ i \In shape a f,
-                 [vfun y m => m = h /\ y = (f k)]) :=
+                 [vfun y m => m = h /\ y = f k]) :=
   Do (!a .+ (indx k)).
 Next Obligation.
 move=>a k.
 by apply: ghR=>x [f h][->][/= ->] _ _; rewrite /shape (updi_split a k); step.
 Qed.
-
 
 Program Definition write (a : array) (k : I) (x : T) :
   {f}, STsep (shape a f,

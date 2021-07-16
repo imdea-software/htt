@@ -1,8 +1,8 @@
 
-From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq fintype.
-From mathcomp Require Import tuple finfun finset.
-From fcsl Require Import pred pcm unionmap heap.
-From HTT Require Import heaptac domain stmod stsep stlog stlogR.
+From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq.
+From fcsl Require Import pred.
+From fcsl Require Import pcm unionmap heap.
+From HTT Require Import domain stmod stsep stlog stlogR.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -15,7 +15,7 @@ Notation empty := Unit.
 Notation map := seq.map.
 
 (* Inductive definition of linked lists *)
-Fixpoint llist (p : ptr) {A : Type}  (xs : seq A) :=
+Fixpoint llist (p : ptr) {A : Type} (xs : seq A) :=
   if xs is x :: xt then
     fun h => exists r h',
         h = p :-> x \+ (p .+ 1 :-> r \+ h') /\ llist r xt h'
@@ -48,8 +48,8 @@ Qed.
 (* Type of recursive map *)
 Definition llist_map_type (f : T -> S) :=
   forall (p : ptr),
-    {xs : seq T}, STsep (fun h => llist p xs h,
-                         fun (_ : ans unit) h => llist p (map f xs) h).
+    {xs : seq T}, STsep (llist p xs,
+                         fun (_ : ans unit) => llist p (map f xs)).
 
 Program Definition llist_map f : llist_map_type f :=
   Fix (fun (lmap : llist_map_type f) p =>
@@ -59,7 +59,6 @@ Program Definition llist_map f : llist_map_type f :=
              p ::= f t;;
              nxt <-- !p .+ 1;
              lmap nxt)).
-
 Next Obligation.
 (* Deconstruct the precondition *)
 move=>f lmap p.
@@ -69,7 +68,7 @@ apply: ghR=>h xs P V.
 case: ifP=>[X|/negbT X].
 
 (* 1. p == null ==> The list is empty. *)
-by move/eqP: X=>Z; subst p; case: (llist_null V P)=>->->; heval.
+- by move/eqP: X=>Z; subst p; case: (llist_null V P)=>->->; heval.
 
 (* 2. p != null => The list is non-empty. *)
 case/(llist_pos X): P=>t [nxt][h'][->]Z/=P; subst h.

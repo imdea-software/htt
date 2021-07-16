@@ -1,5 +1,6 @@
 From mathcomp Require Import ssreflect ssrbool ssrnat ssrfun seq eqtype.
-From fcsl Require Import pred pcm unionmap heap.
+From fcsl Require Import pred.
+From fcsl Require Import pcm unionmap heap.
 From HTT Require Import stmod.
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -382,15 +383,9 @@ Notation "{ x .. y }, 'STsep' ( p , q ) " :=
   (STbin (logvar (fun x => .. (logvar (fun y => binarify p q)) .. )))
    (at level 0, x binder, y binder, right associativity).
 
-
 Notation "x '<--' c1 ';' c2" := (bind c1 (fun x => c2))
   (at level 78, right associativity) : stsep_scope.
 Notation "c1 ';;' c2" := (bind c1 (fun _ => c2))
   (at level 78, right associativity) : stsep_scope.
 Notation "'!' x" := (read _ x) (at level 50) : stsep_scope.
 Notation "e1 '::=' e2" := (write e1 e2) (at level 60) : stsep_scope.
-
-
-
-
-

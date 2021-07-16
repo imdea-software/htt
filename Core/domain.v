@@ -280,7 +280,7 @@ Canonical idealPoset := Eval hnf in Poset (ideal P) idealPosetMixin.
 
 End IdealPoset.
 
-(* Prop is a poset *)
+(* Prop is a poset (Sierpinski poset) *)
 
 Section PropPoset.
 
