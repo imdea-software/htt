@@ -1,10 +1,6 @@
 -Q . HTT
 -arg "-w -notation-overridden,-local-declaration,-redundant-canonical-projection,-projection-no-head-constant"
 
-Core/pred.v
-Core/prelude.v
-Core/idynamic.v
-Core/pperm.v
 Core/domain.v
 Core/heaptac.v
 Core/stmod.v
