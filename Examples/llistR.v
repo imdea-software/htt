@@ -13,7 +13,7 @@ Obligation Tactic := auto.
 Fixpoint lseg {A} (p q : ptr) (xs : seq A) :=
   if xs is hd::tl then
     [Pred h | exists r h',
-       h = (p :-> hd) \+ (p .+ 1 :-> r \+ h') /\ h' \In lseg r q tl]
+       h = p :-> hd \+ (p .+ 1 :-> r \+ h') /\ h' \In lseg r q tl]
   else [Pred h | p = q /\ h = Unit].
 
 Section LSeg.
@@ -127,10 +127,13 @@ Qed.
 
 (* length *)
 
-Definition lenT : Type :=
-  forall (pl : ptr * nat), {xs : seq A}, STsep (lseq pl.1 xs, [vfun l h => l == pl.2 + length xs /\ lseq pl.1 xs h]).
+Definition lenT : Type := forall (pl : ptr * nat),
+  {xs : seq A}, STsep (lseq pl.1 xs,
+                      [vfun l h => l == pl.2 + length xs /\ lseq pl.1 xs h]).
 
-Program Definition len p : {xs : seq A}, STsep (lseq p xs, [vfun l h => l == length xs /\ lseq p xs h]) :=
+Program Definition len p :
+  {xs : seq A}, STsep (lseq p xs,
+                      [vfun l h => l == length xs /\ lseq p xs h]) :=
   Do (let: len := Fix (fun (go : lenT) '(p, l) =>
                         Do (if p == null then ret l
                             else pnext <-- !(p .+ 1);
@@ -166,7 +169,7 @@ Program Definition concat p1 p2 : {xs1 xs2 : seq A}, STsep (lseq p1 xs1 # lseq p
                             if (next : ptr) == null
                                then q .+ 1 ::= p2;;
                                     ret tt
-                               else go next ))
+                               else go next))
       in if p1 == null
            then ret p2
            else cat p1;;
@@ -204,7 +207,7 @@ Qed.
 Definition shape_rev p (s : seq A * seq A) := [Pred h | h \In lseq p.1 s.1 # lseq p.2 s.2].
 
 Definition revT : Type := (* ps.1 = i, ps.2 = done *)
-  forall p, {ps}, STsep (shape_rev p ps, [vfun y => lseq y (rev ps.1 ++ ps.2)]).
+  forall p, {ps}, STsep (shape_rev p ps, [vfun y => lseq y (catrev ps.1 ps.2)]).
 
 Program Definition reverse p : {xs : seq A}, STsep (lseq p xs, [vfun p' => lseq p' (rev xs)]) :=
   Do (let: reverse := Fix (fun (go : revT) '(i, done) =>
@@ -215,16 +218,17 @@ Program Definition reverse p : {xs : seq A}, STsep (lseq p xs, [vfun p' => lseq 
       in reverse (p, null)).
 Next Obligation.
 move=>_ ?? p done _.
-apply: ghR=>i [x1 x2][i1][i2][->] /= [H1 H2] V. case: eqP H1=>[->|E].
+apply: ghR=>i [x1 x2][i1][i2][->] /= [H1 H2] V.
+case: eqP H1=>[->|E].
 - by case/(lseq_null (validL V))=>->->; rewrite unitL; step.
 case/lseq_pos=>[|xd [xn][h'][->] <- /= H1]; first by case: eqP.
 heval; rewrite -!joinA -!(joinCA h'); apply: (gh_ex (behead x1, xd::x2)).
-by apply: val_doR=>//; [vauto | move=>x m; rewrite rev_cons cat_rcons].
+by apply: val_doR=>//; vauto.
 Qed.
 Next Obligation.
 move=>p /=.
 apply: ghR=>i xs H _; apply: (gh_ex (xs, [::])).
-by apply: val_do0=>//; [exists i; hhauto | move=>x m /=; rewrite cats0].
+by apply: val_do0=>// ?; exists i; hhauto.
 Qed.
 
 Variable B : Type.
