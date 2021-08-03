@@ -11,14 +11,14 @@ Delimit Scope stsep_scope with stsep.
 Open Scope stsep_scope.
 
 Definition star (p1 p2 : Pred heap) : Pred heap :=
-  [Pred h | exists h1, exists h2, h = h1 \+ h2 /\ h1 \In p1 /\ h2 \In p2].
+  [Pred h | exists h1 h2, h = h1 \+ h2 /\ h1 \In p1 /\ h2 \In p2].
 Definition emp : Pred heap := eq^~ Unit.
 Definition top : Pred heap := PredT.
 
 Notation "p1 '#' p2" := (star p1 p2)
   (at level 57, right associativity) : rel_scope.
 
-Definition lolli (p : _ -> Prop) q (i m : heap) :=
+Definition lolli (p : Pred heap) q (i m : heap) : Prop :=
   forall i1 h, i = i1 \+ h -> valid i -> p i1 ->
     exists m1, m = m1 \+ h /\ valid m /\ q i1 m1.
 
