@@ -12,3 +12,4 @@ Examples/exploit.v
 Examples/llistR.v
 Examples/queue.v
 Examples/stack.v
+Examples/kvmaps.v
