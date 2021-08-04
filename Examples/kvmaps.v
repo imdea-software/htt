@@ -266,22 +266,27 @@ Next Obligation.
 move=>x k0 go ? prev cur ?.
 apply: ghR=>h fm [fml][fmr][k][v][Ef [Ol Or][El E]]/=[hl][h1][{h}-> [Hl [h2][hr][{h1}-> [{h2}-> Hr]]]] Vh.
 case: eqP.
+(* cur = null, nothing to process *)
 - move=>Ec; step=>_.
   rewrite Ec in Hr; rewrite !joinA in Vh.
   rewrite Ef; case: (shape_null (validR Vh) Hr)=>->->.
   rewrite fcats0 unitR rem_ins (negbTE E) (rem_supp El) Ec.
   by apply: shape_seg_rcons.
+(* cur <> null *)
 move/eqP=>Ec; case: (shape_cont Ec Hr)=>k'[v'][next][hr'][Efr Or' Ehr Hr'].
 rewrite {hr Hr Vh Ec}Ehr joinA joinC.
 move: (Or); rewrite {1}Efr; case/(path_supp_ins_inv Or')/andP=>Ho' Or''.
 step; case: eqP.
+(* k = k', element found *)
 - move=>Ek; do 4!step; rewrite !unitL; do 2!step; move=>_.
   rewrite Ef Efr -fcat_srem; last by rewrite supp_ins inE negb_or; apply/andP.
   rewrite rem_ins {1}Ek eq_refl rem_supp; last by rewrite Ek; apply: notin_path.
   rewrite joinC; apply/shape_fcat/Hr'; last by apply: shape_seg_rcons.
   move=>kl; rewrite supp_ins !inE=>/orP; case; first by move/eqP=>->.
   by move/Ol=>?; apply/path_relax/Or''.
+(* k <> k' *)
 move/eqP=>Ek; case: ifP=>Ho0.
+(* ord k' k, recursive call *)
 - step.
   apply/(gh_ex (fcat (ins k' v' (ins k v fml)) (behd fmr)))/val_doR=>//=.
   - move=>_; exists (ins k v fml), (behd fmr), k', v'; do!split=>//.
@@ -294,6 +299,7 @@ move/eqP=>Ek; case: ifP=>Ho0.
   move=>_ m Hm _; rewrite Ef Efr.
   rewrite fcat_inss // in Hm; first by rewrite -fcat_sins in Hm.
   by apply: notin_path.
+(* ord k k', abort *)
 move: (semiconnex Ek); rewrite {}Ho0 orbC /= =>Ho0.
 step=>_; rewrite rem_supp Ef.
 - rewrite joinC; apply: shape_fcat; first 1 last.
@@ -308,19 +314,25 @@ Qed.
 Next Obligation.
 move=>/= x k0; apply: ghR=>h fm H Vh.
 case: eqP.
+(* x = null, nothing to process *)
 - by move: H=>/[swap] ->/(shape_null Vh) [->->]; step=>_.
-move/eqP=>Ex {Vh}; case: (shape_cont Ex H)=>k[v][next][h'][Ef Of Eh H']; rewrite Eh.
+(* x <> null *)
+move/eqP=>Ex {Vh}; case: (shape_cont Ex H)=>{Ex}k[v][next][h'][Ef Of Eh H']; rewrite Eh.
 step; case: eqP.
+(* k = k', element found in head position *)
 - move=>->; do 5!step; rewrite !unitL=>_.
   rewrite Ef rem_ins eq_refl rem_supp //.
   by apply: notin_path.
+(* k <> k' *)
 move/eqP=>Ek; case: ifP=>Ho0.
+(* ord k' k, start recursing *)
 - step.
   apply/bnd_seq/(gh_ex fm)/val_do0=>//=; last by move=>_ ???; step.
   move=>_; exists nil, (behd fm), k, v; do!split=>//.
   - by rewrite fcat_inss; [rewrite fcat0s|apply: notin_path].
   exists Unit, (entry x next k v \+ h'); do!split; first by rewrite /entry unitL !joinA.
   by exists (entry x next k v), h'.
+(* ord k k', abort *)
 move: (semiconnex Ek); rewrite {}Ho0 orbC /= =>Ho0.
 step=>_.
 rewrite -Eh rem_supp // Ef supp_ins !inE negb_or; apply/andP; split=>//.
@@ -382,6 +394,7 @@ Next Obligation.
 move=>x k0 v0 go ? prev cur ?.
 apply: ghR=>h fm [fml][fmr][k][v][Ef [Ol Or][El Ho0]]/=[hl][h1][{h}-> [Hl [h2][hr][{h1}-> [{h2}-> Hr]]]] Vh.
 case: eqP.
+(* cur = null, insert as the last element *)
 - move=>Ec; step=>p; rewrite ptrA unitR; do 2!step.
   rewrite joinC /entry; do 2!step; move=>_.
   rewrite Ec in Hr; rewrite !joinA in Vh.
@@ -391,10 +404,12 @@ case: eqP.
   - move=>kl; rewrite supp_ins !inE =>/orP; case; first by move/eqP=>->.
     by move/Ol=>?; apply/trans/Ho0.
   by apply: shape_seg_rcons.
+(* cur <> null *)
 move/eqP=>Ec; case: (shape_cont Ec Hr)=>k'[v'][next][hr'][Efr Or' Ehr Hr'].
 rewrite {hr Hr Vh Ec}Ehr joinA joinC.
 move: (Or); rewrite {1}Efr; case/(path_supp_ins_inv Or')/andP=>Ho' Or''.
 step; case: eqP.
+(* k = k', exact key found, update *)
 - move=>Ek; do 2!step; move=>_.
   rewrite Ef Efr -fcat_sins ins_ins -Ek eq_refl joinC.
   apply: shape_fcat; first 1 last.
@@ -405,7 +420,9 @@ step; case: eqP.
   move/Ol=>Hol; have Hol0: ord kl k0 by apply/trans/Ho0.
   apply: path_supp_ins=>//.
   by rewrite -Ek in Or'; apply/path_relax/Or'.
+(* k <> k' *)
 move/eqP=>Ek; case: ifP=>Ho'0.
+(* ord k' k, recursive call *)
 - step.
   apply/(gh_ex (fcat (ins k' v' (ins k v fml)) (behd fmr)))/val_doR=>//=.
   - move=>_; exists (ins k v fml), (behd fmr), k', v'; do!split=>//.
@@ -419,6 +436,7 @@ move/eqP=>Ek; case: ifP=>Ho'0.
   move=>_ m Hm _; rewrite Ef Efr.
   rewrite fcat_inss // in Hm; first by rewrite -fcat_sins in Hm.
   by apply: notin_path.
+(* ord k k', insert *)
 move: (semiconnex Ek); rewrite {}Ho'0 orbC /= =>Ho0'.
 step=>new; rewrite ptrA unitR; do 2!step.
 rewrite joinA joinC /entry; do 2!step; move=>_.
@@ -438,21 +456,27 @@ Qed.
 Next Obligation.
 move=>/= x k0 v0; apply: ghR=>h fm H Vh.
 case: eqP.
+(* x = null, insert as the only element *)
 - move: H=>/[swap] ->/(shape_null Vh) [->->].
   step=>p; rewrite ptrA !unitR; do 3!step; move=>_.
   by exists null, Unit; rewrite unitR.
-move/eqP=>Ex; case: (shape_cont Ex H)=>k[v][next][h'][Ef Of -> H'].
+(* x <> null *)
+move/eqP=>Ex; case: (shape_cont Ex H)=>{Ex}k[v][next][h'][Ef Of -> H'].
 step; case: eqP.
+(* k = k', exact key found in head position, update *)
 - move=>->; do 2!step; move=>_.
   rewrite Ef ins_ins eq_refl.
   by apply: shape_cons.
+(* k <> k' *)
 move/eqP=>Ek; case: ifP=>Ho0.
+(* ord k' k, start recursing *)
 - step.
   apply/bnd_seq/(gh_ex fm)/val_do0=>//=; last by move=>_ ???; step.
   move=>_; exists nil, (behd fm), k, v; do!split=>//.
   - by rewrite fcat_inss; [rewrite fcat0s|apply: notin_path].
   exists Unit, (entry x next k v \+ h'); do!split; first by rewrite /entry unitL !joinA.
   by exists (entry x next k v), h'.
+(* ord k k', insert *)
 move: (semiconnex Ek); rewrite {}Ho0 orbC /= =>Ho0.
 step=>q; rewrite ptrA unitR; do 3!step; move=>_.
 rewrite Ef -!joinA; apply: shape_cons.
