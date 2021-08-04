@@ -264,29 +264,28 @@ Program Definition remove x (k : K) : {fm}, STsep (shape x fm,
                      else ret x).
 Next Obligation.
 move=>x k0 go ? prev cur ?.
-apply: ghR=>h fm [fml][fmr][k][v][Ef [Ol Or][Nkl Nk]]/=[hl][h1][{h}-> [Hl [h2][hr][{h1}-> [{h2}-> Hr]]]] Vh.
+apply: ghR=>h fm [fml][fmr][k][v][Ef [Ol Or][El E]]/=[hl][h1][{h}-> [Hl [h2][hr][{h1}-> [{h2}-> Hr]]]] Vh.
 case: eqP.
 - move=>Ec; step=>_.
   rewrite Ec in Hr; rewrite !joinA in Vh.
   rewrite Ef; case: (shape_null (validR Vh) Hr)=>->->.
-  rewrite fcats0 unitR rem_ins (negbTE Nk) (rem_supp Nkl) Ec.
+  rewrite fcats0 unitR rem_ins (negbTE E) (rem_supp El) Ec.
   by apply: shape_seg_rcons.
 move/eqP=>Ec; case: (shape_cont Ec Hr)=>k'[v'][next][hr'][Efr Or' Ehr Hr'].
 rewrite {hr Hr Vh Ec}Ehr joinA joinC.
+move: (Or); rewrite {1}Efr; case/(path_supp_ins_inv Or')/andP=>Ho' Or''.
 step; case: eqP.
 - move=>Ek; do 4!step; rewrite !unitL; do 2!step; move=>_.
   rewrite Ef Efr -fcat_srem; last by rewrite supp_ins inE negb_or; apply/andP.
   rewrite rem_ins {1}Ek eq_refl rem_supp; last by rewrite Ek; apply: notin_path.
   rewrite joinC; apply/shape_fcat/Hr'; last by apply: shape_seg_rcons.
-  move=>kl; rewrite Efr in Or; case/andP: (path_supp_ins_inv Or' Or)=>_ Or''.
-  rewrite supp_ins !inE=>/orP; case; first by move/eqP=>->.
+  move=>kl; rewrite supp_ins !inE=>/orP; case; first by move/eqP=>->.
   by move/Ol=>?; apply/path_relax/Or''.
 move/eqP=>Ek; case: ifP=>Ho0.
 - step.
   apply/(gh_ex (fcat (ins k' v' (ins k v fml)) (behd fmr)))/val_doR=>//=.
   - move=>_; exists (ins k v fml), (behd fmr), k', v'; do!split=>//.
-    - move=>kl; rewrite Efr in Or; case/andP: (path_supp_ins_inv Or' Or)=>Ho' _.
-      rewrite supp_ins inE =>/orP; case; first by move/eqP=>->.
+    - move=>kl; rewrite supp_ins inE =>/orP; case; first by move/eqP=>->.
       by move/Ol=>?; apply/trans/Ho'.
     - by rewrite supp_ins inE negb_or; apply/andP.
     exists (hl \+ entry prev cur k v), (entry cur next k' v' \+ hr').
@@ -294,17 +293,16 @@ move/eqP=>Ek; case: ifP=>Ho0.
     by rewrite -!joinA; apply: shape_seg_rcons.
   move=>_ m Hm _; rewrite Ef Efr.
   rewrite fcat_inss // in Hm; first by rewrite -fcat_sins in Hm.
-  apply: notin_path; rewrite Efr /= in Or.
-  by case/andP: (path_supp_ins_inv Or' Or).
+  by apply: notin_path.
 move: (semiconnex Ek); rewrite {}Ho0 orbC /= =>Ho0.
 step=>_; rewrite rem_supp Ef.
-- rewrite joinC; apply: shape_fcat.
-  - move=>kl; rewrite supp_ins !inE=>/orP; case; first by move/eqP=>->.
-    by move/Ol=>?; apply/path_relax/Or.
+- rewrite joinC; apply: shape_fcat; first 1 last.
   - by apply: shape_seg_rcons.
-  by rewrite Efr; apply: shape_cons.
+  - by rewrite Efr; apply: shape_cons.
+  move=>kl; rewrite supp_ins !inE=>/orP; case; first by move/eqP=>->.
+  by move/Ol=>?; apply/path_relax/Or.
 rewrite Efr supp_fcat !inE negb_or; apply/andP; split;
-rewrite supp_ins !inE negb_or; apply/andP; split=>//.
+  rewrite supp_ins !inE negb_or; apply/andP; split=>//.
 by apply/notin_path/path_relax/Or'.
 Qed.
 Next Obligation.
@@ -382,7 +380,7 @@ Program Definition insert x (k : K) (v : V) : {fm}, STsep (shape x fm,
                          ret new).
 Next Obligation.
 move=>x k0 v0 go ? prev cur ?.
-apply: ghR=>h fm [fml][fmr][k][v][Ef [Ol Or][Nkl Ho0]]/=[hl][h1][{h}-> [Hl [h2][hr][{h1}-> [{h2}-> Hr]]]] Vh.
+apply: ghR=>h fm [fml][fmr][k][v][Ef [Ol Or][El Ho0]]/=[hl][h1][{h}-> [Hl [h2][hr][{h1}-> [{h2}-> Hr]]]] Vh.
 case: eqP.
 - move=>Ec; step=>p; rewrite ptrA unitR; do 2!step.
   rewrite joinC /entry; do 2!step; move=>_.
@@ -395,24 +393,23 @@ case: eqP.
   by apply: shape_seg_rcons.
 move/eqP=>Ec; case: (shape_cont Ec Hr)=>k'[v'][next][hr'][Efr Or' Ehr Hr'].
 rewrite {hr Hr Vh Ec}Ehr joinA joinC.
+move: (Or); rewrite {1}Efr; case/(path_supp_ins_inv Or')/andP=>Ho' Or''.
 step; case: eqP.
 - move=>Ek; do 2!step; move=>_.
   rewrite Ef Efr -fcat_sins ins_ins -Ek eq_refl joinC.
-  apply: shape_fcat.
-  - move=>kl; rewrite supp_ins !inE =>/orP; case.
-    - move/eqP=>->; apply: path_supp_ins=>//.
-      by rewrite Efr in Or; case/andP: (path_supp_ins_inv Or' Or).
-    move/Ol=>Hol; have Hol0: ord kl k0 by apply/trans/Ho0.
-    apply: path_supp_ins=>//.
-    by rewrite -Ek in Or'; apply/path_relax/Or'.
+  apply: shape_fcat; first 1 last.
   - by apply: shape_seg_rcons.
-  by apply: shape_cons=>//; rewrite Ek.
+  - by apply: shape_cons=>//; rewrite Ek.
+  move=>kl; rewrite supp_ins !inE =>/orP; case.
+  - by move/eqP=>->; apply: path_supp_ins.
+  move/Ol=>Hol; have Hol0: ord kl k0 by apply/trans/Ho0.
+  apply: path_supp_ins=>//.
+  by rewrite -Ek in Or'; apply/path_relax/Or'.
 move/eqP=>Ek; case: ifP=>Ho'0.
 - step.
   apply/(gh_ex (fcat (ins k' v' (ins k v fml)) (behd fmr)))/val_doR=>//=.
   - move=>_; exists (ins k v fml), (behd fmr), k', v'; do!split=>//.
-    - move=>kl; rewrite Efr in Or; case/andP: (path_supp_ins_inv Or' Or)=>Ho' _.
-      rewrite supp_ins inE =>/orP; case; first by move/eqP=>->.
+    - move=>kl; rewrite supp_ins inE =>/orP; case; first by move/eqP=>->.
       by move/Ol=>?; apply/trans/Ho'.
     - rewrite supp_ins inE negb_or; apply/andP; split=>//.
       by apply/negP=>/eqP; move: Ho0=>/[swap]->; rewrite irr.
@@ -421,25 +418,22 @@ move/eqP=>Ek; case: ifP=>Ho'0.
     by rewrite -!joinA; apply: shape_seg_rcons.
   move=>_ m Hm _; rewrite Ef Efr.
   rewrite fcat_inss // in Hm; first by rewrite -fcat_sins in Hm.
-  apply: notin_path; rewrite Efr /= in Or.
-  by case/andP: (path_supp_ins_inv Or' Or).
+  by apply: notin_path.
 move: (semiconnex Ek); rewrite {}Ho'0 orbC /= =>Ho0'.
 step=>new; rewrite ptrA unitR; do 2!step.
 rewrite joinA joinC /entry; do 2!step; move=>_.
-rewrite Ef Efr -fcat_sins; apply: shape_fcat.
-- move=>kl; rewrite supp_ins !inE =>/orP; case.
-  - have Ho': ord k k' by apply/trans/Ho0'.
-    move/eqP=>->; do 2!apply: path_supp_ins=>//.
-    by apply/path_relax/Or'.
-  move/Ol=>Ho.
-  have Hol0: ord kl k0 by apply/trans/Ho0.
-  have Ho': ord kl k' by apply/trans/Ho0'.
-  do 2!apply: path_supp_ins=>//.
-  by apply/path_relax/Or'.
+rewrite Ef Efr -fcat_sins; apply: shape_fcat; first 1 last.
 - by apply: shape_seg_rcons.
-rewrite -!joinA; apply: shape_cons.
-- by apply: path_supp_ins=>//; apply/path_relax/Or'.
-by apply: shape_cons.
+- rewrite -!joinA; apply: shape_cons.
+  - by apply: path_supp_ins=>//; apply/path_relax/Or'.
+  by apply: shape_cons.
+move=>kl; rewrite supp_ins !inE =>/orP; case.
+- by move/eqP=>->; do 2!apply: path_supp_ins=>//.
+move/Ol=>Ho.
+have Hol0: ord kl k0 by apply/trans/Ho0.
+have Hol': ord kl k' by apply/trans/Ho0'.
+do 2!apply: path_supp_ins=>//.
+by apply/path_relax/Or'.
 Qed.
 Next Obligation.
 move=>/= x k0 v0; apply: ghR=>h fm H Vh.
