@@ -259,6 +259,9 @@ apply: uniq_perm=>[||y]; try by rewrite filter_uniq // enum_uniq.
 by rewrite !mem_filter /= in_setD1.
 Qed.
 
+Lemma sepitT1 x f : sepit setT f =p f x # sepit (setT :\ x) f.
+Proof. by rewrite (sepitS x) in_setT. Qed.
+
 End FinIter.
 End FinIter.
 

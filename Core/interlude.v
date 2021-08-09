@@ -1,6 +1,6 @@
 From Coq Require Import ssreflect ssrbool ssrfun Eqdep.
-From mathcomp Require Import ssrnat seq eqtype.
-From fcsl Require Import axioms.
+From mathcomp Require Import ssrnat seq eqtype path.
+From fcsl Require Import axioms ordtype.
 From fcsl Require Import options.
 
 Lemma has_takedrop {A : Type} (p : pred A) (s : seq A) x :
@@ -26,4 +26,12 @@ rewrite (_ : nth x s i = x); last first.
 - suff : pred1 x (nth x s i) by move/eqP.
   by apply: nth_find.
 eauto.
+Qed.
+
+(* TODO this should be expressible directly *)
+Lemma path_relax {K : ordType} (k k' : K) ks : ord k k' -> path ord k' ks -> path ord k ks.
+Proof.
+move=>O; case: ks=>//= a l /andP [O2 P2].
+apply/andP; split=>//.
+by apply/trans/O2.
 Qed.

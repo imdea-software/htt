@@ -5,7 +5,7 @@
 From mathcomp Require Import ssreflect ssrbool eqtype ssrfun seq path.
 From fcsl Require Import axioms pred ordtype finmap.
 From fcsl Require Import pcm unionmap heap.
-From HTT Require Import domain stmod stsep stlog stlogR.
+From HTT Require Import interlude domain stmod stsep stlog stlogR.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -49,14 +49,6 @@ Section AssocList.
 Variable (K : ordType) (V : Set).
 Notation fmap := (finMap K V).
 Notation nil := (nil K V).
-
-(* TODO this should be expressible directly *)
-Lemma path_relax (k k' : K) ks : ord k k' -> path ord k' ks -> path ord k ks.
-Proof.
-move=>O; case: ks=>//= a l /andP [O2 P2].
-apply/andP; split=>//.
-by apply/trans/O2.
-Qed.
 
 (* Data is stored in a sorted associative linked list. *)
 
@@ -482,7 +474,7 @@ rewrite Ef -!joinA; apply: shape_cons.
 by apply: shape_cons.
 Qed.
 
-Definition AssocList := KVmap.make null new free insert remove lookup.
+Definition AssocList := KVmap.make null (*shapeD shape_invert*) new free insert remove lookup.
 
 End AssocList.
 End AssocList.
