@@ -189,7 +189,7 @@ Ltac heap_congr :=
       congruencer t=>{t}
   | |- _ => idtac
   end.
-
+(*
 Lemma test h1 h2 h3 x (v1 v2 : nat) :
         h3 = h2 -> v1 = v2 ->
         h1 \+ (x :-> v1) \+ h3= h2 \+ h1 \+ (x :-> v2).
@@ -430,3 +430,4 @@ Ltac defcheck :=
 Lemma test2 h1 h2 x (v1 v2 : nat) : subdom h1 h2 ->
         valid (h2 \+ (x :-> v2)) -> valid (h1 \+ (x :-> v1)).
 Proof. by move=>H; defcheck. Qed.
+*)

@@ -1,7 +1,7 @@
-From mathcomp Require Import ssreflect ssrbool ssrnat ssrfun seq eqtype.
+From mathcomp Require Import ssreflect ssrbool ssrnat ssrfun seq eqtype fintype finset.
 From fcsl Require Import pred.
 From fcsl Require Import pcm unionmap heap.
-From HTT Require Import stmod.
+From HTT Require Import interlude stmod.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -17,6 +17,59 @@ Definition top : Pred heap := PredT.
 
 Notation "p1 '#' p2" := (star p1 p2)
   (at level 57, right associativity) : rel_scope.
+
+(* TODO hacky *)
+Lemma eqp_sym {T : Type} (p1 p2 p3 : Pred T) : p1 =p p2 -> p2 =p p1.
+Proof. by move=>->. Qed.
+
+Lemma eqp_trans {T : Type} (p1 p2 p3 : Pred T) : p1 =p p2 -> p2 =p p3 -> p1 =p p3.
+Proof. by move=>->. Qed.
+
+Lemma star_cong p1 p2 p3 : p2 =p p3 -> p1 # p2 =p p1 # p3.
+Proof.
+move=>H.
+by split; case=>h1[h2][-> [H1 H2]]; exists h1, h2; do!split=>//; apply/H.
+Qed.
+
+Lemma star0p p : emp # p =p p.
+Proof.
+split.
+- by case=>h1[h2][-> [->]]; rewrite unitL.
+by move=>?; exists Unit, x; rewrite unitL.
+Qed.
+
+Lemma starC p1 p2 : p1 # p2 =p p2 # p1.
+Proof.
+split.
+- by move=>[h1][h2][->][H1 H2]; exists h2, h1; do!split=>//; rewrite joinC.
+by move=>[h2][h1][->][H2 H1]; exists h1, h2; do!split=>//; rewrite joinC.
+Qed.
+
+Lemma star_cong_r p1 p2 p3 : p1 =p p2 -> p1 # p3 =p p2 # p3.
+Proof.
+move=>H.
+apply/eqp_trans/starC.
+apply/eqp_trans; first by apply/eqp_sym/starC.
+by apply: star_cong.
+Qed.
+
+Lemma starA p1 p2 p3 : (p1 # p2) # p3 =p p1 # p2 # p3.
+Proof.
+split.
+- move=>[h12][h3][->][[h1][h2][->][H1 H2] H3].
+  exists h1, (h2 \+ h3); rewrite joinA; do!split=>//.
+  by exists h2, h3.
+move=>[h1][h23][->][H1 [h2][h3][->][H2 H3]].
+exists (h1 \+ h2), h3; rewrite joinA; do!split=>//.
+by exists h1, h2.
+Qed.
+
+Lemma starCA p1 p2 p3 : p1 # p2 # p3 =p p2 # p1 # p3.
+Proof.
+apply/eqp_trans/starA.
+apply/eqp_trans; first by apply/eqp_sym/starA.
+by apply/star_cong_r/starC.
+Qed.
 
 Definition lolli (p : Pred heap) q (i m : heap) : Prop :=
   forall i1 h, i = i1 \+ h -> valid i -> p i1 ->
@@ -46,6 +99,168 @@ Qed.
 
 Lemma fr_pre p i j : (p # top) i -> (p # top) (i \+ j).
 Proof. by case=>i1 [i2][->][H] _; rewrite -joinA; exists i1, (i2 \+ j). Qed.
+
+Module Iter.
+Section Iter.
+Variable A : Type.
+
+Fixpoint sepit (s : seq A) (f : A -> Pred heap) : Pred heap :=
+  if s is x::s' then f x # (sepit s' f) else emp.
+
+Lemma sepit0 f : sepit [::] f = emp. Proof. by []. Qed.
+
+Lemma sepit_cons x s f : sepit (x::s) f = f x # (sepit s f).
+Proof. by []. Qed.
+
+Lemma sepit_cat s1 s2 f : sepit (s1 ++ s2) f =p sepit s1 f # sepit s2 f.
+Proof.
+elim: s1 s2 =>[|x s1 IH] s2 /=.
+- by rewrite star0p.
+apply/eqp_trans/eqp_sym/starA/(f x).
+by apply/star_cong; rewrite IH.
+Qed.
+End Iter.
+
+Section EqualityTp.
+
+Variable (A : eqType).
+
+Lemma sepitP (x : A) (s : seq A) f : uniq s ->
+       sepit s f =p if x \in s then f x # sepit (filter (predC1 x) s) f
+                    else sepit s f.
+Proof.
+elim: s x=>[|y s IH] x //=.
+rewrite inE; case: eqP=>/==>[->|H1].
+- rewrite eq_refl /=; case/andP=>H1 H2.
+  apply/star_cong.
+  have filter_predC1 : forall (x:A) s,
+    x \notin s -> filter (predC1 x) s = s.
+  - move=>x'; elim=>[|y' s' IH'] //.
+    rewrite inE; case: eqP=>//=; case: eqP=>[->|] //= _ _ H.
+    by rewrite IH'.
+  by rewrite filter_predC1.
+case/andP=>H2 H3; case: eqP H1=>[->| _ _] //.
+case: ifP=>H4 //=.
+apply/eqp_trans/starCA/star_cong.
+by rewrite (IH x H3) H4.
+Qed.
+End EqualityTp.
+
+Section IterProperties.
+Lemma perm_sepit (I : finType) (s1 s2 : seq I) f :
+        perm_eq s1 s2 -> sepit s1 f =p sepit s2 f.
+Proof.
+elim: s1 s2 =>[|x s1 IH] s2 /=.
+- by move/perm_size; move/eqP; rewrite eq_sym; move/eqP; move/size0nil=>->.
+move=>H.
+have L1: has (pred1 x) s2.
+- rewrite has_count; case: permP H=>//; move/(_ (pred1 x))=><-.
+  by rewrite /= eq_refl.
+have L2: x \in s2.
+- by case: hasP L1=>//= [[y]] H1; move/eqP=><-.
+move: (mem_split L2)=>[t1][t2] E.
+rewrite E in H *.
+have L3: perm_eq (x::s1) ([:: x] ++ t1 ++ t2).
+- apply: (perm_trans H).
+  by rewrite perm_catCA.
+rewrite /= perm_cons in L3.
+split.
+- case=>hx[h0][-> [Hx]].
+  move: (IH (t1 ++ t2) L3)=>->.
+  rewrite !sepit_cat; move=>[h1][h2][-> [H1 H2]].
+  exists h1, (hx \+ h2); rewrite joinCA; do!split=>//.
+  by exists hx, h2.
+rewrite sepit_cat; move=>[h1][h0][-> [H1]].
+rewrite sepit_cat; move=>[hx0][h2][{h0}-> []].
+move=>[hx][he][->][Hx {hx0 he}-> H2]; rewrite unitR.
+exists hx, (h1 \+ h2); rewrite joinCA; do!split=>//.
+move: (IH (t1 ++ t2) L3)=>->; rewrite sepit_cat.
+by exists h1, h2.
+Qed.
+
+Lemma eq_sepitF (I : finType) (s : seq I) (f1 f2 : I -> Pred heap) :
+        (forall x, x \in s -> f1 x =p f2 x) -> sepit s f1 =p sepit s f2.
+Proof.
+elim: s=>[|x s IH] //= H h.
+have H' : forall x : I, x \in s -> f1 x =p f2 x
+  by move=>? H0; apply: H; rewrite !inE H0 orbT.
+split; case=>h1[h2][E [H1]]; [rewrite IH|rewrite -IH]=>// H2;
+exists h1, h2; do!split=>//; [rewrite -H|rewrite H]=>//;
+by rewrite !inE eq_refl.
+Qed.
+
+End IterProperties.
+End Iter.
+
+Module FinIter.
+Section FinIter.
+Variable I : finType.
+
+Definition seq_of (s : {set I}) := [seq x <- enum I | x \in s].
+
+Lemma mem_seq_of (s : {set I}) x : (x \in seq_of s) = (x \in s).
+Proof. by rewrite /seq_of mem_filter mem_enum andbT. Qed.
+
+Lemma setq (s1 s2 : {set I}) : s1 = s2 <-> seq_of s1 =i seq_of s2.
+Proof.
+split=>[->|H] //; rewrite -setP=>x; move: (H x).
+by rewrite /seq_of !mem_filter -enumT mem_enum !andbT /in_mem.
+Qed.
+
+Lemma uniq_seq_of (s : {set I}) : uniq (seq_of s).
+Proof. by rewrite /seq_of filter_uniq // enum_uniq. Qed.
+
+Lemma perm_seqP (s1 s2 : {set I}) :
+       reflect (seq_of s1 =i seq_of s2)
+               (perm_eq (seq_of s1) (seq_of s2)).
+Proof.
+case E: (perm_eq _ _); constructor.
+- by apply: perm_mem.
+by move=>H; elim: (elimF idP E); apply: uniq_perm H; rewrite uniq_seq_of.
+Qed.
+
+Definition sepit (s : {set I}) (Ps : I -> Pred heap) :=
+  Iter.sepit (seq_of s) Ps.
+
+Lemma sepit0 f : sepit set0 f =p emp.
+Proof.
+rewrite /sepit /seq_of.
+rewrite (Iter.perm_sepit (s2 := filter pred0 (enum I))); first by rewrite filter_pred0.
+apply: uniq_perm; try by rewrite filter_uniq // enum_uniq.
+by move=>x; rewrite !mem_filter /= in_set0.
+Qed.
+
+Lemma sepitF (s : {set I}) f1 f2 :
+        (forall x, x \in s -> f1 x =p f2 x) -> sepit s f1 =p sepit s f2.
+Proof.
+move=>H; apply: Iter.eq_sepitF=>x H1; apply: H.
+by rewrite -mem_seq_of.
+Qed.
+
+Lemma eq_sepit (s1 s2 : {set I}) f : s1 =i s2 -> sepit s1 f =p sepit s2 f.
+Proof.
+rewrite setP setq.
+suff: perm_eq (seq_of s1) (seq_of s2) -> sepit s1 f =p sepit s2 f.
+- by move=>H H2; apply: H; case: perm_seqP.
+by apply: Iter.perm_sepit.
+Qed.
+
+Lemma sepitS x (s : {set I}) f :
+        sepit s f =p if x \in s then f x # sepit (s :\ x) f
+                     else sepit s f.
+Proof.
+apply: eqp_trans; first by apply: (Iter.sepitP x (s:=seq_of s) f (uniq_seq_of s)).
+rewrite mem_seq_of.
+case E: (x \in s) =>//.
+apply: star_cong.
+rewrite (@Iter.perm_sepit _ (filter (predC1 x) (seq_of s)) (seq_of (s :\ x))) //.
+rewrite /seq_of -filter_predI.
+apply: uniq_perm=>[||y]; try by rewrite filter_uniq // enum_uniq.
+by rewrite !mem_filter /= in_setD1.
+Qed.
+
+End FinIter.
+End FinIter.
 
 (********************)
 (* Separation monad *)

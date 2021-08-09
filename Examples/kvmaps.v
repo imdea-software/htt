@@ -2,8 +2,7 @@
 (* Key-Value maps *)
 (******************)
 
-From Coq Require Import Program.Wf ssrfun.
-From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq fintype tuple finfun path.
+From mathcomp Require Import ssreflect ssrbool eqtype ssrfun seq path.
 From fcsl Require Import axioms pred ordtype finmap.
 From fcsl Require Import pcm unionmap heap.
 From HTT Require Import domain stmod stsep stlog stlogR.
@@ -21,8 +20,6 @@ Record Sig (K : ordType) (V : Type) : Type :=
   make {tp :> Type;
         default : tp;
         shape : tp -> {finMap K -> V} -> Pred heap;
-        shapeD : forall x s h, h \In shape x s -> valid h;
-        shape_invert : forall x s1 s2 h, valid h -> h \In shape x s1 -> h \In shape x s2 -> s1 = s2;
 
         new : STsep (emp, [vfun x => shape x (nil K V)]);
 
@@ -186,8 +183,9 @@ Qed.
 Definition lookupT k : Type :=
   forall p, {fm}, STsep (shape p fm, [vfun y m => m \In shape p fm /\ y = fnd k fm]).
 
-Program Definition lookup (k : K) : lookupT k :=
- Fix (fun (go : lookupT k) (cur : ptr) =>
+Program Definition lookup x (k : K) : {fm}, STsep (shape x fm,
+                                                  [vfun y m => m \In shape x fm /\ y = fnd k fm]) :=
+ (Fix (fun (go : lookupT k) (cur : ptr) =>
       Do (if cur == null then ret None
           else
             k' <-- !cur;
@@ -197,9 +195,9 @@ Program Definition lookup (k : K) : lookupT k :=
               else if ord k' k
                 then next <-- !(cur .+ 2);
                      go next
-                else ret None)).
+                else ret None))) x.
 Next Obligation.
-move=>k go cur; apply: ghR=>h fm H Vh.
+move=>_ k go cur; apply: ghR=>h fm H Vh.
 case: eqP.
 - move=>Ec; step=>_; rewrite Ec in H.
   by case: (shape_null Vh H)=>->.
@@ -484,8 +482,7 @@ rewrite Ef -!joinA; apply: shape_cons.
 by apply: shape_cons.
 Qed.
 
-(*
-Definition AssocList := KVmap.make null shapeD shape_invert new free insert remove lookup.
-*)
+Definition AssocList := KVmap.make null new free insert remove lookup.
+
 End AssocList.
 End AssocList.

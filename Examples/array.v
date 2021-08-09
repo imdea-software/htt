@@ -1,5 +1,5 @@
-From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq fintype tuple finfun.
-From fcsl Require Import pred.
+From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq fintype tuple finfun finset.
+From fcsl Require Import axioms prelude pred.
 From fcsl Require Import pcm unionmap heap.
 From HTT Require Import domain stmod stsep stlog stlogR.
 Set Implicit Arguments.
@@ -166,3 +166,37 @@ Qed.
 
 End Array.
 End Array.
+
+(* Tabulating a finite function over another one *)
+(* Useful in building linked data structures that are pointed to by *)
+(* array elements, such as hashtables *)
+
+Section Table.
+Import FinIter.
+Variables (I : finType) (T S : Type) (x : {array I -> T})
+          (Ps : T -> S -> Pred heap).
+Definition table := fun (t : I -> T) (b : I -> S) (i:I) => Ps (t i) (b i).
+
+Lemma tableP (s : {set I}) t1 t2 b1 b2 h :
+        (forall x, x \in s -> t1 x = t2 x) ->
+        (forall x, x \in s -> b1 x = b2 x) ->
+        h \In sepit s (table t1 b1) -> h \In sepit s (table t2 b2).
+Proof.
+move=>H1 H2 H.
+apply/(sepitF (f1 := table t1 b1))=>//.
+by move=>y R; rewrite /table (H1 _ R) (H2 _ R).
+Qed.
+
+Lemma tableP2 (s1 s2 : {set I}) t1 t2 b1 b2 h :
+        s1 =i s2 ->
+        (forall x, s1 =i s2 -> x \in s1 -> t1 x = t2 x) ->
+        (forall x, s1 =i s2 -> x \in s1 -> b1 x = b2 x) ->
+        h \In sepit s1 (table t1 b1) -> h \In sepit s2 (table t2 b2).
+Proof.
+move=>H1 H2 H3; rewrite (eq_sepit _ H1).
+by apply: tableP=>y; rewrite -H1=>R; [apply: H2 | apply: H3].
+Qed.
+
+End Table.
+
+Prenex Implicits table.
