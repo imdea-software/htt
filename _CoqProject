@@ -15,3 +15,4 @@ Examples/queue.v
 Examples/stack.v
 Examples/kvmaps.v
 Examples/hashtab.v
+Examples/congmath.v
