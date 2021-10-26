@@ -80,7 +80,7 @@ Program Definition new (x : T) : STsep (emp, [vfun y => shape y [ffun => x]]) :=
   Do (x <-- allocb x #|I|;
       ret (Array x)).
 Next Obligation.
-move=>x i ->; step=>y; heval; rewrite unitR; vauto; congr updi.
+move=>i ->; step=>y; heval; rewrite unitR; vauto; congr updi.
 rewrite ?fgraph_codom /= codomE cardE.
 by elim: (enum I)=>[|t ts] //= ->; rewrite (ffunE _ _).
 Qed.
@@ -103,7 +103,7 @@ Program Definition newf (f : {ffun I -> T}) :
         in f (enum I)
       else ret (Array null)).
 Next Obligation.
-move=>f v x loop s _ /= [g][s'][[->]]; case: s=>[|k t] /= _ H1 H2.
+move=>_ /= [g][s'][[->]]; case: s=>[|k t] /= _ H1 H2.
 - rewrite cats0 in H1; step; vauto.
   by rewrite (_ : g = f) // -ffunP=>y; apply: H2; rewrite H1 mem_enum.
 rewrite (updi_split x k); step; apply: val_do0=>//.
@@ -122,13 +122,15 @@ suff L: #|I| = 0 by case: (fgraph f)=>/=; rewrite L; case.
 by rewrite cardE; case: (enum I)=>[|x s] //; move: (H x).
 Qed.
 
+
 Definition loop_inv (a : array) : Type :=
   forall k, STsep (fun i => exists xs:seq T, [/\ i = updi (a .+ k) xs, valid i &
                               size xs + k = #|I|],
-                   [vfun _ : unit => emp]).
+                   [vfun y : unit => emp]).
 
-Program Definition free (a : array) :
-    STsep (fun i => exists f, i \In shape a f, [vfun _ => emp]) :=
+Program
+Definition free (a : array) :
+    STsep (fun i => exists f, i \In shape a f, [vfun y => emp]) :=
   Do (let: f := Fix (fun (f : loop_inv a) k =>
                   Do (if k == #|I| then ret tt
                       else
@@ -150,7 +152,6 @@ Program Definition read (a : array) (k : I) :
                  [vfun y m => m = h /\ y = f k]) :=
   Do (!a .+ (indx k)).
 Next Obligation.
-move=>a k.
 by apply: ghR=>x [f h][->][/= ->] _ _; rewrite /shape (updi_split a k); step.
 Qed.
 
@@ -175,7 +176,28 @@ Section Table.
 Import FinIter.
 Variables (I : finType) (T S : Type) (x : {array I -> T})
           (Ps : T -> S -> Pred heap).
+(*Hypotheses IPs : forall t, invertible (Ps t).*)
 Definition table := fun (t : I -> T) (b : I -> S) (i:I) => Ps (t i) (b i).
+
+(*
+#[local]
+Notation "[ 'shape' t b ]" := (Array.shape x t # sepit setT (table t b))
+  (at level 0, t ident, b ident, only parsing).
+
+Lemma table_invert (t1 t2 : {ffun I -> T}) b1 b2 h1 h2:
+        h1 \In [shape t1 b1] -> h2 \In [shape t2 b2] ->
+        agree h1 h2 -> [/\ t1 = t2, forall i, b1 i = b2 i & h1 = h2].
+Proof.
+move=>t1 t2 b1 b2 h1 h2 /= [r1][g1][->][SH1][S1] _ [r2][g2][->][SH2][S2] D2 A.
+case: (Array.shape_invert SH1 SH2 (agreeUnK A))=>H1 H2 {SH1 SH2}.
+rewrite -{}H1 -{}H2 in D2 A S2 *; split=>//; last first.
+- heap_congr; apply: (sepit_invert S1 S2 (agreeKUn A))=>m l1 l2 _ H1 H2.
+  by case/(IPs H1 H2).
+move=>i; move: S1 S2 A; rewrite !(sepitT1 i).
+move=>[l1][w1][->][T1][_] _ [l2][w2][->][T2][_] _ A.
+suff: agree l1 l2 by case/(IPs T1 T2).
+by rewrite -(unCA l1) -(unCA l2) in A; apply: agreeUnK A.
+Qed.*)
 
 Lemma tableP (s : {set I}) t1 t2 b1 b2 h :
         (forall x, x \in s -> t1 x = t2 x) ->

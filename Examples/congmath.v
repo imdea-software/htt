@@ -2,13 +2,16 @@
 (* Congruence closure *)
 (**********************)
 
-From Coq Require Import Recdef.
+(*From Coq Require Import Recdef.*)
+(*From Coq Require Import Program.Wf Arith.Wf_nat FunInd.*)
+From Equations Require Import Equations.
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq bigop fintype finfun choice.
 From fcsl Require Import ordtype finmap pred.
 From HTT Require Import interlude.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
+Obligation Tactic := auto.
 
 Ltac add_morphism_tactic := SetoidTactics.add_morphism_tactic.
 
@@ -63,7 +66,7 @@ Definition symb := @seq_sub const_choiceType symbs.
 Canonical Structure symb_eqType := [eqType of symb].
 Canonical Structure symb_finType := [finType of symb for @seq_sub_finType _ _].
 (* symb is an ordered type *)
-Definition symb_ordMixin :=  [fin_ordMixin of symb].
+Definition symb_ordMixin := [fin_ordMixin of symb].
 Canonical Structure symb_ordType := OrdType _ symb_ordMixin.
 
 (****************************)
@@ -339,6 +342,8 @@ Definition pend2eq (p : pend) :=
 (* The definition of the data structures involved in the algorithm. *)
 (********************************************************************)
 
+#[universes(polymorphic=yes)]
+Section Data.
 
 Record data : Type :=
   Data {(* An array, indexed by symbs, containing for each symb its *)
@@ -365,14 +370,8 @@ Definition reps D : seq symb := undup (map (rep D) (enum predT)).
 Lemma uniq_reps D : uniq (reps D).
 Proof. by rewrite undup_uniq. Qed.
 
-#[export]
-Hint Resolve uniq_reps : core.
-
 Lemma rep_in_reps D a : rep D a \in reps D.
 Proof. by move=>*; rewrite mem_undup; apply: map_f; rewrite mem_enum. Qed.
-
-#[export]
-Hint Resolve rep_in_reps : core.
 
 (* The symbols and their representatives are a base case in defining the closure *)
 Definition rep2rel D := graph (fun x => const (rep D x)).
@@ -382,9 +381,6 @@ Proof.
 apply: (@closI _ (const a, const (rep D a))); apply: sub_orl; rewrite /= /rep2rel /graph /=.
 by rewrite mem_map /= ?mem_enum // => x1 x2 [->].
 Qed.
-
-#[export]
-Hint Resolve clos_rep : core.
 
 (* relation defined by the lookup table *)
 Definition lookup_rel D : rel_exp :=
@@ -415,15 +411,20 @@ Definition CRel D := closure (rep2rel D +p
 Lemma cong_rel D : congruence (CRel D).
 Proof. by move=>*; apply: cong_clos. Qed.
 
-#[export]
-Hint Resolve cong_rel : core.
-
 Lemma clos_rel D R a : (const a, const (rep D a)) \In closure (CRel D +p R).
 Proof. by rewrite /CRel clos_clos orrA; apply: clos_rep. Qed.
+
+End Data.
+
+#[export]
+Hint Resolve uniq_reps rep_in_reps clos_rep cong_rel : core.
 
 (*******************************************)
 (* Congruence Closure Code and Termination *)
 (*******************************************)
+
+#[universes(polymorphic=yes)]
+Section Termination.
 
 (* termination metric is the number of equations in the use and pending lists *)
 Definition metric (D : data) : nat :=
@@ -559,6 +560,160 @@ case S2: (x == a')=>//=.
 by rewrite ffunE S2.
 Qed.
 
+Definition pend0 (e : pend) :=
+  match e with simp_pend a b => a | comp_pend (a,_,_) (b,_,_) => a end.
+Definition pend1 (e : pend) :=
+  match e with simp_pend a b => b | comp_pend (a,_,_) (b,_,_) => b end.
+Notation "e ..0" := (pend0 e) (at level 2).
+Notation "e ..1" := (pend1 e) (at level 2).
+
+(* loop through the equations in the pending list *)
+
+Definition inspect {A} (a : A) : {b | a = b} :=
+  exist _ a erefl.
+
+Notation "x 'eqn:' p" := (exist _ x p) (only parsing, at level 20).
+
+Equations? propagate (D : data) : data by wf (metric D) lt :=
+propagate (Data r c u l [::]) := (Data r c u l [::]);
+propagate (Data r c u l (e::p')) with inspect (r (e..0) == r (e..1)) := {
+  | true eqn: Et := propagate (Data r c u l p');
+  | false eqn: Ef := let: a' := rep (Data r c u l (e::p')) (e..0) in
+             let: b' := rep (Data r c u l (e::p')) (e..1) in
+             let: D' := Data r c u l p' in
+             (* first join the classes *)
+             let: D'' := join_class D' a' b' in
+             (* then readjust the use lists and recurse *)
+             propagate (join_use D'' a' b') }.
+Proof.
+move/negbT: Ef=>Ef.
+have Er : r = rep D' by rewrite /D'.
+rewrite join_use_metric //; last first.
+- by rewrite join_class_eq // ?mem_filter /b' Er rep_in_reps //= andbT eq_sym Ef.
+- by rewrite join_class_eq // ?mem_filter /a' /b' Er rep_in_reps //= andbT eq_refl.
+by rewrite -join_class_metric // /a' /b' Er ?rep_in_reps.
+Defined.
+
+(*
+About propagate_elim.
+
+
+
+- rewrite /b' Er rep_in_reps.
+Program Fixpoint propagate (D : data) {measure (metric D)} : data :=
+  match pending D with
+    | [::] => D
+    | e :: p' =>
+        let: a' := rep D (e..0) in
+        let: b' := rep D (e..1) in
+        let: D' := Data (rep D) (class D) (use D) (lookup D) p' in
+          match a' == b' (*return data*) with
+            | true => propagate D'
+            | false => (* first join the classes *)
+                       let: D'' := join_class D' a' b' in
+                       (* then readjust the use lists and recurse *)
+                       propagate (join_use D'' a' b')
+          end
+  end.
+Next Obligation.
+move=>/= D _ e p' /esym eq ?-> ?-> ?-> /esym E.
+by rewrite /metric eq.
+Defined.
+Next Obligation.
+move=>/= D _ e p' /esym eq ?-> ?-> ?-> /esym/negbT H ?->.
+rewrite join_use_metric //; last first.
+- by rewrite join_class_eq // ?mem_filter rep_in_reps //= andbT eq_sym H.
+- by rewrite join_class_eq // ?mem_filter rep_in_reps //= andbT eq_refl.
+rewrite -join_class_metric // ?rep_in_reps //.
+by apply: ltP; rewrite /metric eq.
+Defined.
+Next Obligation.
+by apply: well_founded_ltof.
+Defined.
+
+
+(*
+Lemma foo re cl us lo: propagate {| rep := re; class := cl; use := us; lookup := lo; pending := [::] |} = {| rep := re; class := cl; use := us; lookup := lo; pending := [::] |}.
+Proof.
+
+  About fix_sub_eq_ext.
+unfold_sub.
+apply Fix_sub_rect=>/=.
+- move=>???.
+
+subst. case: pending recarg.
+*)
+
+From Coq Require Import Program.
+Lemma propagate_ind
+	 : forall P : data -> data -> Prop,
+       (forall D : data, pending D = [::] -> P D D) ->
+       (forall (D : data) (e : pend) (p' : seq pend),
+        pending D = e :: p' ->
+        forall a' : symb,
+        rep D e ..0 = a' ->
+        forall b' : symb,
+        rep D e ..1 = b' ->
+        forall D' : data,
+        {|
+          rep := rep D;
+          class := class D;
+          use := use D;
+          lookup := lookup D;
+          pending := p'
+        |} = D' ->
+        (a' == b') = true -> P D' (propagate D') -> P D (propagate D')) ->
+       (forall (D : data) (e : pend) (p' : seq pend),
+        pending D = e :: p' ->
+        forall a' : symb, rep D e ..0 = a' ->
+        forall b' : symb, rep D e ..1 = b' ->
+        forall D' : data,
+        {|
+          rep := rep D;
+          class := class D;
+          use := use D;
+          lookup := lookup D;
+          pending := p'
+        |} = D' ->
+        (a' == b') = false ->
+        forall D'' : data,
+        join_class D' a' b' = D'' ->
+        P (join_use D'' a' b') (propagate (join_use D'' a' b')) ->
+        P D (propagate (join_use D'' a' b'))) ->
+       forall D : data, P D (propagate D).
+Proof.
+move=>P Pnil Pt Pf [rep clas us look pend].
+case: pend.
+rewrite /propagate.
+- by rewrite /propagate /Fix_sub F_unfold /=; apply: Pnil.
+move=>a l.
+rewrite /propagate /Fix_sub.
+rewrite F_unfold. rewrite /=.
+set (xx e := rep e ..0 == rep e ..1).
+
+Check propagate_obligation_2.
+
+dependent inversion xx=>/=.
+- subst x.
+case: ().
+- move=>[rep' clas' us' look' pend'] g h H /=.
+  case: pend' g h H=>//= a l Hg Hh H0.
+
+  dependent destruction a=>/=. (rep' a ..0 == rep' a..1).
+
+  destruct (pending x0).
+*)
+(*
+case: pend.
+- by rewrite /propagate /Fix_sub F_unfold /=; apply: Pnil.
+move=>a l; rewrite /propagate /Fix_sub F_unfold /=.
+refine (if rep a ..0 == rep a ..1 as anonymous'
+         return (anonymous' = (rep a ..0 == rep a ..1) -> data) then _ else _).
+- rewrite /=.  /propagate /Fix_sub /Fix_F_sub /=.
+  cbv beta delta fix iota zeta.
+  *)
+
+(*
 Let pend0 (e : pend) :=
   match e with simp_pend a b => a | comp_pend (a,_,_) (b,_,_) => a end.
 Let pend1 (e : pend) :=
@@ -566,7 +721,7 @@ Let pend1 (e : pend) :=
 Notation "e ..0" := (pend0 e) (at level 2).
 Notation "e ..1" := (pend1 e) (at level 2).
 
-(* loop through the equations in the pending list *)
+
 Function propagate (D : data) {measure metric D} : data :=
   match (pending D) with
     | [::] => D
@@ -592,6 +747,9 @@ rewrite -join_class_metric ?H ?rep_in_reps //.
 by apply: ltP; rewrite /metric /reps /= eq /= addSn.
 Qed.
 
+Check propagate_ind.
+*)
+
 (* normalization routine *)
 Fixpoint norm (D : data) (t : exp) {struct t} : exp :=
   match t with
@@ -606,9 +764,14 @@ Fixpoint norm (D : data) (t : exp) {struct t} : exp :=
        end
      end.
 
+End Termination.
+
 (************************************)
 (* Some invariants of the algorithm *)
 (************************************)
+
+#[universes(polymorphic=yes)]
+Section Invariants.
 
 (* the rep function is idempotent *)
 Definition rep_idemp D := forall a, rep D (rep D a) = rep D a.
@@ -730,9 +893,14 @@ Definition lookup_use_inv2 D a' b' :=
 Definition propagate_inv D :=
   rep_idemp D /\ use_inv D /\ lookup_inv D /\ use_lookup_inv D /\ lookup_use_inv D.
 
+End Invariants.
+
 (****************)
 (* Verification *)
 (****************)
+
+#[universes(polymorphic=yes)]
+Section Verification.
 
 (* first some basic rewrite rules *)
 
@@ -854,7 +1022,7 @@ move=>H1 H2 H a b.
 by rewrite /similar /similar1 -orrA -clos_clos -join_class_repE // clos_clos.
 Qed.
 
-Module Dummy321. End Dummy321.
+(*Module Dummy321. End Dummy321.*)
 
 Lemma join_class_classP (D : data) (a' b' : symb) :
         a' != b' -> class_inv D -> class_inv (join_class D a' b').
@@ -906,7 +1074,7 @@ split=>[c c1 c2 /= H4 | a c c1 c2]; last first.
   case: (L1 a c c1 c2 H5 H6)=>H7; rewrite !ffunE /=;
   [ case H8: (rep D c2 == a'); [apply: Or41 | apply: Or42] |
     case H8: (rep D c1 == a'); [apply: Or43 | apply: Or44] ];
-    move: (T1 a c c1 c2 H5 H6); rewrite H7 ?(eqP H8) (negbTE H4);
+    move: (T1 a c c1 c2 H5 H6); rewrite H7; try rewrite (eqP H8); rewrite (negbTE H4);
     move=>[d][d1][d2][Q1][Q2][Q3] Q4; do !split=>//;
     try by [exists d, d1, d2; rewrite !ffunE /=;
             rewrite -Q2 -Q3 ?eq_refl (negbTE H4) ?H8; split=>//;
@@ -921,11 +1089,11 @@ case H6: (rep D c1 == rep D c2); last first.
 - case: H5=>H5; rewrite -H5; [apply: Or31 | apply: Or32];
   rewrite !ffunE /= eq_refl; do ![split=>//];
   move: (T1 a' c c1 c2 H1 H4)=>[d][d1][d2][Q1][Q2][Q3] Q4;
-  exists d, d1, d2; rewrite !ffunE /= -Q2 -Q3 ?(eq_sym (rep D c2)) H6 eq_refl;
+  exists d, d1, d2; rewrite !ffunE /= -Q2 -Q3; try rewrite (eq_sym (rep D c2)); rewrite H6 eq_refl;
   by do ![split=>//]; rewrite -join_class_simE=>//; rewrite H5.
 apply: Or33.
 case: H5 H1 H3 H4 T1=><- H1 H3 H4 T1; rewrite !ffunE /=
-                       eq_refl ?(eq_sym (rep D c2)) H6; do ![split=>//];
+                       eq_refl; try rewrite (eq_sym (rep D c2)); rewrite H6; do ![split=>//];
 move: (T1 _ c c1 c2 H1 H4)=>[d][d1][d2][Q1][Q2][Q3] Q4;
 exists d, d1, d2; rewrite !ffunE /=;
 rewrite -Q2 -Q3 -(eqP H6) eq_refl in Q1 *; do !split=>//;
@@ -933,7 +1101,7 @@ rewrite -join_class_simE=>//.
 by rewrite (eqP H6).
 Qed.
 
-Module Dummy123. End Dummy123.
+(*Module Dummy123. End Dummy123.*)
 
 Definition pull {T : Type} (r : Pred T) := (orrC r, orrCA r).
 
@@ -1015,7 +1183,7 @@ exists a, b, c, c1, c2.
 by rewrite !join_class_eq // !mem_filter /= E1 E2 !ffunE /= E3.
 Qed.
 
-Module Dummy1. End Dummy1.
+(*Module Dummy1. End Dummy1.*)
 
 (* Lemmas about join_use *)
 
@@ -1315,7 +1483,7 @@ exists f, f1, f2; do !split=>//.
 by apply: (transC (y:= const e))=>//; apply: symC.
 Qed.
 
-Module Dummy3. End Dummy3.
+(*Module Dummy3. End Dummy3.*)
 
 (* Lemmas about propagate *)
 
@@ -1438,14 +1606,21 @@ have L2: forall D pend_eq p' a b a' b' D' D'',
     by case=>[_][_][[d][d1][d2]][]; rewrite U.
   rewrite -H6 /= join_classE // T H6=>->.
   by apply: IH.
-apply/(@propagate_ind (fun d d' => inv d -> inv d' /\ pending d' = [::] /\ CRel d <~> CRel d')); first by [].
+apply/(@propagate_elim (fun d d' => inv d -> inv d' /\ pending d' = [::] /\ CRel d <~> CRel d')); first by [].
+- move=>r0 p H0 c0 u0 l0 p' H1 H2 H3.
+  apply: (L1 _ p p' (pend0 p) (pend1 p))=>{H0 H2 H3} //.
+  by case: p=>// [[[c c1]] c2] [[d d1] d2].
+move=>r0 p H0 c0 u0 l0 p' /= H1 H2 H3 /=.
+apply: L2=>//; last by apply/negbT.
+by case: {H0 H1 H2 H3}p=>// [[[c c1]] c2] [[d d1] d2].
+(*apply/(@propagate_ind (fun d d' => inv d -> inv d' /\ pending d' = [::] /\ CRel d <~> CRel d')); first by [].
 - by move=>D e p' H1 a' H2 b' H3 D'; apply: L1 H1 _ H2 H3;
      case: e=>// [[[c c1]] c2] [[d d1] d2].
 move=>D e p' H1 a' H2 b' H3 D' E [] // H _ D''; apply: L2 H1 _ H2 H3 E (negbT H).
-by case: e=>// [[[c c1]] c2] [[d d1] d2].
+by case: e=>// [[[c c1]] c2] [[d d1] d2].*)
 Qed.
 
-Module Dummy4. End Dummy4.
+(*Module Dummy4. End Dummy4.*)
 
 (* Lemmas about interaction of propagate with pending and closure *)
 
@@ -1494,7 +1669,7 @@ exists (rep d c1), (rep d c2), e, e1, e2.
 by rewrite !rep_in_reps.
 Qed.
 
-Module DummyT. End DummyT.
+(*Module DummyT. End DummyT.*)
 
 Section NoPend.
 Variables (d : data) (c c1 c2 : symb).
@@ -1581,7 +1756,7 @@ Qed.
 
 End NoPend.
 
-Module DummyQ. End DummyQ.
+(*Module DummyQ. End DummyQ.*)
 
 (* Lemma about normalization *)
 
@@ -1634,3 +1809,5 @@ move=>[x y]; case.
 move=>[a][b][c][c1][c2][-> Q1 Q2 Q3 ->] /=; do 2!rewrite reps_rep //.
 by rewrite Q3 H1.
 Qed.
+
+End Verification.

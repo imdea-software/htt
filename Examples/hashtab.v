@@ -9,9 +9,12 @@ Unset Printing Implicit Defensive.
 Obligation Tactic := auto.
 
 Module HashTab.
+#[universes(polymorphic=yes)]
 Section HashTab.
+Polymorphic Universes dy dy2.
 Import FinIter.
-Variables (K : ordType) (V : Type) (buckets : KVmap.Sig K V)
+Variables (K : ordType@{dy}) (V : Type@{dy2}) (buckets : KVmap.Sig K V)
+(*  Variables (K : ordType) (V : Type) (buckets : KVmap.Sig K V)*)
           (n : nat) (hash : K -> 'I_n).
 Definition hashtab := {array 'I_n -> KVmap.tp buckets}.
 Notation KVshape := (@KVmap.shape _ _ buckets).
@@ -212,4 +215,4 @@ Definition HashTab := KVmap.make (Array null) new free insert remove lookup.
 End HashTab.
 End HashTab.
 
-Definition HT K V := HashTab.HashTab (AssocList.AssocList K V).
+Polymorphic Definition HT K V := HashTab.HashTab (AssocList.AssocList K V).

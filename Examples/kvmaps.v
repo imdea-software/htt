@@ -16,10 +16,17 @@ Obligation Tactic := auto.
 (********************)
 
 Module KVmap.
-Record Sig (K : ordType) (V : Type) : Type :=
-  make {tp :> Type;
+Polymorphic Cumulative Record Sig@{u1 u2 u3} (K : ordType@{u1}) (V : Type@{u2}) : Type :=
+  make {tp :> Type@{u3};
+(*Record Sig (K : ordType) (V : Type) : Type :=
+  make {tp :> Type;*)
         default : tp;
         shape : tp -> {finMap K -> V} -> Pred heap;
+
+(*
+        shapeD : forall x s h, h \In shape x s -> valid h;
+        shape_invert : forall x s1 s2 h, valid h -> h \In shape x s1 -> h \In shape x s2 -> s1 = s2;
+*)
 
         new : STsep (emp, [vfun x => shape x (nil K V)]);
 
@@ -44,9 +51,12 @@ End KVmap.
 (**************************************************)
 
 Module AssocList.
+#[universes(polymorphic=yes)]
 Section AssocList.
+Polymorphic Universe al al2.
 
-Variable (K : ordType) (V : Set).
+(*Variables (K : ordType) (V : Type).*)
+Variables (K : ordType@{al}) (V : Type@{al2}).
 Notation fmap := (finMap K V).
 Notation nil := (nil K V).
 
@@ -144,6 +154,29 @@ apply: IH; first 1 last.
 rewrite -!joinA; apply shape_seg_rcons=>//.
 by move=>k0; case/O2/andP.
 Qed.
+
+(*
+Lemma shapeD x s h : h \In shape x s -> valid h.
+Proof.
+case: s=>xs; elim: xs x h=>/=.
+- by move=>???; case=>_ ->.
+move=>[k v] xs IH /= x h srt H.
+case: H=>/= y[h'][-> H'].
+rewrite validPtUn.
+
+
+suff: valid (entry )
+apply: IH.
+- by apply/path_sorted/srt.
+move=>?.
+rewrite
+
+=>/=xs srt; elim: xs srt h x=>/=[_ |[k v] tl IH srt] h x.
+- by case=>_->.
+move=>[y][h'][->]/(IH _ _ _) V'.
+rewrite validUnHC; apply/and3P; split=>//.
+- rewrite -!joinA validPtUn.
+*)
 
 (* main procedures *)
 
