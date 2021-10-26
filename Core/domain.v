@@ -2,7 +2,7 @@ From mathcomp Require Import ssreflect ssrbool ssrfun ssrnat eqtype seq.
 From fcsl Require Import axioms pred prelude.
 Set Implicit Arguments.
 Unset Strict Implicit.
-Unset Printing Implicit Defensive. 
+Unset Printing Implicit Defensive.
 
 (**********)
 (* Posets *)
@@ -20,8 +20,8 @@ Record mixin_of (T : Type) := Mixin {
   mx_leq : T -> T -> Prop;
   mx_bot : T;
   _ : forall x, mx_leq mx_bot x;
-  _ : forall x, mx_leq x x; 
-  _ : forall x y, mx_leq x y -> mx_leq y x -> x = y; 
+  _ : forall x, mx_leq x x;
+  _ : forall x y, mx_leq x y -> mx_leq y x -> x = y;
   _ : forall x y z, mx_leq x y -> mx_leq y z -> mx_leq x z}.
 
 End RawMixin.
@@ -39,7 +39,7 @@ Definition clone c of phant_id class c := @Pack T c T.
 
 (* produce a poset type out of the mixin *)
 (* equalize m0 and m by means of a phantom *)
-Definition pack (m0 : mixin_of T) := 
+Definition pack (m0 : mixin_of T) :=
   fun m & phant_id m0 m => Pack (@Class T m) T.
 
 Definition leq := mx_leq (mixin class).
@@ -82,10 +82,11 @@ Proof. by case: T y x z=>S [[l b B R A Tr]] ? x y z; apply: (Tr). Qed.
 
 End Laws.
 
+#[export]
 Hint Resolve botP poset_refl : core.
 
-Add Parametric Relation (T : poset) : T (@Poset.leq T) 
-  reflexivity proved by (@poset_refl _) 
+Add Parametric Relation (T : poset) : T (@Poset.leq T)
+  reflexivity proved by (@poset_refl _)
   transitivity proved by (fun x y => @poset_trans _ y x) as poset_rel.
 
 End Exports.
@@ -98,7 +99,7 @@ Export Poset.Exports.
 (* some basic definitions *)
 (**************************)
 
-Definition monotone (T1 T2 : poset) (f : T1 -> T2) := 
+Definition monotone (T1 T2 : poset) (f : T1 -> T2) :=
   forall x y, x <== y -> f x <== f y.
 
 Section IdealDef.
@@ -109,9 +110,9 @@ Structure ideal (P : T) := Ideal {id_val : T; id_pf : id_val <== P}.
 (* Changing the type of the ideal *)
 
 Lemma relaxP (P1 P2 : T) : P1 <== P2 -> forall p, p <== P1 -> p <== P2.
-Proof. by move=>H1 p H2; apply: poset_trans H1. Qed. 
+Proof. by move=>H1 p H2; apply: poset_trans H1. Qed.
 
-Definition relax (P1 P2 : T) (x : ideal P1) (pf : P1 <== P2) := 
+Definition relax (P1 P2 : T) (x : ideal P1) (pf : P1 <== P2) :=
   Ideal (relaxP pf (id_pf x)).
 
 End IdealDef.
@@ -120,10 +121,10 @@ End IdealDef.
 (* poset constructions *)
 (***********************)
 
-Section SubPoset. 
+Section SubPoset.
 Variables (T : poset) (s : Pred T) (C : bot \In s).
 
-Local Notation tp := {x : T | x \In s}. 
+Local Notation tp := {x : T | x \In s}.
 
 Definition sub_bot : tp := exist _ bot C.
 Definition sub_leq (p1 p2 : tp) := sval p1 <== sval p2.
@@ -142,7 +143,7 @@ by apply: pf_irr.
 Qed.
 
 Lemma sub_trans x y z : sub_leq x y -> sub_leq y z -> sub_leq x z.
-Proof. 
+Proof.
 move: x y z=>[x Hx][y Hy][z Hz]; rewrite /sub_leq /=.
 by apply: poset_trans.
 Qed.
@@ -156,16 +157,16 @@ End SubPoset.
 
 (* pairing of posets *)
 
-Section PairPoset. 
-Variable (A B : poset). 
-Local Notation tp := (A * B)%type. 
+Section PairPoset.
+Variable (A B : poset).
+Local Notation tp := (A * B)%type.
 
 Definition pair_bot : tp := (bot, bot).
 Definition pair_leq (p1 p2 : tp) := p1.1 <== p2.1 /\ p1.2 <== p2.2.
 
 Lemma pair_botP x : pair_leq pair_bot x.
 Proof. by split; apply: botP. Qed.
-    
+
 Lemma pair_refl x : pair_leq x x.
 Proof. by []. Qed.
 
@@ -176,13 +177,13 @@ by congr (_, _); apply: poset_asym.
 Qed.
 
 Lemma pair_trans x y z : pair_leq x y -> pair_leq y z -> pair_leq x z.
-Proof. 
+Proof.
 move: x y z=>[x1 x2][y1 y2][z1 z2][/= H1 H2][/= H3 H4]; split=>/=.
 - by apply: poset_trans H3.
 by apply: poset_trans H4.
 Qed.
 
-Definition pairPosetMixin := 
+Definition pairPosetMixin :=
   PosetMixin pair_botP pair_refl pair_asym pair_trans.
 Canonical pairPoset := Eval hnf in Poset tp pairPosetMixin.
 
@@ -190,23 +191,23 @@ End PairPoset.
 
 (* functions into a poset form a poset *)
 
-Section FunPoset. 
+Section FunPoset.
 Variable (A : Type) (B : poset).
-Local Notation tp := (A -> B). 
+Local Notation tp := (A -> B).
 
 Definition fun_bot : tp := fun x => bot.
 Definition fun_leq (p1 p2 : tp) := forall x, p1 x <== p2 x.
 
 Lemma fun_botP x : fun_leq fun_bot x.
 Proof. by move=>y; apply: botP. Qed.
-    
+
 Lemma fun_refl x : fun_leq x x.
-Proof. by []. Qed. 
+Proof. by []. Qed.
 
 Lemma fun_asym x y : fun_leq x y -> fun_leq y x -> x = y.
-Proof. 
-move=>H1 H2; apply: fext=>z; 
-by apply: poset_asym; [apply: H1 | apply: H2]. 
+Proof.
+move=>H1 H2; apply: fext=>z;
+by apply: poset_asym; [apply: H1 | apply: H2].
 Qed.
 
 Lemma fun_trans x y z : fun_leq x y -> fun_leq y z -> fun_leq x z.
@@ -222,19 +223,19 @@ End FunPoset.
 Section DFunPoset.
 Variables (A : Type) (B : A -> poset).
 Local Notation tp := (forall x, B x).
- 
+
 Definition dfun_bot : tp := fun x => bot.
 Definition dfun_leq (p1 p2 : tp) := forall x, p1 x <== p2 x.
 
 Lemma dfun_botP x : dfun_leq dfun_bot x.
 Proof. by move=>y; apply: botP. Qed.
-    
+
 Lemma dfun_refl x : dfun_leq x x.
 Proof. by []. Qed.
 
 Lemma dfun_asym x y : dfun_leq x y -> dfun_leq y x -> x = y.
 Proof.
-move=>H1 H2; apply: fext=>z; 
+move=>H1 H2; apply: fext=>z;
 by apply: poset_asym; [apply: H1 | apply: H2].
 Qed.
 
@@ -243,11 +244,11 @@ Proof. by move=>H1 H2 t; apply: poset_trans (H2 t). Qed.
 
 (* no point in declaring this canonical, since it's keyed on forall *)
 (* and forall is not a symbol *)
-Definition dfunPosetMixin := 
+Definition dfunPosetMixin :=
   PosetMixin dfun_botP dfun_refl dfun_asym dfun_trans.
 Definition dfunPoset := Eval hnf in Poset tp dfunPosetMixin.
 
-End DFunPoset. 
+End DFunPoset.
 
 (* ideal of a poset is a poset *)
 
@@ -261,34 +262,34 @@ Lemma ideal_botP x : ideal_leq ideal_bot x.
 Proof. by apply: botP. Qed.
 
 Lemma ideal_refl x : ideal_leq x x.
-Proof. by case: x=>x H; rewrite /ideal_leq. Qed. 
+Proof. by case: x=>x H; rewrite /ideal_leq. Qed.
 
 Lemma ideal_asym x y : ideal_leq x y -> ideal_leq y x -> x = y.
 Proof.
-move: x y=>[x1 H1][x2 H2]; rewrite /ideal_leq /= => H3 H4; move: H1 H2. 
+move: x y=>[x1 H1][x2 H2]; rewrite /ideal_leq /= => H3 H4; move: H1 H2.
 rewrite (poset_asym H3 H4)=>H1 H2.
 congr Ideal; apply: pf_irr.
-Qed.   
+Qed.
 
 Lemma ideal_trans x y z : ideal_leq x y -> ideal_leq y z -> ideal_leq x z.
 Proof. by apply: poset_trans. Qed.
 
-Definition idealPosetMixin := 
+Definition idealPosetMixin :=
   PosetMixin ideal_botP ideal_refl ideal_asym ideal_trans.
 Canonical idealPoset := Eval hnf in Poset (ideal P) idealPosetMixin.
 
 End IdealPoset.
 
-(* Prop is a poset *)
+(* Prop is a poset (Sierpinski poset) *)
 
 Section PropPoset.
 
 Definition prop_bot := False.
 Definition prop_leq (p1 p2 : Prop) := p1 -> p2.
 
-Lemma prop_botP x : prop_leq prop_bot x. 
-Proof. by []. Qed. 
-    
+Lemma prop_botP x : prop_leq prop_bot x.
+Proof. by []. Qed.
+
 Lemma prop_refl x : prop_leq x x.
 Proof. by []. Qed.
 
@@ -298,22 +299,22 @@ Proof. by move=>H1 H2; apply: pext. Qed.
 Lemma prop_trans x y z : prop_leq x y -> prop_leq y z -> prop_leq x z.
 Proof. by move=>H1 H2; move/H1. Qed.
 
-Definition propPosetMixin := 
+Definition propPosetMixin :=
   PosetMixin prop_botP prop_refl prop_asym prop_trans.
 Canonical propPoset := Eval hnf in Poset Prop propPosetMixin.
 
-End PropPoset. 
- 
+End PropPoset.
+
 (* Pred is a poset *)
 
 (* Can be inherited from posets of -> and Prop, but we declare a *)
 (* dedicated structure to keep the infix notation of Pred. Otherwise, *)
 (* poset inference turns Pred A into A -> Prop. *)
 
-Section PredPoset. 
+Section PredPoset.
 Variable A : Type.
 
-Definition predPosetMixin : Poset.mixin_of (Pred A) := 
+Definition predPosetMixin : Poset.mixin_of (Pred A) :=
   funPosetMixin A propPoset.
 Canonical predPoset := Eval hnf in Poset (Pred A) predPosetMixin.
 
@@ -326,7 +327,7 @@ Lemma nat_botP x : 0 <= x. Proof. by []. Qed.
 Lemma nat_refl x : x <= x. Proof. by []. Qed.
 
 Lemma nat_asym x y : x <= y -> y <= x -> x = y.
-Proof. by move=>H1 H2; apply: anti_leq; rewrite H1 H2. Qed. 
+Proof. by move=>H1 H2; apply: anti_leq; rewrite H1 H2. Qed.
 
 Lemma nat_trans x y z : x <= y -> y <= z -> x <= z.
 Proof. by apply: leq_trans. Qed.
@@ -349,7 +350,7 @@ Variable T : poset.
 Record mixin_of := Mixin {
   mx_sup : Pred T -> T;
   _ : forall (s : Pred T) x, x \In s -> x <== mx_sup s;
-  _ : forall (s : Pred T) x, 
+  _ : forall (s : Pred T) x,
         (forall y, y \In s -> y <== x) -> mx_sup s <== x}.
 
 End RawMixin.
@@ -357,7 +358,7 @@ End RawMixin.
 Section ClassDef.
 
 Record class_of (T : Type) := Class {
-  base : Poset.class_of T; 
+  base : Poset.class_of T;
   mixin : mixin_of (Poset.Pack base T)}.
 
 Local Coercion base : class_of >-> Poset.class_of.
@@ -371,7 +372,7 @@ Definition clone c of phant_id class c := @Pack T c T.
 
 (* produce a lattice type out of the mixin *)
 (* equalize m0 and m by means of a phantom *)
-Definition pack b0 (m0 : mixin_of (Poset.Pack b0 T)) := 
+Definition pack b0 (m0 : mixin_of (Poset.Pack b0 T)) :=
   fun m & phant_id m0 m => Pack (@Class T b0 m) T.
 
 Definition sup (s : Pred cT) : cT := mx_sup (mixin class) s.
@@ -421,7 +422,7 @@ Export Lattice.Exports.
 Section Infimum.
 Variable T : lattice.
 
-Definition inf (s : Pred T) := 
+Definition inf (s : Pred T) :=
   sup [Pred x : T | forall y, y \In s -> x <== y].
 
 Lemma infP s : forall x, x \In s -> inf s <== x.
@@ -440,11 +441,11 @@ Variable T : lattice.
 Definition tarski_lfp (f : T -> T) := inf [Pred x : T | f x <== x].
 Definition tarski_gfp (f : T -> T) := sup [Pred x : T | x <== f x].
 
-Definition sup_closed (T : lattice) := 
-  [Pred s : Pred T | 
+Definition sup_closed (T : lattice) :=
+  [Pred s : Pred T |
      bot \In s /\ forall d, d <=p s -> sup d \In s].
 
-Definition sup_closure (T : lattice) (s : Pred T) := 
+Definition sup_closure (T : lattice) (s : Pred T) :=
   [Pred p : T | forall t : Pred T, s <=p t -> t \In sup_closed T -> p \In t].
 
 End Lat.
@@ -462,19 +463,19 @@ Proof. by move=>H; apply: supM=>y; move/H; apply: supP. Qed.
 Lemma supE (s1 s2 : Pred T) : s1 =p s2 -> sup s1 = sup s2.
 Proof. by move=>H; apply: poset_asym; apply: supM=>y; move/H; apply: supP. Qed.
 
-(* Knaster-Tarski *) 
-Lemma tarski_lfp_fixed (f : T -> T) : 
+(* Knaster-Tarski *)
+Lemma tarski_lfp_fixed (f : T -> T) :
         monotone f -> f (tarski_lfp f) = tarski_lfp f.
 Proof.
 move=>M; suff L: f (tarski_lfp f) <== tarski_lfp f.
 - by apply: poset_asym=>//; apply: infP; apply: M L.
 by apply: infM=>x L; apply: poset_trans (L); apply: M; apply: infP.
-Qed. 
+Qed.
 
 Lemma tarski_lfp_least f : forall x : T, f x = x -> tarski_lfp f <== x.
 Proof. by move=>x H; apply: infP; rewrite InE /= H. Qed.
 
-Lemma tarski_gfp_fixed (f : T -> T) : 
+Lemma tarski_gfp_fixed (f : T -> T) :
         monotone f -> f (tarski_gfp f) = tarski_gfp f.
 Proof.
 move=>M; suff L: tarski_gfp f <== f (tarski_gfp f).
@@ -490,7 +491,7 @@ Lemma sup_clos_sub (s : Pred T) : s <=p sup_closure s.
 Proof. by move=>p H1 t H2 H3; apply: H2 H1. Qed.
 
 (* closure is smallest *)
-Lemma sup_clos_min (s : Pred T) : 
+Lemma sup_clos_min (s : Pred T) :
         forall t, s <=p t -> sup_closed t -> sup_closure s <=p t.
 Proof. by move=>t H1 H2 p; move/(_ _ H1 H2). Qed.
 
@@ -505,7 +506,7 @@ Qed.
 Lemma sup_clos_idemp (s : Pred T) : sup_closed s -> sup_closure s =p s.
 Proof. by move=>p; split; [apply: sup_clos_min | apply: sup_clos_sub]. Qed.
 
-Lemma sup_clos_mono (s1 s2 : Pred T) : 
+Lemma sup_clos_mono (s1 s2 : Pred T) :
         s1 <=p s2 -> sup_closure s1 <=p sup_closure s2.
 Proof.
 move=>H1; apply: sup_clos_min (sup_closP s2)=>p H2.
@@ -516,17 +517,17 @@ End BasicProperties.
 
 (* lattice constructions *)
 
-Section SubLattice. 
+Section SubLattice.
 Variables (T : lattice) (s : Pred T) (C : sup_closed s).
-Local Notation tp := (subPoset (proj1 C)). 
+Local Notation tp := (subPoset (proj1 C)).
 
-Definition sub_sup' (u : Pred tp) : T := 
-  sup [Pred x : T | exists y, y \In u /\ x = sval y]. 
+Definition sub_sup' (u : Pred tp) : T :=
+  sup [Pred x : T | exists y, y \In u /\ x = sval y].
 
 Lemma sub_supX (u : Pred tp) : sub_sup' u \In s.
 Proof. by case: C u=>P /= H u; apply: H=>t [[y]] H1 [_] ->. Qed.
 
-Definition sub_sup (u : Pred tp) : tp := 
+Definition sub_sup (u : Pred tp) : tp :=
   exist _ (sub_sup' u) (sub_supX u).
 
 Lemma sub_supP (u : Pred tp) (x : tp) : x \In u -> x <== sub_sup u.
@@ -537,20 +538,20 @@ Lemma sub_supM (u : Pred tp) (x : tp) :
 Proof. by move=>H; apply: supM=>y [z][H1] ->; apply: H H1. Qed.
 
 Definition subLatticeMixin := LatticeMixin sub_supP sub_supM.
-Definition subLattice := Eval hnf in Lattice {x : T | x \In s} subLatticeMixin. 
+Definition subLattice := Eval hnf in Lattice {x : T | x \In s} subLatticeMixin.
 
 End SubLattice.
 
 (* pairing *)
 
-Section PairLattice. 
-Variables (A B : lattice). 
-Local Notation tp := (A * B)%type. 
+Section PairLattice.
+Variables (A B : lattice).
+Local Notation tp := (A * B)%type.
 
-Definition pair_sup (s : Pred tp) : tp := 
-            (sup [Pred p | exists f, p = f.1 /\ f \In s], 
+Definition pair_sup (s : Pred tp) : tp :=
+            (sup [Pred p | exists f, p = f.1 /\ f \In s],
              sup [Pred p | exists f, p = f.2 /\ f \In s]).
-    
+
 Lemma pair_supP (s : Pred tp) (p : tp) : p \In s -> p <== pair_sup s.
 Proof. by move=>H; split; apply: supP; exists p. Qed.
 
@@ -561,17 +562,17 @@ Proof. by move=>H; split; apply: supM=>y [f][->]; case/H. Qed.
 Definition pairLatticeMixin := LatticeMixin pair_supP pair_supM.
 Canonical pairLattice := Eval hnf in Lattice tp pairLatticeMixin.
 
-End PairLattice. 
+End PairLattice.
 
 (* functions into a latice form a lattice *)
 
-Section FunLattice. 
+Section FunLattice.
 Variables (A : Type) (B : lattice).
-Local Notation tp := (A -> B). 
+Local Notation tp := (A -> B).
 
-Definition fun_sup (s : Pred tp) : tp := 
+Definition fun_sup (s : Pred tp) : tp :=
   fun x => sup [Pred p | exists f, f \In s /\ p = f x].
-    
+
 Lemma fun_supP (s : Pred tp) (p : tp) : p \In s -> p <== fun_sup s.
 Proof. by move=>H x; apply: supP; exists p. Qed.
 
@@ -588,12 +589,12 @@ End FunLattice.
 
 Section DFunLattice.
 Variables (A : Type) (B : A -> lattice).
-Local Notation tp := (dfunPoset B). 
+Local Notation tp := (dfunPoset B).
 
-Definition dfun_sup (s : Pred tp) : tp := 
+Definition dfun_sup (s : Pred tp) : tp :=
   fun x => sup [Pred p | exists f, f \In s /\ p = f x].
 
-Lemma dfun_supP (s : Pred tp) (p : tp) : 
+Lemma dfun_supP (s : Pred tp) (p : tp) :
         p \In s -> p <== dfun_sup s.
 Proof. by move=>H x; apply: supP; exists p. Qed.
 
@@ -608,20 +609,20 @@ End DFunLattice.
 
 (* applied sup equals the sup of applications *)
 
-Lemma sup_appE A (B : lattice) (s : Pred (A -> B)) (x : A) : 
+Lemma sup_appE A (B : lattice) (s : Pred (A -> B)) (x : A) :
         sup s x = sup [Pred y : B | exists f, f \In s /\ y = f x].
 Proof. by []. Qed.
 
-Lemma sup_dappE A (B : A -> lattice) (s : Pred (dfunLattice B)) (x : A) : 
-        sup s x = sup [Pred y : B x | exists f, f \In s /\ y = f x]. 
+Lemma sup_dappE A (B : A -> lattice) (s : Pred (dfunLattice B)) (x : A) :
+        sup s x = sup [Pred y : B x | exists f, f \In s /\ y = f x].
 Proof. by []. Qed.
 
 (* ideal of a lattice forms a lattice *)
 
 Section IdealLattice.
-Variables (T : lattice) (P : T). 
+Variables (T : lattice) (P : T).
 
-Definition ideal_sup' (s : Pred (ideal P)) := 
+Definition ideal_sup' (s : Pred (ideal P)) :=
   sup [Pred x | exists p, p \In s /\ id_val p = x].
 
 Lemma ideal_supP' (s : Pred (ideal P)) : ideal_sup' s <== P.
@@ -629,11 +630,11 @@ Proof. by apply: supM=>y [[x]] H /= [_] <-. Qed.
 
 Definition ideal_sup (s : Pred (ideal P)) := Ideal (ideal_supP' s).
 
-Lemma ideal_supP (s : Pred (ideal P)) p : 
+Lemma ideal_supP (s : Pred (ideal P)) p :
         p \In s -> p <== ideal_sup s.
-Proof. by move=>H; apply: supP; exists p. Qed. 
+Proof. by move=>H; apply: supP; exists p. Qed.
 
-Lemma ideal_supM (s : Pred (ideal P)) p :  
+Lemma ideal_supM (s : Pred (ideal P)) p :
         (forall q, q \In s -> q <== p) -> ideal_sup s <== p.
 Proof. by move=>H; apply: supM=>y [q][H1] <-; apply: H. Qed.
 
@@ -646,23 +647,23 @@ End IdealLattice.
 
 Section PropLattice.
 
-Definition prop_sup (s : Pred Prop) : Prop := exists p, p \In s /\ p. 
-    
+Definition prop_sup (s : Pred Prop) : Prop := exists p, p \In s /\ p.
+
 Lemma prop_supP (s : Pred Prop) p : p \In s -> p <== prop_sup s.
 Proof. by exists p. Qed.
 
 Lemma prop_supM (s : Pred Prop) p :
         (forall q, q \In s -> q <== p) -> prop_sup s <== p.
-Proof. by move=>H [r][]; move/H. Qed. 
-   
+Proof. by move=>H [r][]; move/H. Qed.
+
 Definition propLatticeMixin := LatticeMixin prop_supP prop_supM.
 Canonical propLattice := Eval hnf in Lattice Prop propLatticeMixin.
 
-End PropLattice. 
- 
+End PropLattice.
+
 (* Pred is a lattice *)
 
-Section PredLattice. 
+Section PredLattice.
 Variable A : Type.
 
 Definition predLatticeMixin := funLatticeMixin A propLattice.
@@ -677,8 +678,8 @@ End PredLattice.
 Section Chains.
 Variable T : poset.
 
-Definition chain_axiom (s : Pred T) := 
-  (exists d, d \In s) /\ 
+Definition chain_axiom (s : Pred T) :=
+  (exists d, d \In s) /\
   (forall x y, x \In s -> y \In s -> x <== y \/ y <== x).
 
 Structure chain := Chain {
@@ -701,10 +702,10 @@ Qed.
 
 (* adding bot to a chain *)
 
-Section LiftChain. 
+Section LiftChain.
 Variable (T : poset) (s : chain T).
 
-Lemma lift_chainP : chain_axiom [Pred x : T | x = bot \/ x \In s]. 
+Lemma lift_chainP : chain_axiom [Pred x : T | x = bot \/ x \In s].
 Proof.
 case: s=>p [[d H1] H2] /=; split=>[|x y]; first by exists d; right.
 by case=>[->|H3][->|H4]; auto.
@@ -719,7 +720,7 @@ End LiftChain.
 Section ImageChain.
 Variables (T1 T2 : poset) (s : chain T1) (f : T1 -> T2) (M : monotone f).
 
-Lemma image_chainP : 
+Lemma image_chainP :
         chain_axiom [Pred x2 : T2 | exists x1, x2 = f x1 /\ x1 \In s].
 Proof.
 case: s=>p [[d H1] H2]; split=>[|x y]; first by exists (f d); exists d.
@@ -760,7 +761,7 @@ Proof. by split; [exists y | move=>x1 x2 ->->; left]. Qed.
 Definition const_chain := Chain const_chainP.
 
 Lemma const_chainE s : [_ ^^ s by const_mono] = const_chain.
-Proof. 
+Proof.
 apply/chainE=>z1; split; first by case=>z2 [->].
 by case: s=>s [[d] H1] H2 <-; exists d.
 Qed.
@@ -777,7 +778,7 @@ Variables (s : chain T3) (M1 : monotone f1) (M2 : monotone f2).
 Lemma comp_mono : monotone (f1 \o f2).
 Proof. by move=>x y H; apply: M1; apply: M2. Qed.
 
-Lemma comp_chainE : 
+Lemma comp_chainE :
         [f1 ^^ [f2 ^^ s by M2] by M1] = [f1 \o f2 ^^ s by comp_mono].
 Proof.
 apply/chainE=>x1; split; first by case=>x2 [->][x3][->]; exists x3.
@@ -853,7 +854,7 @@ Variables (A : Type) (T : A -> poset) (s : chain (dfunPoset T)).
 Lemma dapp_mono x : monotone (fun f : dfunPoset T => f x).
 Proof. by move=>f1 f2; apply. Qed.
 
-Definition dapp_chain x := [_ ^^ s by dapp_mono x]. 
+Definition dapp_chain x := [_ ^^ s by dapp_mono x].
 
 End DAppChain.
 
@@ -875,14 +876,14 @@ Definition prod_chain := [f1 \* f2 ^^ s by prod_mono].
 Lemma proj1_prodE : proj1_chain prod_chain = [f1 ^^ proj1_chain s by M1].
 Proof.
 rewrite /proj1_chain /prod_chain !comp_chainE !/comp /=.
-by apply/chainE. 
+by apply/chainE.
 Qed.
 
 Lemma proj2_prodE : proj2_chain prod_chain = [f2 ^^ proj2_chain s by M2].
 Proof.
 rewrite /proj2_chain /prod_chain !comp_chainE !/comp /=.
 by apply/chainE.
-Qed. 
+Qed.
 
 End ProdChain.
 
@@ -894,7 +895,7 @@ Prenex Implicits prod_mono.
 Section NatChain.
 
 Lemma nat_chain_axiom : chain_axiom (@PredT nat).
-Proof. 
+Proof.
 split=>[|x y _ _]; first by exists 0.
 rewrite /Poset.leq /= [y <= x]leq_eqVlt.
 by case: leqP; [left | rewrite orbT; right].
@@ -911,11 +912,11 @@ End NatChain.
 Module CPO.
 
 Section RawMixin.
- 
+
 Record mixin_of (T : poset) := Mixin {
   mx_lim : chain T -> T;
   _ : forall (s : chain T) x, x \In s -> x <== mx_lim s;
-  _ : forall (s : chain T) x, 
+  _ : forall (s : chain T) x,
         (forall y, y \In s -> y <== x) -> mx_lim s <== x}.
 
 End RawMixin.
@@ -923,8 +924,8 @@ End RawMixin.
 Section ClassDef.
 
 Record class_of (T : Type) := Class {
-  base : Poset.class_of T; 
-  mixin : mixin_of (Poset.Pack base T)}. 
+  base : Poset.class_of T;
+  mixin : mixin_of (Poset.Pack base T)}.
 
 Local Coercion base : class_of >-> Poset.class_of.
 
@@ -985,17 +986,17 @@ Export CPO.Exports.
 
 (* pairs *)
 
-Section PairCPO. 
-Variables (A B : cpo). 
-Local Notation tp := [poset of A * B]. 
+Section PairCPO.
+Variables (A B : cpo).
+Local Notation tp := [poset of A * B].
 
-Definition pair_lim (s : chain tp) : tp := 
+Definition pair_lim (s : chain tp) : tp :=
   (lim (proj1_chain s), lim (proj2_chain s)).
 
 Lemma pair_limP (s : chain tp) x : x \In s -> x <== pair_lim s.
 Proof. by split; apply: limP; exists x. Qed.
 
-Lemma pair_limM (s : chain tp) x : 
+Lemma pair_limM (s : chain tp) x :
         (forall y, y \In s -> y <== x) -> pair_lim s <== x.
 Proof. by split; apply: limM=>y [z][->]; case/H. Qed.
 
@@ -1006,21 +1007,21 @@ End PairCPO.
 
 (* functions *)
 
-Section FunCPO. 
+Section FunCPO.
 Variable (A : Type) (B : cpo).
 Local Notation tp := [poset of A -> B].
 
-Definition fun_lim (s : chain tp) : tp := 
+Definition fun_lim (s : chain tp) : tp :=
   fun x => lim (app_chain s x).
 
 Lemma fun_limP (s : chain tp) x : x \In s -> x <== fun_lim s.
 Proof. by move=>H t; apply: limP; exists x. Qed.
 
-Lemma fun_limM (s : chain tp) x : 
+Lemma fun_limM (s : chain tp) x :
         (forall y, y \In s -> y <== x) -> fun_lim s <== x.
 Proof. by move=>H1 t; apply: limM=>y [f][->] H2; apply: H1. Qed.
 
-Definition funCPOMixin := CPOMixin fun_limP fun_limM. 
+Definition funCPOMixin := CPOMixin fun_limP fun_limM.
 Canonical funCPO := Eval hnf in CPO (A -> B) funCPOMixin.
 
 End FunCPO.
@@ -1031,17 +1032,17 @@ Section DFunCPO.
 Variable (A : Type) (B : A -> cpo).
 Local Notation tp := (dfunPoset B).
 
-Definition dfun_lim (s : chain tp) : tp := 
+Definition dfun_lim (s : chain tp) : tp :=
   fun x => lim (dapp_chain s x).
 
 Lemma dfun_limP (s : chain tp) x : x \In s -> x <== dfun_lim s.
 Proof. by move=>H t; apply: limP; exists x. Qed.
 
-Lemma dfun_limM (s : chain tp) x : 
+Lemma dfun_limM (s : chain tp) x :
         (forall y, y \In s -> y <== x) -> dfun_lim s <== x.
 Proof. by move=>H1 t; apply: limM=>y [f][->] H2; apply: H1. Qed.
 
-Definition dfunCPOMixin := CPOMixin dfun_limP dfun_limM. 
+Definition dfunCPOMixin := CPOMixin dfun_limP dfun_limM.
 Definition dfunCPO := Eval hnf in CPO (forall x, B x) dfunCPOMixin.
 
 End DFunCPO.
@@ -1051,23 +1052,23 @@ End DFunCPO.
 Section PropCPO.
 Local Notation tp := [poset of Prop].
 
-Definition prop_lim (s : chain tp) : tp := exists p, p \In s /\ p. 
-    
+Definition prop_lim (s : chain tp) : tp := exists p, p \In s /\ p.
+
 Lemma prop_limP (s : chain tp) p : p \In s -> p <== prop_lim s.
 Proof. by exists p. Qed.
 
 Lemma prop_limM (s : chain tp) p :
         (forall q, q \In s -> q <== p) -> prop_lim s <== p.
-Proof. by move=>H [r][]; move/H. Qed. 
-   
+Proof. by move=>H [r][]; move/H. Qed.
+
 Definition propCPOMixin := CPOMixin prop_limP prop_limM.
 Canonical propCPO := Eval hnf in CPO Prop propCPOMixin.
 
-End PropCPO. 
- 
+End PropCPO.
+
 (* Pred *)
 
-Section PredCPO. 
+Section PredCPO.
 Variable A : Type.
 
 Definition predCPOMixin := funCPOMixin A propCPO.
@@ -1086,7 +1087,7 @@ Definition lat_lim (s : chain tp) : tp := sup s.
 Lemma lat_limP (s : chain tp) x : x \In s -> x <== lat_lim s.
 Proof. by apply: supP. Qed.
 
-Lemma lat_limM (s : chain tp) x : 
+Lemma lat_limM (s : chain tp) x :
         (forall y, y \In s -> y <== x) -> lat_lim s <== x.
 Proof. by apply: supM. Qed.
 
@@ -1102,13 +1103,13 @@ End LatticeCPO.
 Section AdmissibleClosure.
 Variable T : cpo.
 
-Definition chain_closed := 
-  [Pred s : Pred T | 
+Definition chain_closed :=
+  [Pred s : Pred T |
      bot \In s /\ forall d : chain T, d <=p s -> lim d \In s].
 
 (* admissible closure of s is the smallest closed set containing s *)
 (* basically extends s to include the sups of chains *)
-Definition chain_closure (s : Pred T) := 
+Definition chain_closure (s : Pred T) :=
   [Pred p : T | forall t : Pred T, s <=p t -> chain_closed t -> p \In t].
 
 (* admissible closure contains s *)
@@ -1128,14 +1129,14 @@ move=>d H1 t H3 H4; move: (chain_clos_min H3 H4)=>{H3} -H3.
 by case: H4=>_; apply=>// x; move/H1; move/H3.
 Qed.
 
-Lemma chain_clos_idemp (s : Pred T) : 
+Lemma chain_clos_idemp (s : Pred T) :
         chain_closed s -> chain_closure s =p s.
 Proof.
 move=>p; split; last by apply: chain_clos_sub.
 by apply: chain_clos_min=>//; apply: chain_closP.
 Qed.
 
-Lemma chain_clos_mono (s1 s2 : Pred T) : 
+Lemma chain_clos_mono (s1 s2 : Pred T) :
         s1 <=p s2 -> chain_closure s1 <=p chain_closure s2.
 Proof.
 move=>H1; apply: chain_clos_min (chain_closP s2)=>p H2.
@@ -1143,10 +1144,10 @@ by apply: chain_clos_sub; apply: H1.
 Qed.
 
 (* intersection of admissible sets is admissible *)
-Lemma chain_closI (s1 s2 : Pred T) : 
+Lemma chain_closI (s1 s2 : Pred T) :
        chain_closed s1 -> chain_closed s2 -> chain_closed (PredI s1 s2).
 Proof.
-move=>[H1 S1][H2 S2]; split=>// d H.  
+move=>[H1 S1][H2 S2]; split=>// d H.
 by split; [apply: S1 | apply: S2]=>// x; case/H.
 Qed.
 
@@ -1156,7 +1157,7 @@ Arguments chain_closed {T}.
 Prenex Implicits chain_closed.
 
 (* diagonal of an admissible set of pairs is admissible *)
-Lemma chain_clos_diag (T : cpo) (s : Pred (T * T)) : 
+Lemma chain_clos_diag (T : cpo) (s : Pred (T * T)) :
         chain_closed s -> chain_closed [Pred t : T | (t, t) \In s].
 Proof.
 move=>[B H1]; split=>// d H2.
@@ -1164,7 +1165,7 @@ rewrite InE /= -{1}(proj1_diagE d) -{2}(proj2_diagE d).
 by apply: H1; case=>x1 x2 [x][[<- <-]]; apply: H2.
 Qed.
 
-Section SubCPO. 
+Section SubCPO.
 Variables (D : cpo) (s : Pred D) (C : chain_closed s).
 
 Local Notation tp := (subPoset (proj1 C)).
@@ -1175,7 +1176,7 @@ Proof. by move=>[x1 H1][x2 H2]; apply. Qed.
 Lemma sub_limX (u : chain tp) : lim [sval ^^ u by sval_mono] \In s.
 Proof. by case: C u=>P H u; apply: (H)=>t [[y]] H1 [->]. Qed.
 
-Definition sub_lim (u : chain tp) : tp := 
+Definition sub_lim (u : chain tp) : tp :=
   exist _ (lim [sval ^^ u by sval_mono]) (sub_limX u).
 
 Lemma sub_limP (u : chain tp) x : x \In u -> x <== sub_lim u.
@@ -1186,7 +1187,7 @@ Lemma sub_limM (u : chain tp) x :
 Proof. by move=>H; apply: limM=>y [z][->]; apply: H. Qed.
 
 Definition subCPOMixin := CPOMixin sub_limP sub_limM.
-Definition subCPO := Eval hnf in CPO {x : D | x \In s} subCPOMixin. 
+Definition subCPO := Eval hnf in CPO {x : D | x \In s} subCPOMixin.
 
 End SubCPO.
 
@@ -1202,7 +1203,7 @@ Lemma limE (D : cpo) (s1 s2 : chain D) :
         s1 =p s2 -> lim s1 = lim s2.
 Proof. by move=>H; apply: poset_asym; apply: lim_mono=>x; rewrite H. Qed.
 
-Lemma lim_liftE (D : cpo) (s : chain D) : 
+Lemma lim_liftE (D : cpo) (s : chain D) :
         lim s = lim (lift_chain s).
 Proof.
 apply: poset_asym; apply: limM=>y H; first by apply: limP; right.
@@ -1213,28 +1214,28 @@ Qed.
 (* ie., part of continuity of application *)
 (* but is so often used, I give it a name *)
 
-Lemma lim_appE A (D : cpo) (s : chain [cpo of A -> D]) (x : A) : 
+Lemma lim_appE A (D : cpo) (s : chain [cpo of A -> D]) (x : A) :
         lim s x = lim (app_chain s x).
 Proof. by []. Qed.
 
-Lemma lim_dappE A (D : A -> cpo) (s : chain (dfunCPO D)) (x : A) : 
+Lemma lim_dappE A (D : A -> cpo) (s : chain (dfunCPO D)) (x : A) :
         lim s x = lim (dapp_chain s x).
 Proof. by []. Qed.
 
 Section Continuity.
 Variables (D1 D2 : cpo) (f : D1 -> D2).
 
-Definition continuous := 
-  exists M : monotone f, 
-  forall s : chain D1, f (lim s) = lim [f ^^ s by M]. 
+Definition continuous :=
+  exists M : monotone f,
+  forall s : chain D1, f (lim s) = lim [f ^^ s by M].
 
 Lemma cont_mono : continuous -> monotone f.
-Proof. by case. Qed. 
+Proof. by case. Qed.
 
 Lemma contE (s : chain D1) (C : continuous) :
-       f (lim s) = lim [f ^^ s by cont_mono C]. 
+       f (lim s) = lim [f ^^ s by cont_mono C].
 Proof.
-case: C=>M E; rewrite E; congr (lim (image_chain _ _)). 
+case: C=>M E; rewrite E; congr (lim (image_chain _ _)).
 by apply: pf_irr.
 Qed.
 
@@ -1255,8 +1256,8 @@ by elim: n=>[|n IH] //=; apply: cont_mono IH.
 Qed.
 
 Definition pow_chain := [pow ^^ nat_chain by pow_mono].
- 
-Lemma reindex : pow_chain =p lift_chain [f ^^ pow_chain by cont_mono C]. 
+
+Lemma reindex : pow_chain =p lift_chain [f ^^ pow_chain by cont_mono C].
 Proof.
 move=>x; split.
 - case; case=>[|n][->] /=; first by left.
@@ -1271,15 +1272,15 @@ Lemma kleene_lfp_fixed : f kleene_lfp = kleene_lfp.
 Proof. by rewrite (@contE _ _ f) lim_liftE; apply: limE; rewrite reindex. Qed.
 
 Lemma kleene_lfp_least : forall x, f x = x -> kleene_lfp <== x.
-Proof. 
-move=>x H; apply: limM=>y [n][->] _.  
+Proof.
+move=>x H; apply: limM=>y [n][->] _.
 by elim: n=>[|n IH] //=; rewrite -H; apply: cont_mono IH.
 Qed.
 
 End Kleene.
 
 (**********************************)
-(* Continuity of common functions *) 
+(* Continuity of common functions *)
 (**********************************)
 
 Lemma id_cont (D : cpo) : continuous (@id D).
@@ -1298,7 +1299,7 @@ Qed.
 Arguments const_cont {D1 D2 y}.
 Prenex Implicits const_cont.
 
-Lemma comp_cont (D1 D2 D3 : cpo) (f1 : D2 -> D1) (f2 : D3 -> D2) : 
+Lemma comp_cont (D1 D2 D3 : cpo) (f1 : D2 -> D1) (f2 : D3 -> D2) :
         continuous f1 -> continuous f2 -> continuous (f1 \o f2).
 Proof.
 case=>M1 H1 [M2 H2]; exists (comp_mono M1 M2); move=>d.
@@ -1319,7 +1320,7 @@ Arguments proj2_cont {D1 D2}.
 Prenex Implicits proj1_cont proj2_cont.
 
 Lemma diag_cont (D : cpo) : continuous (fun x : D => (x, x)).
-Proof. 
+Proof.
 exists diag_mono=>d; apply: poset_asym;
 by split=>/=; [rewrite proj1_diagE | rewrite proj2_diagE].
 Qed.
@@ -1337,7 +1338,7 @@ Arguments app_cont [A D].
 Arguments dapp_cont [A D].
 Prenex Implicits app_cont dapp_cont.
 
-Lemma prod_cont (S1 S2 T1 T2 : cpo) (f1 : S1 -> T1) (f2 : S2 -> T2) : 
+Lemma prod_cont (S1 S2 T1 T2 : cpo) (f1 : S1 -> T1) (f2 : S2 -> T2) :
         continuous f1 -> continuous f2 -> continuous (f1 \* f2).
 Proof.
 case=>M1 H1 [M2 H2]; exists (prod_mono M1 M2)=>d; apply: poset_asym;
