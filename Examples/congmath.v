@@ -981,7 +981,7 @@ move=>L1 L2 L3 H1 H4 H5 [x y]; split.
   by rewrite H6.
 rewrite /CRel !toPredE !clos_clos !orrA /= => {H4} T.
 rewrite -clos_clos join_class_repE // clos_clos !orrA -(pull ty).
-rewrite -3!(pull ty) -!(pull (rep2rel _)) -!(pull (lookup_rel _)) in T * =>T.
+rewrite -3!(pull ty) -!(pull (rep2rel _)) -!(pull (lookup_rel _)) in T *.
 rewrite -clos_idemp; apply: sub_closI T=>{x y} [[x y]].
 case=>[|T]; last by apply closI; apply: sub_orr;
   rewrite toPredE -!orrA; apply: sub_orl; rewrite toPredE !orrA.
