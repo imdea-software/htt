@@ -69,11 +69,3 @@ rewrite (_ : nth x s i = x); last first.
   by apply: nth_find.
 eauto.
 Qed.
-
-(* TODO this should be expressible directly *)
-Lemma path_relax {K : ordType} (k k' : K) ks : ord k k' -> path ord k' ks -> path ord k ks.
-Proof.
-move=>O; case: ks=>//= a l /andP [O2 P2].
-apply/andP; split=>//.
-by apply/trans/O2.
-Qed.

@@ -139,7 +139,7 @@ case: H2=>z[h'][-> H']; rewrite !joinA.
 apply: IH; first 1 last.
 - by apply/path_sorted/srt.
 - move=>H0 k0; rewrite supp_ins !inE =>/orP; case; first by move/eqP=>->.
-  by case/O2/andP; apply: path_relax.
+  by case/O2/andP; apply: path_le.
 - by move=>?; apply: H'.
 rewrite -!joinA; apply shape_seg_rcons=>//.
 by move=>k0; case/O2/andP.
@@ -207,7 +207,7 @@ move: (semiconnex Ek); rewrite {}Ho' orbC /= =>Ho'.
 step=>_; split=>//.
 apply/esym/fnd_supp.
 rewrite Ef supp_ins inE negb_or; apply/andP; split=>//.
-by apply/notin_path/path_relax/O'.
+by apply/notin_path/path_le/O'.
 Qed.
 
 Definition removeT p k : Type :=
@@ -273,7 +273,7 @@ step; case: eqP.
   rewrite rem_ins {1}Ek eq_refl rem_supp; last by rewrite Ek; apply: notin_path.
   rewrite joinC; apply/shape_fcat/Hr'; last by apply: shape_seg_rcons.
   move=>kl; rewrite supp_ins !inE=>/orP; case; first by move/eqP=>->.
-  by move/Ol=>?; apply/path_relax/Or''.
+  by move/Ol=>?; apply/path_le/Or''.
 (* k <> k' *)
 move/eqP=>Ek; case: ifP=>Ho0.
 (* ord k' k, recursive call *)
@@ -296,10 +296,10 @@ step=>_; rewrite rem_supp Ef.
   - by apply: shape_seg_rcons.
   - by rewrite Efr; apply: shape_cons.
   move=>kl; rewrite supp_ins !inE=>/orP; case; first by move/eqP=>->.
-  by move/Ol=>?; apply/path_relax/Or.
+  by move/Ol=>?; apply/path_le/Or.
 rewrite Efr supp_fcat !inE negb_or; apply/andP; split;
   rewrite supp_ins !inE negb_or; apply/andP; split=>//.
-by apply/notin_path/path_relax/Or'.
+by apply/notin_path/path_le/Or'.
 Qed.
 Next Obligation.
 move=>/= x k0; apply: ghR=>h fm H Vh.
@@ -326,7 +326,7 @@ move/eqP=>Ek; case: ifP=>Ho0.
 move: (semiconnex Ek); rewrite {}Ho0 orbC /= =>Ho0.
 step=>_.
 rewrite -Eh rem_supp // Ef supp_ins !inE negb_or; apply/andP; split=>//.
-by apply/notin_path/path_relax/Of.
+by apply/notin_path/path_le/Of.
 Qed.
 
 Definition insertT p k v : Type :=
@@ -409,7 +409,7 @@ step; case: eqP.
   - by move/eqP=>->; apply: path_supp_ins.
   move/Ol=>Hol; have Hol0: ord kl k0 by apply/trans/Ho0.
   apply: path_supp_ins=>//.
-  by rewrite -Ek in Or'; apply/path_relax/Or'.
+  by rewrite -Ek in Or'; apply/path_le/Or'.
 (* k <> k' *)
 move/eqP=>Ek; case: ifP=>Ho'0.
 (* ord k' k, recursive call *)
@@ -433,7 +433,7 @@ rewrite joinA joinC /entry; do 2!step; move=>_.
 rewrite Ef Efr -fcat_sins; apply: shape_fcat; first 1 last.
 - by apply: shape_seg_rcons.
 - rewrite -!joinA; apply: shape_cons.
-  - by apply: path_supp_ins=>//; apply/path_relax/Or'.
+  - by apply: path_supp_ins=>//; apply/path_le/Or'.
   by apply: shape_cons.
 move=>kl; rewrite supp_ins !inE =>/orP; case.
 - by move/eqP=>->; do 2!apply: path_supp_ins=>//.
@@ -441,7 +441,7 @@ move/Ol=>Ho.
 have Hol0: ord kl k0 by apply/trans/Ho0.
 have Hol': ord kl k' by apply/trans/Ho0'.
 do 2!apply: path_supp_ins=>//.
-by apply/path_relax/Or'.
+by apply/path_le/Or'.
 Qed.
 Next Obligation.
 move=>/= x k0 v0; apply: ghR=>h fm H Vh.
@@ -470,7 +470,7 @@ move/eqP=>Ek; case: ifP=>Ho0.
 move: (semiconnex Ek); rewrite {}Ho0 orbC /= =>Ho0.
 step=>q; rewrite ptrA unitR; do 3!step; move=>_.
 rewrite Ef -!joinA; apply: shape_cons.
-- by apply: path_supp_ins=>//; apply/path_relax/Of.
+- by apply: path_supp_ins=>//; apply/path_le/Of.
 by apply: shape_cons.
 Qed.
 
