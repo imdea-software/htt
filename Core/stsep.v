@@ -572,17 +572,17 @@ End SepFix.
 (* Notation to move from binary posts to unary ones *)
 (****************************************************)
 
-Definition logvar {B A} (s : A -> spec B) : spec B :=
-  (fun i => exists x : A, let 'pair p _ := s x in p i,
-   fun y i m => forall x : A, let 'pair _ q := s x in q y i m).
-
-Definition binarify {A} (p : pre) (q : ans A -> pre) : spec A :=
+Definition logbase {A} (p : pre) (q : ans A -> pre) : spec A :=
   (p, fun y i m => p i -> q y m).
 
-Notation "'STsep' ( p , q ) " := (STbin (binarify p q)) (at level 0).
+Definition logvar {B A} (G : A -> Type) (s : forall x : A, G x -> spec B) :
+  {x : A & G x} -> spec B :=
+  fun '(existT x g) => s x g.
+
+Notation "'STsep' ( p , q ) " := (STbin (logbase p q)) (at level 0).
 
 Notation "{ x .. y }, 'STsep' ( p , q ) " :=
-  (STbin (logvar (fun x => .. (logvar (fun y => binarify p q)) .. )))
+  (STbin (logvar (fun x => .. (logvar (fun y => logbase p q)) .. )))
    (at level 0, x binder, y binder, right associativity).
 
 Notation "x '<--' c1 ';' c2" := (bind c1 (fun x => c2))

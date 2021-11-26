@@ -146,6 +146,17 @@ Qed.
 (* and doing sequential composition            *)
 (***********************************************)
 
+Lemma gE G A (pq : G -> spec A) (c : STbin (logvar pq)) (g : G) (Q : post A) s :
+        (pq g).1 s ->
+        (forall v m, (pq g).2 v m -> coh V m -> Q v m) ->
+        vrf c Q s.
+Proof. by move=>X Y; apply: (gM g)=>// + + + + _. Qed.
+(*
+Lemma ghR A e rT p q (f : @gh_form A rT p q) :
+        (forall i x, p x i -> valid i -> verify i e (q x)) ->
+        conseq e f.
+*)
+
 Lemma gh_conseq A C t (s : C -> spec A) (e : STbin (logvar s)) :
         conseq e (s t).
 Proof.
@@ -226,7 +237,7 @@ Qed.
 
 Lemma gh (p : B -> pre) (q : B -> ans A -> pre) :
         (forall i x, p x i -> valid i -> verify i e (q x)) ->
-        conseq e (logvar (fun x => binarify (p x) (q x))).
+        conseq e (logvar (fun x => logbase (p x) (q x))).
 Proof.
 move=>H1 i /= [x] H2 V; case: (H1 _ _ H2 V V)=>H3 _.
 by split=>// y m H5 H6 z H7; case: (H1  _ _ H7 V V)=>_; apply.
