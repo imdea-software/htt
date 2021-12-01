@@ -36,18 +36,21 @@ Definition spec G B := G -> pre * post B : Type.
 (********************************)
 
 Definition defed (P : Pred heap) : Pred heap :=
-  fun i => i \In P /\ valid i.
+  [Pred i \In P | valid i].
 
-Lemma defed_leq h1 h2 : h1 <== h2 -> defed h1 <== defed h2.
+Lemma defed_leq h : defed h <== h.
+Proof. by move=>i []. Qed.
+
+Lemma defed_mono h1 h2 : h1 <== h2 -> defed h1 <== defed h2.
 Proof. by move=>H1 i [H2 V]; split=>//; apply: H1 H2. Qed.
 
 Notation ideald P := (ideal (defed P)).
 
 Definition relaxd P1 P2 (p : ideald P2) (pf : P2 <== P1) : ideald P1 :=
-  relax p (defed_leq pf).
+  relax p (defed_mono pf).
 
 Section BasePrograms.
-Variables (A : Type) (P : Pred heap).
+Variables (A : Type) (P : pre).
 
 Lemma singleP i : i \In defed P -> eq i <== defed P.
 Proof. by case=>pf1 pf2 h <-. Qed.
@@ -55,13 +58,13 @@ Proof. by case=>pf1 pf2 h <-. Qed.
 Definition single i (pf : i \In defed P) := Ideal (singleP pf).
 
 Lemma bound (p : ideald P) i : i \In id_val p -> i \In defed P.
-Proof. by case: p=>p H; case/H. Qed.
+Proof. by case: p=>p; apply. Qed.
 
 (* we carve out the model out of the following base type *)
 Definition prog := ideald P -> ans A -> Pred heap.
 
-(* we take progs with only special properties *)
-(* which we defined next *)
+(* we take only progs with special properties *)
+(* which we define next *)
 
 (* coherence is continuity stated with *)
 (* directed sets instead of chains *)
@@ -104,14 +107,13 @@ Definition has_spec G (s : spec G A) (c : ST) :=
 
 Definition st_leq e1 e2 :=
   exists pf : pre_of e2 <== pre_of e1,
-  forall (p : ideald (pre_of e2)) y m,
-     id_val p <== pre_of e2 ->
-     prog_of e1 (relaxd p pf) y m -> prog_of e2 p y m.
+  forall (p : ideald (pre_of e2)),
+    prog_of e1 (relaxd p pf) <== prog_of e2 p.
 
 Lemma st_refl e : st_leq e e.
 Proof.
 have Cx := coh_st e.
-exists (poset_refl _)=>p y m _.
+exists (poset_refl _)=>p y m.
 case/Cx=>x [pf H2]; apply/Cx; exists x.
 have J : x \In id_val p by exact: pf.
 exists J.
@@ -125,17 +127,14 @@ case=>E1 R1 [E2 R2].
 move: (poset_asym E1 E2)=>?; subst p2.
 have : e1 = e2.
 - apply: fext=>p; apply: fext=>y; apply: fext=>m.
-  have I : id_val p <== p1.
-  - by move=>i; case: p=>p pf /=; move: (pf i)=>X /X; case.
-  move/R2: (I)=>/(_ y m) R2'.
-  move/R1: (I)=>/(_ y m) R1'.
+  move: (R2 p y m)=>{}R2; move: (R1 p y m)=>{}R1.
   apply: pext; split.
-  - move=>H1; apply: R1'.
+  - move=>H1; apply: R1.
     case/C1: H1=>i [pf1] H1; apply/C1; exists i.
     have J : i \In id_val (relaxd p E1) by exact: pf1.
     exists J.
     by rewrite (_ : bound J = bound pf1) //; apply: pf_irr.
-  move=>H2; apply: R2'.
+  move=>H2; apply: R2.
   case/C2: H2=>i [pf1] H2; apply/C2; exists i.
   have J : i \In id_val (relaxd p E2) by exact: pf1.
   exists J.
@@ -148,27 +147,30 @@ Lemma st_trans e1 e2 e3 : st_leq e1 e2 -> st_leq e2 e3 -> st_leq e1 e3.
 Proof.
 move: e1 e2 e3=>[p1 e1 C1 D1][p2 e2 C2 D2][p3 e3 C3 D3].
 case=>/= E1 R1 [/= E2 R2]; rewrite /st_leq /=.
-have E3 := poset_trans E2 E1; exists E3=>p y m H.
+have E3 := poset_trans E2 E1; exists E3=>p y m.
 set p' := relaxd p E2.
-move: (R1 p' y m (poset_trans H E2))=>{}R1.
-move: (R2 p y m H)=>{}R2.
+move: (R1 p' y m)=>{}R1; move: (R2 p y m)=>{}R2.
 move=>H1; apply/R2/R1.
-case/C1: H1=>i [pf] Hm; apply/C1; exists i.
+case/C1: H1=>i [pf M]; apply/C1; exists i.
 have J : i \In id_val (relaxd p' E1) by exact: pf.
 exists J.
 by rewrite (_ : bound J = bound pf) //; apply: pf_irr.
 Qed.
 
-Lemma coherent_bot : @coherent A (fun => True) (fun _ _ _ => False).
+(* a program that can always run but never returns (an endless loop) *)
+Definition prog_bot : prog A (fun => True) :=
+  fun _ _ _ => False.
+
+Lemma coherent_bot : coherent prog_bot.
 Proof. by move=>p y m; split=>//; case=>i []. Qed.
 
-Lemma dstrict_bot : @def_strict A (fun => True) (fun _ _ _ => False).
+Lemma dstrict_bot : def_strict prog_bot.
 Proof. by move=>*. Qed.
 
 Definition st_bot := Prog coherent_bot dstrict_bot.
 
 Lemma st_botP e : st_leq st_bot e.
-Proof. by case: e=>p e C D; rewrite /st_leq /=. Qed.
+Proof. by case: e=>p e C D; exists (@pred_topP _ _)=>?; apply: botP. Qed.
 
 Definition stPosetMixin := PosetMixin st_botP st_refl st_asym st_trans.
 Canonical stPoset := Eval hnf in Poset ST stPosetMixin.
@@ -176,17 +178,17 @@ Canonical stPoset := Eval hnf in Poset ST stPosetMixin.
 (* lattice structure on ST *)
 
 (* intersection of preconditions *)
-Definition pre_sup (u : Pred ST) h :=
-  forall e, e \In u -> h \In pre_of e.
+Definition pre_sup (u : Pred ST) : pre :=
+  fun h => forall e, e \In u -> h \In pre_of e.
 
 Definition pre_sup_leq u e (pf : e \In u) :
   pre_sup u <== pre_of e :=
   fun h (pf1 : pre_sup u h) => pf1 e pf.
 
 (* union of postconditions *)
-Definition prog_sup (u : Pred ST) :=
-  fun p y m => exists e (pf1 : e \In u),
-    prog_of e (relaxd p (pre_sup_leq pf1)) y m.
+Definition prog_sup (u : Pred ST) : prog A (pre_sup u) :=
+  fun p y m => exists e (pf : e \In u),
+    prog_of e (relaxd p (pre_sup_leq pf)) y m.
 
 Arguments prog_sup : clear implicits.
 
@@ -196,13 +198,13 @@ move=>p y m; split.
 - case=>e [H1 H2]; have Cx := coh_st e.
   case/Cx: H2=>i [pf1] M; exists i.
   have I : i \In id_val p by exact: pf1.
-  exists I; rewrite -toPredE /=; exists e, H1.
+  exists I, e, H1.
   apply/Cx; exists i.
   set y' := id_val _; have J2 : i \In y' by [].
   exists J2.
   by rewrite (_ : bound J2 = bound pf1) //; apply: pf_irr.
-case=>i[pf][e][H1 H2]; rewrite -toPredE /=.
-exists e, H1; have Cx := coh_st e.
+case=>i[pf][e][H1 H2]; have Cx := coh_st e.
+exists e, H1.
 case/Cx: H2=>i0 [pf0] M0; apply/Cx; exists i0.
 have J2 : i0 \In id_val (relaxd p (pre_sup_leq H1)).
 - by move: pf0 {M0}=><-.
@@ -211,39 +213,29 @@ by rewrite (_ : bound J2 = bound pf0) //; apply: pf_irr.
 Qed.
 
 Lemma prog_sup_dstrict u : def_strict (prog_sup u).
-Proof.
-move=>p y; rewrite -toPredE /=.
-case; case=>e_pre e_prog Cx Df [H1].
-by move/Df.
-Qed.
+Proof. by move=>p y; case; case=>p0 e C D [H1] /D. Qed.
 
-Definition st_sup u :=
-  Prog (@prog_sup_coh u) (@prog_sup_dstrict u).
+Definition st_sup u := Prog (@prog_sup_coh u) (@prog_sup_dstrict u).
 
 Lemma st_supP u e : e \In u -> e <== st_sup u.
 Proof.
 case: e=>p e' C D R.
-exists (pre_sup_leq R)=>/=p0 y m H H2; exists (Prog C D), R.
-case/C: H2=>i[pf e]; apply/C; exists i.
-have J2 : i \In id_val (relaxd p0 (pre_sup_leq R)).
-- by exact: pf.
-exists J2.
-by rewrite (_ : bound J2 = bound pf) //; apply: pf_irr.
+exists (pre_sup_leq R)=>/=p0 y m H.
+by exists (Prog C D), R.
 Qed.
 
 Lemma st_supM u e :
   (forall e1, e1 \In u -> e1 <== e) -> st_sup u <== e.
 Proof.
-case: e=>p e' C D R.
+case: e=>p e C D R.
 have J : p <== pre_sup u.
-- by move=>/= x Px e He; case: (R e He)=>/= + _; apply.
-exists J=>p0 y m H [e0][pf1 H1].
-case: (R e0 pf1)=>/= Hx; apply=>//.
-have Cx := coh_st e0.
-case/Cx: H1=>i [pf e]; apply/Cx; exists i.
-have J2 : i \In id_val (relaxd p0 Hx) by exact: pf.
+- by move=>/= x Px e' pf; case: (R _ pf)=>/= + _; apply.
+exists J=>p0 y m [e0][pf H1]; have Cx := coh_st e0.
+case: (R _ pf)=>/= Hx; apply=>//.
+case/Cx: H1=>i [pf1 M]; apply/Cx; exists i.
+have J2 : i \In id_val (relaxd p0 Hx) by exact: pf1.
 exists J2.
-by rewrite (_ : bound J2 = bound pf) //; apply: pf_irr.
+by rewrite (_ : bound J2 = bound pf1) //; apply: pf_irr.
 Qed.
 
 Definition stLatticeMixin := LatticeMixin st_supP st_supM.
@@ -277,8 +269,8 @@ Proof. by case: e=>e He; apply: poset_refl. Qed.
 Lemma stsp_asym e1 e2 : stsp_leq e1 e2 -> stsp_leq e2 e1 -> e1 = e2.
 Proof.
 move: e1 e2=>[e1 H1][e2 H2]; rewrite /stsp_leq /= =>E1 E2.
-have E := poset_asym E1 E2.
-by subst e2; congr STprog; apply: pf_irr.
+have E := poset_asym E1 E2; subst e2.
+by congr STprog; apply: pf_irr.
 Qed.
 
 Lemma stsp_trans e1 e2 e3 : stsp_leq e1 e2 -> stsp_leq e2 e3 -> stsp_leq e1 e3.
@@ -305,20 +297,21 @@ Definition st_sup' (u : Pred STspec) : ST A :=
 
 Lemma st_sup_has_spec' u : st_sup' u \In has_spec s.
 Proof.
-move=>g m p; split=>/=.
-- by move=>e; rewrite -!toPredE /= => [[[e' S'][/= -> _]]]; case: (S' g m p).
-move=>y m0; case=>/= Hd; rewrite -!toPredE /= => [[e][pf H]].
+move=>g i p; split=>/=.
+- move=>e; rewrite -!toPredE /= => [[[e' S][/= -> _]]].
+  by case: (S g i p).
+move=>y m [Hd]; rewrite -!toPredE /= =>[[e][pf H]].
 have Cx := coh_st e.
-case: pf H=>[[e' S'][/= He HS]] H2; subst e'.
-case: (S' g m p)=>_; apply; rewrite -toPredE /=.
-have J : m \In defed (pre_of e).
+case: pf H=>[[e' S][/= He HS]] H2; subst e'.
+case: (S g i p)=>_; apply; rewrite -toPredE /=.
+have J : i \In defed (pre_of e).
 - case: {H2}Hd =>Hp Hv; split=>//.
-  by apply: Hp; exists (STprog S').
+  by apply: Hp; exists (STprog S).
 exists J.
-case/Cx: H2=>i[ph e2]; apply/Cx; exists i.
-have J2 : i \In id_val (single J) by exact: ph.
+case/Cx: H2=>i'[pf M]; apply/Cx; exists i'.
+have J2 : i' \In id_val (single J) by exact: pf.
 exists J2.
-by rewrite (_: bound J2 = bound ph) //; apply: pf_irr.
+by rewrite (_: bound J2 = bound pf) //; apply: pf_irr.
 Qed.
 
 Definition stsp_sup u := STprog (@st_sup_has_spec' u).
@@ -456,11 +449,12 @@ End Throw.
 
 Section BindST.
 Variables (A B : Type).
-Variables (po1 : post A).
 Variables (e1 : ST A) (e2 : A -> ST B).
 
 Definition bind_pre : pre :=
-  fun i => pre_of e1 i /\ forall x m, po1 (Val x) i m -> pre_of (e2 x) m.
+  fun i =>
+    pre_of e1 i /\
+    forall x m, prog_of e1 (single i) (Val x) m -> pre_of (e2 x) m.
 
 Definition bind_sp (p : ideald bind_pre) y m :=
    exists i x h, i \In id_val p /\
