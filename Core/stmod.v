@@ -28,7 +28,7 @@ Inductive ans (A : Type) : Type := Val of A | Exn of exn.
 Arguments Exn [A].
 
 Notation pre := (Pred heap).
-Notation post A := (ans A -> heap -> heap -> Prop).
+Notation post A := (ans A -> heap -> Prop).
 Definition spec G B := G -> pre * post B : Type.
 
 (********************************)
@@ -98,27 +98,45 @@ Proof. by case: e. Qed.
 
 Arguments coh_st : clear implicits.
 
+
+Definition vrf A i (c : ST A) Q := 
+  forall d : defed i, 
+     pre_of c i /\ forall y m, 
+       prog_of c (relaxd (singleton i) d) y m -> Q y m.
+    
+
+Definition has_spec G (s : spec G A) (c : ST) :=
+  forall g i (d : defed i), (s g).1 i -> 
+    pre_of c i /\
+    forall y m, prog_of c (relaxd (singleton i) d) y m -> (s g).2 y i m.
+
+
+
 Definition has_spec G (s : spec G A) (c : ST) :=
   forall g i, (s g).1 i ->
     pre_of c i /\
-    forall y m, (i, y, m) \In runs_of (prog_of c) -> (s g).2 y i m.
+    forall y m, (i, y, m) \In runs_of (prog_of c) -> (s g).2 y m.
 
 (* poset structure on ST *)
 
 Definition st_leq e1 e2 :=
   exists pf : pre_of e2 <== pre_of e1,
-  forall (p : ideald (pre_of e2)),
+  forall p : ideald (pre_of e2),
     prog_of e1 (relaxd p pf) <== prog_of e2 p.
 
+Lemma blah1 P (p : ideald P) (pf : P <== P): relaxd p pf = p.
+Proof. by case: p=>p H; congr Ideal; apply: pf_irr. Qed.
+
+Lemma blah2 P1 P2 P3 (p : ideald P1) (pf12 : P1 <== P2) (pf23 : P2 <== P3) : 
+        relaxd (relaxd p pf12) pf23 = relaxd p (poset_trans pf12 pf23).
+Proof. by congr Ideal; apply: pf_irr. Qed.
+
+Lemma blah3 P1 P2 P3 (p : ideald P1) (pf12 : P1 <== P2) (pf23 : P2 <== P3) (pf13 : P1 <== P3) : 
+        relaxd (relaxd p pf12) pf23 = relaxd p pf13.
+Proof. by congr Ideal; apply: pf_irr. Qed.
+
 Lemma st_refl e : st_leq e e.
-Proof.
-have Cx := coh_st e.
-exists (poset_refl _)=>p y m.
-case/Cx=>x [pf H2]; apply/Cx; exists x.
-have J : x \In id_val p by exact: pf.
-exists J.
-by rewrite (_ : bound J = bound pf) //; apply: pf_irr.
-Qed.
+Proof. by exists (poset_refl _)=>p y m; rewrite blah1. Qed.
 
 Lemma st_asym e1 e2 : st_leq e1 e2 -> st_leq e2 e1 -> e1 = e2.
 Proof.
@@ -129,16 +147,8 @@ have : e1 = e2.
 - apply: fext=>p; apply: fext=>y; apply: fext=>m.
   move: (R2 p y m)=>{}R2; move: (R1 p y m)=>{}R1.
   apply: pext; split.
-  - move=>H1; apply: R1.
-    case/C1: H1=>i [pf1] H1; apply/C1; exists i.
-    have J : i \In id_val (relaxd p E1) by exact: pf1.
-    exists J.
-    by rewrite (_ : bound J = bound pf1) //; apply: pf_irr.
-  move=>H2; apply: R2.
-  case/C2: H2=>i [pf1] H2; apply/C2; exists i.
-  have J : i \In id_val (relaxd p E2) by exact: pf1.
-  exists J.
-  by rewrite (_ : bound J = bound pf1) //; apply: pf_irr.
+  - by move=>H1; apply: R1; rewrite blah1.
+  by move=>H2; apply: R2; rewrite blah1.
 move=>?; subst e2.
 by congr Prog; apply: pf_irr.
 Qed.
@@ -151,10 +161,7 @@ have E3 := poset_trans E2 E1; exists E3=>p y m.
 set p' := relaxd p E2.
 move: (R1 p' y m)=>{}R1; move: (R2 p y m)=>{}R2.
 move=>H1; apply/R2/R1.
-case/C1: H1=>i [pf M]; apply/C1; exists i.
-have J : i \In id_val (relaxd p' E1) by exact: pf.
-exists J.
-by rewrite (_ : bound J = bound pf) //; apply: pf_irr.
+by rewrite blah3.
 Qed.
 
 (* a program that can always run but never returns (an endless loop) *)
@@ -181,8 +188,7 @@ Canonical stPoset := Eval hnf in Poset ST stPosetMixin.
 Definition pre_sup (u : Pred ST) : pre :=
   fun h => forall e, e \In u -> h \In pre_of e.
 
-Definition pre_sup_leq u e (pf : e \In u) :
-  pre_sup u <== pre_of e :=
+Definition pre_sup_leq u e (pf : e \In u) : pre_sup u <== pre_of e :=
   fun h (pf1 : pre_sup u h) => pf1 e pf.
 
 (* union of postconditions *)
@@ -353,7 +359,7 @@ Qed.
 
 Lemma spec_runs i y m g (e : STspec) :
         (i, y, m) \In runs_of (prog_of (model e)) ->
-        (s g).1 i -> (s g).2 y i m.
+        (s g).1 i -> (s g).2 y m.
 Proof.
 case: e; case=>p e C S H /= R.
 by move/H=>/= [_]; apply.
@@ -406,6 +412,7 @@ Lemma ret_dstrict : def_strict ret_prog.
 Proof. by case=>p H y /= []; case/H. Qed.
 
 Definition ret_st := Prog ret_coherent ret_dstrict.
+
 
 Definition ret_spec : spec G A :=
   fun => (ret_pre, fun y i m => m = i /\ y = Val x).
