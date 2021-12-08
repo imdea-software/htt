@@ -399,7 +399,7 @@ Definition ffix : tp := tarski_lfp f'.
 End Fix.
 
 Section Return.
-Variables (G A : Type) (x : A).
+Variables (A : Type) (x : A).
 
 Definition ret_pre : pre := PredT.
 
@@ -424,7 +424,7 @@ Proof. by move=>Hi [[] V]; split=>// y m [/= <- ->]. Qed.
 End Return.
 
 Section Throw.
-Variables (G A : Type) (e : exn).
+Variables (A : Type) (e : exn).
 
 Definition throw_pre : pre := PredT.
 
@@ -474,6 +474,39 @@ case=>i [/= H1][_][x][h][<-][H2 H3].
 by exists i, x, h; split=>//=; exists H2.
 Qed.
 
+(*
+Lemma bpre : bind_pre <== pre_of e1.
+Proof. by move=>?; case; case. Qed.
+
+Lemma bpre1 (p : ideald bind_pre): id_val p <== defed (pre_of e1).
+Proof.
+by case: p=>/= p /poset_trans; apply=>i; case; case.
+Qed.
+
+Definition bind_prog (p : ideald bind_pre) y m :=
+  exists i x h (pf : i \In id_val p),
+    h \In prog_of e1 (single (bpre1 pf)) x /\
+    match x with
+    | Val x' => exists pf' : h \In defed (pre_of (e2 x')),
+                  m \In prog_of (e2 x') (single pf') y
+    | Exn e => y = Exn e /\ m = h
+    end.
+
+Lemma bind_coherent : coherent bind_prog.
+Proof.
+move=>p y m; split=>/=.
+- case=>i [x][h][H1][H2]H3.
+  exists i, H1, i, x, h.
+  have J : i \In id_val (single (bound H1)) by [].
+  exists J; split=>//.
+  by rewrite (_ : bpre1 J = bpre1 H1) //; apply: pf_irr.
+case=>i [H1][h'][x][h][pf][H2 H3].
+move: (pf)=>/= pf'; rewrite -pf' in pf H2.
+exists i, x, h, H1; split=>//.
+by rewrite (_ : bpre1 H1 = bpre1 pf) //; apply: pf_irr.
+Qed.
+*)
+
 Lemma bind_dstrict : def_strict bind_prog.
 Proof.
 move=>p y [i][x][h][H1][H2][].
@@ -486,8 +519,8 @@ Definition bind_st := Prog bind_coherent bind_dstrict.
 
 Lemma vrf_bind (Q : post B) i :
   vrf i e1 (fun x m => match x with
-                        | Val x' => vrf m (e2 x') Q
-                        | Exn e => Q (Exn e) m
+                       | Val x' => vrf m (e2 x') Q
+                       | Exn e => Q (Exn e) m
                        end) ->
   vrf i bind_st Q.
 Proof.
@@ -552,8 +585,8 @@ Definition try_st := Prog try_coherent try_dstrict.
 
 Lemma vrf_try (Q : post B) i :
   vrf i e (fun x m => match x with
-                        | Val x' => vrf m (e1 x') Q
-                        | Exn ex => vrf m (e2 ex) Q
+                      | Val x' => vrf m (e1 x') Q
+                      | Exn ex => vrf m (e2 ex) Q
                       end) ->
   vrf i try_st Q.
 Proof.
@@ -584,35 +617,57 @@ Definition conseq A (s1 s2 : spec A) :=
 Lemma conseq_refl (A : Type) (s : spec A) : conseq s s.
 Proof. by []. Qed.
 
+ *)
+
+
+Definition conseq A (p1 p2 : pre) (Q1 Q2 : post A) :=
+  forall i, p2 i -> valid i ->
+    p1 i /\ forall y m, Q1 y m -> valid m -> Q2 y m.
+
+Lemma conseq_refl (A : Type) (p : pre) (Q : post A) : conseq p p Q Q.
+Proof. by []. Qed.
+
 #[export]
 Hint Resolve conseq_refl : core.
 
 Section Consequence.
-Variables (A : Type) (s1 s2 : spec A) (e : STspec s1) (pf : conseq s1 s2).
+Variables (A : Type) (p1 p2 : pre) (Q1 Q2 : post A) (e : ST A) (pf : conseq p1 p2 Q1 Q2).
 
-Definition do_sp (p : ideald s2.1) y m :=
-  exists i, i \In id_val p /\ (i, y, m) \In runs_of (model e).
+Definition do_prog (p : ideald p2) y m :=
+  exists i, i \In id_val p /\
+    exists pf : i \In defed (pre_of e), m \In prog_of e (single pf) y.
 
-Lemma do_coherent : coherent do_sp.
+Lemma do_coherent : coherent do_prog.
 Proof.
 case=>q H y m; split.
 - by case=>i [/= H1 T1]; exists i, H1, i.
 by case=>i [/= H1][_][<-] T1; exists i.
 Qed.
 
-Lemma do_dstrict : def_strict do_sp.
-Proof. by move=>q y [h][/= H]; case/def_runs. Qed.
+Lemma do_dstrict : def_strict do_prog.
+Proof. by move=>q y [h][/= H][H2] /dstr_st. Qed.
 
+(*
 Lemma do_has_spec : do_sp \In has_spec s2.
 Proof.
 move=>i y m [[/= S1 D1]][_][<-] T; case/def_runs: (T)=>_ S2 D2.
 by apply: (proj2 (pf S1 D1)) D2; apply: spec_runs T.
 Qed.
+*)
+Definition Do := Prog do_coherent do_dstrict.
 
-Definition Do := STprog do_coherent do_dstrict do_has_spec.
+Lemma vrf_do i :
+  vrf i Do Q1 -> vrf i Do Q2.
+Proof.
+move=>Hi [/= H2 Hv]; split=>// y m.
+case=>h [/= {h}<-][Hd]Hm.
+case: (pf H2 Hv)=>H1; apply.
+- by case: Hi=>//= Hd2 _; apply; exists i; split=>//; exists Hd.
+by case: m Hm=>// /dstr_st.
+Qed.
 
 End Consequence.
-*)
+
 
 Section Read.
 Variable (A : Type) (x : ptr).
