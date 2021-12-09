@@ -253,6 +253,10 @@ End FinIter.
 (* Separation monad *)
 (********************)
 
+Definition fr G A (s : spec G A) : spec (G*heap) A :=
+  fun '(g,h) => ((s g).1 # eq h, fun x => (s g).2 x # eq h).
+
+
 Definition fr A (s : spec A) : spec A :=
   (s.1 # top, fun x => s.1 --o s.2 x).
 
