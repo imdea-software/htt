@@ -119,16 +119,17 @@ Definition vrf i (c : ST) (Q : post A) :=
 Definition has_spec G (s : spec G A) (c : ST) :=
   forall g i, (s g).1 i -> vrf i c (s g).2.
 
-Definition vrf2 i (c : ST) (Q : post A) := 
-  forall h (pf : i \+ h \In defed (pre_of c)), 
-    pre_of c i /\ forall y m, 
+  (*
+Definition vrf2 i (c : ST) (Q : post A) :=
+  forall h (pf : i \+ h \In defed (pre_of c)),
+    pre_of c i /\ forall y m,
       prog_of c (single pf) y m -> exists m', m = m' \+ h /\ Q y m'.
-    
-Definition has_spec2 G (s : spec G A) (c : ST) := 
+
+Definition has_spec2 G (s : spec G A) (c : ST) :=
   forall g i h, (s g).1 i -> vrf2 i c (s g).2.
+*)
 
-
-vrf (i \+ h) c (fun y m => exists m', m = m' \+ h /\ (s g).2 y m').
+(*  vrf (i \+ h) c (fun y m => exists m', m = m' \+ h /\ (s g).2 y m'). *)
 
 
 (*
@@ -430,8 +431,9 @@ Proof. by case=>p H y /= []; case/H. Qed.
 Definition ret_st := Prog ret_coherent ret_dstrict.
 
 Lemma vrf_ret (Q : post A) i :
-        Q (Val x) i -> vrf i ret_st Q.
-Proof. by move=>Hi [[] V]; split=>// y m [/= <- ->]. Qed.
+        valid i -> Q (Val x) i ->
+        vrf i ret_st Q.
+Proof. by move=>_ Hi [[] V]; split=>// y m [/= <- ->]. Qed.
 
 End Return.
 
@@ -455,8 +457,9 @@ Proof. by case=>p H y /= []; case/H. Qed.
 Definition throw_st := Prog throw_coherent throw_dstrict.
 
 Lemma vrf_throw (Q : post A) i :
-  Q (Exn e) i -> vrf i throw_st Q.
-Proof. by move=>Hi [[] V]; split=>// y m [/= <- ->]. Qed.
+        valid i -> Q (Exn e) i ->
+        vrf i throw_st Q.
+Proof. by move=>_ Hi [[] V]; split=>// y m [/= <- ->]. Qed.
 
 End Throw.
 
@@ -597,11 +600,11 @@ Qed.
 Definition try_st := Prog try_coherent try_dstrict.
 
 Lemma vrf_try (Q : post B) i :
-  vrf i e (fun x m => match x with
-                      | Val x' => vrf m (e1 x') Q
-                      | Exn ex => vrf m (e2 ex) Q
-                      end) ->
-  vrf i try_st Q.
+        vrf i e (fun x m => match x with
+                 | Val x' => vrf m (e1 x') Q
+                 | Exn ex => vrf m (e2 ex) Q
+                 end) ->
+        vrf i try_st Q.
 Proof.
 move=>Hi [/= [Hd Hp] Hv]; split; first by exists Hd.
 move=>y m [j][x][h][/= <-][Hd']; case: Hi=>_ Hi.
@@ -632,6 +635,17 @@ Proof. by []. Qed.
 
  *)
 
+Lemma vrf_conseq A (e : ST A) (Q1 Q2 : post A) i :
+  valid i ->
+  (forall y m, valid m -> Q1 y m -> Q2 y m) ->
+  vrf i e Q1 -> vrf i e Q2.
+Proof.
+move=>_ H H1 Hp; split; first by case: Hp.
+move=>y m Hx.
+case: H1=>_ H1; apply/H/H1=>//.
+by case: m Hx=>//= /dstr_st.
+Qed.
+
 
 (*
 Definition conseq A (p1 p2 : pre) (Q1 Q2 : post A) :=
@@ -643,6 +657,7 @@ Proof. by []. Qed.
 
 #[export]
 Hint Resolve conseq_refl : core.
+
 
 Section Consequence.
 Variables (A : Type) (p1 p2 : pre) (Q1 Q2 : post A) (e : ST A) (pf : conseq p1 p2 Q1 Q2).
@@ -681,7 +696,6 @@ by case: m Hm=>// /dstr_st.
 Qed.
 
 End Consequence.
-
 *)
 
 Section Read.
@@ -727,23 +741,16 @@ Qed.
 Definition read_st := Prog read_coherent read_dstrict.
 
 Lemma vrf_read (i : heap) (Q : post A) :
-       (forall v (j : heap), i = x :-> v \+ j -> Q (Val v) i) ->
+       valid i ->
+       (forall v j, i = x :-> v \+ j -> Q (Val v) i) ->
        vrf i read_st Q.
 Proof.
-Admitted.
-
-(*
-Lemma vrf_read (Q : post A) i:
-       (forall v, find x i = Some (idyn v) -> Q (Val v) i) ->
-       vrf i read_st Q.
-Proof.
-move=>H1; case; case=>Hx [v H] Hv; split=>/=.
+move=>_ H1; case; case=>Hx [v H] Hv; split=>/=.
 - by split=>//; exists v.
 move=>y' m [/= {m}<-][w][{y'}->].
 rewrite H; case; move/inj_pair2=>{w}<-.
-by apply: H1.
+by apply/H1/um_eta2.
 Qed.
-*)
 
 End Read.
 
@@ -790,16 +797,16 @@ Proof. by move=>i y m [[/= H1 D1]][_][<-][H2][->] ->. Qed.
 
 Definition write_st := Prog write_coherent write_dstrict.
 
-Lemma vrf_write (Q : post unit) i j :
-        (exists B (w : B), i = x :-> w \+ j) ->
-        (valid j -> Q (Val tt) (x :-> v \+ j)) -> (* maybe erase valid j *)
+Lemma vrf_write (Q : post unit) i j B (w : B) :
+        valid i ->
+        i = x :-> w \+ j ->
+        (valid (x :-> v \+ j) -> Q (Val tt) (x :-> v \+ j)) -> (* maybe erase valid j *)
         vrf i write_st Q.
 Proof.
-(* move=>H; case=>/= Hi Hv; split=>// y m.
-by case=>h [/= {h}<-][Hx][->->].
+move=>_ -> H; case=>/= Hi Hv; split=>// y m.
+case=>h [/= {h}<-][_][->->]; rewrite updPtUn.
+by apply: H; move: Hv; rewrite !validPtUn.
 Qed.
-*)
-Admitted.
 
 End Write.
 
@@ -813,7 +820,7 @@ Definition alloc_pre : pre := valid.
 
 Definition alloc_prog (p : ideald alloc_pre) y m :=
   exists i, i \In id_val p /\ exists l : ptr, y = Val l /\
-    m = i \+ l :-> v /\ l != null /\ l \notin dom i.
+    m = l :-> v \+ i /\ l != null /\ l \notin dom i.
 
 (*
 Definition alloc_s : spec ptr :=
@@ -837,8 +844,8 @@ Qed.
 Lemma alloc_dstrict : def_strict alloc_prog.
 Proof.
 case=>p H y [m][/= H1][l][H2][H3][H4 H5]; case/H: H1=>_ D.
-suff {H3}: valid (m \+ l :-> v) by rewrite -H3.
-by rewrite joinC validPtUn; apply/and3P.
+suff {H3}: valid (l :-> v \+ m) by rewrite -H3.
+by rewrite validPtUn; apply/and3P.
 Qed.
 
 (*
@@ -852,15 +859,13 @@ Qed.
 Definition alloc_st := Prog alloc_coherent alloc_dstrict.
 
 Lemma vrf_alloc (Q : post ptr) i:
-  (forall x, x != null -> x \notin dom i -> Q (Val x) (x :-> v \+ i)) ->
+  (forall x, valid (x :-> v \+ i) -> Q (Val x) (x :-> v \+ i)) ->
   vrf i alloc_st Q.
 Proof.
-move=>H1; case=>/= Hi Hi'; split=>// y m.
-Admitted.
-(*
-by case=>h [/= {h}<-][x][->][->][]; apply: H1.
+move=>H; case=>/= Hi Hi'; split=>// y m.
+case=>h [/= {h}<-][x][->][->][H1 H2]; apply: H.
+by rewrite validPtUn; apply/and3P.
 Qed.
-*)
 
 End Allocation.
 
@@ -872,7 +877,7 @@ Definition allocb_pre : pre := valid.
 
 Definition allocb_prog (p : ideald allocb_pre) y m :=
   exists i, i \In id_val p /\ y = Val (fresh i) /\
-            m = i \+ updi (fresh i) (nseq n v).
+            m = updi (fresh i) (nseq n v) \+ i.
 
 (*
 Definition allocb_s : spec ptr :=
@@ -893,10 +898,10 @@ Qed.
 Lemma allocb_dstrict : def_strict allocb_prog.
 Proof.
 case=>p H y [m][/= H1][_] H2; case/H: H1=>_ D.
-suff {H2}: valid (m \+ updi (fresh m) (nseq n v)) by rewrite -H2.
-elim: n =>[|k IH]; first by rewrite /= unitR.
+suff {H2}: valid (updi (fresh m) (nseq n v) \+ m) by rewrite -H2.
+elim: n =>[|k IH]; first by rewrite /= unitL.
 rewrite -addn1 nseqD cats1.
-rewrite updi_last joinA joinC validPtUn IH /=.
+rewrite updi_last -joinA joinCA validPtUn IH /=.
 rewrite ptr_null negb_and fresh_null /=.
 rewrite domUn !inE /= negb_and IH negb_or /=.
 by rewrite dom_fresh updimV negb_and fresh_null ltnn.
@@ -904,17 +909,18 @@ Qed.
 
 Definition allocb_st := Prog allocb_coherent allocb_dstrict.
 
-Lemma vrf_allocb (Q : post ptr) i:
-        (forall x k, x != null -> 0 <= k < n -> x.+ k \notin dom i ->
+Lemma vrf_allocb (Q : post ptr) i :
+        valid i ->
+        (forall x, valid (updi x (nseq n v) \+ i) ->
            Q (Val x) (updi x (nseq n v) \+ i)) ->
         vrf i allocb_st Q.
 Proof.
-Admitted.
-(*
-move=>H1; case=>/= Hi Hi'; split=>// y m.
-by case=>h [/= {h}<-][->->].
+move=>_ H; case=>/= Hi Hi'; split=>// y m.
+case=>h [/= {h}<-][->->]; apply: H.
+rewrite validUnAE Hi updiD fresh_null /=.
+apply/allP=>z Hz /=; apply/updiP; case=>_ [x][E _].
+by move: Hz; rewrite E; apply/negP/dom_fresh.
 Qed.
-*)
 
 End BlockAllocation.
 
@@ -959,16 +965,17 @@ Proof. by move=>i y m [[/= H1 D1]][_][<-][->][H2] ->. Qed.
 Definition dealloc_st :=
   Prog dealloc_coherent dealloc_dstrict.
 
-Lemma vrf_dealloc i (Q : post unit) :
-        (forall B (v : B) (j : heap), i = x :-> v \+ j -> Q (Val tt) j) -> (* consider adding validity *)
+Lemma vrf_dealloc i (Q : post unit) B (v : B) j:
+        valid i ->
+        i = x :-> v \+ j ->
+        (valid j -> Q (Val tt) j) ->
         vrf i dealloc_st Q.
 Proof.
-Admitted.
-(*
-move=>H1; case=>/= Hi Hi'; split=>// y m.
-by case=>h [/= {h}<-][-> [_ ->]].
+move=>_ -> H; case=>/= Hi Hi'; split=>// y m.
+case=>h [/= {h}<-][-> [_ ->]].
+rewrite freePtUn //; apply: H.
+by move/validR: Hi'.
 Qed.
-*)
 
 End Deallocation.
 
