@@ -345,6 +345,16 @@ case/(locality D H1)=>m1 [->][D1]; move/H2.
 by apply; apply: validL D1.
 Qed.
 
+Lemma frame_star i (r : ans A -> heap -> Prop) (q : Pred heap) :
+  i \In (fun h => verify h e r) # q -> verify i e (fun v => r v # q).
+Proof.
+case=>h1[h2][->][H1 H2].
+apply: frame=>/H1 [Hp Hr].
+split=>// y m Hq Vm _.
+exists m, h2; do!split=>//.
+by apply: Hr.
+Qed.
+
 Lemma frame0 i r : verify'' (spec_of e) i r -> verify i e r.
 Proof.
 move=>H D; case: (H D)=>H1 H2.
