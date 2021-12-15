@@ -79,16 +79,11 @@ Definition coherent (e : prog) :=
 Definition def_strict (e : prog) := forall p x, Heap.Undef \Notin e p x.
 
 Definition frameable (e : prog) :=
-  forall i j (pf : i \+ j \In defed P),
-    exists (pf' : i \In defed P),
-      forall y m, e (single pf) y m <->
-        exists h, m = h \+ j /\ valid (h \+ j) /\ e (single pf') y h.
+  forall i j (pf0 : i \In defed P) (V : valid (i \+ j)),
+    exists (pf : i \+ j \In defed P),
+      forall y m, e (single pf) y m ->
+        exists h, m = h \+ j /\ valid (h \+ j) /\ e (single pf0) y h.
 
-(* set of program runs *)
-(*
-Definition runs_of (e : prog) : Pred (heap * ans A * heap) :=
-  fun '(i,y,m) => exists pf : i \In defed P, m \In e (single pf) y.
-*)
 End BasePrograms.
 
 Section STDef.
@@ -119,65 +114,36 @@ Proof. by case: e. Qed.
 Arguments fr_st : clear implicits.
 
 Definition vrf i (c : ST) (Q : post A) :=
-  forall (pf : i \In defed (pre_of c)) y m,
-    prog_of c (single pf) y m -> Q y m.
+  forall (v : valid i),
+    exists (pf : i \In pre_of c), forall y m,
+    prog_of c (single (conj pf v)) y m -> Q y m.
 
 Definition has_spec G (s : spec G A) (c : ST) :=
   forall g i, (s g).1 i -> vrf i c (s g).2.
-
-(*
-Definition vrf2 i (c : ST) (Q : post A) :=
-  forall j (pf : i \+ j \In defed (pre_of c)),
-    pre_of c i /\ forall y m,
-      prog_of c (single pf) y m -> exists h, m = h \+ j /\ valid (h \+ j) /\ Q y h.
-
-Lemma vrf2_frame i j (e : ST) (Q : post A) :
-        vrf2 i e (fun y m => valid (m \+ j) -> Q y (m \+ j)) ->
-        vrf2 (i \+ j) e Q.
-Proof.
-move=>H h pf; split.
-- rewrite -joinA in pf.
-  rewrite /vrf2 in H.
-  case: (H _ pf)=>{H}Hi Pi.
-  case: pf.
-
-D y m.
-case: (fr_st e _ _ D)=>pf H2.
-case/H2=>h [->][Hv Hp]{H2}.
-by apply: H.
-Qed.
-*)
-(*
-Definition has_spec2 G (s : spec G A) (c : ST) :=
-  forall g i h, (s g).1 i -> vrf2 i c (s g).2.
-*)
-
-(*  vrf (i \+ h) c (fun y m => exists m', m = m' \+ h /\ (s g).2 y m'). *)
-
-(*    m \In e p x <-> exists i (pf : i \In id_val p),
-                    m \In e (single (bound pf)) x.*)
 
 Lemma vrf_frame i j (e : ST) (Q : post A) :
         vrf i e (fun y m => valid (m \+ j) -> Q y (m \+ j)) ->
         vrf (i \+ j) e Q.
 Proof.
-move=>H pf y m.
-case: (fr_st e _ _ pf)=>pf' H2.
+move=>H V; have Vi := validL V.
+case: (H Vi)=>Hi {}H.
+case: (fr_st e _ _ (conj Hi Vi) V); case=>pf' V' H2.
+exists pf'=>y m.
+rewrite (_ : V = V'); last by apply: pf_irr.
 case/H2=>h [->][Hv Hp]{H2}.
 by apply: H.
 Qed.
 
-(*
-Definition has_spec G (s : spec G A) (c : ST) :=
-  forall g i (d : defed i), (s g).1 i ->
-    pre_of c i /\
-    forall y m, prog_of c (relaxd (singleton i) d) y m -> (s g).2 y i m.
-
-Definition has_spec G (s : spec G A) (c : ST) :=
-  forall g i, (s g).1 i ->
-    pre_of c i /\
-    forall y m, (i, y, m) \In runs_of (prog_of c) -> (s g).2 y m.
-*)
+Lemma vrf_conseq (e : ST) (Q1 Q2 : post A) i :
+        valid i ->
+        (forall y m, valid m -> Q1 y m -> Q2 y m) ->
+        vrf i e Q1 -> vrf i e Q2.
+Proof.
+move=>_ H H1 Vi; case: (H1 Vi)=>pf P.
+exists pf=>y m Hm.
+have Vm: valid m by case: m Hm=>// /dstr_st.
+by apply: H=>//; apply: P.
+Qed.
 
 (* poset structure on ST *)
 
@@ -227,9 +193,9 @@ Proof. by move=>*. Qed.
 
 Lemma frame_bot : frameable prog_bot.
 Proof.
-move=>i j [Hij Hv].
-have J : i \In defed PredT by split=>//; apply: (validL Hv).
-by exists J=>y m; split=>//; case=>?[?][].
+move=>i j [Hij Hv] Vij.
+have J : i \+ j \In defed PredT by [].
+by exists J.
 Qed.
 
 Definition st_bot := Prog coherent_bot dstrict_bot frame_bot.
@@ -279,38 +245,27 @@ Qed.
 Lemma prog_sup_dstrict u : def_strict (prog_sup u).
 Proof. by move=>p y; case; case=>p0 e C D F [H1] /D. Qed.
 
-Lemma prof_sup_frame u : frameable (prog_sup u).
+Lemma prog_sup_frame u : frameable (prog_sup u).
 Proof.
-move=>i j /[dup] Hs [Hij Hv].
-have J : i \In defed (pre_sup u).
-- split=>/=; last by apply: (validL Hv).
-  move=>e pf.
-  set J' := defed_mono (pre_sup_leq pf) Hs.
-  by case: (fr_st e _ _ J'); case.
-exists J=>y m; split.
-- case=>e'[pf' He'].
-  set J' := defed_mono (pre_sup_leq pf') Hs.
-  case: (fr_st e' _ _ J')=>pf2 H2.
-  have: prog_of e' (single J') y m.
-  - rewrite (_ : single J' = relaxd (single (conj Hij Hv)) (pre_sup_leq pf')) //.
-    by congr Ideal; apply: pf_irr.
-  case/H2=>h [E [Hv' Hp']].
-  exists h; do!split=>//.
-  exists e', pf'.
-  rewrite (_ : relaxd (single J) (pre_sup_leq pf') = single pf2) //.
-  congr Ideal; apply: pf_irr.
-case=>h [->][Hv2][e][pf He]; exists e, pf.
-set J' := defed_mono (pre_sup_leq pf) Hs.
-case: (fr_st e _ _ J')=>pf2 H2.
-have: exists h0, h \+ j = h0 \+ j /\ valid (h0 \+ j) /\ prog_of e (single pf2) y h0.
-- exists h; do!split=>//.
-  rewrite (_ : single pf2 = relaxd (single J) (pre_sup_leq pf)) //.
-  by congr Ideal; apply: pf_irr.
-move/H2; rewrite (_ : single J' = relaxd (single (conj Hij Hv)) (pre_sup_leq pf)) //.
+move=>i j [Hi Vi] Vij.
+have J : i \+ j \In defed (pre_sup u).
+- split=>// e He.
+  move: (Hi e He)=>{}Hi.
+  by case: (fr_st e _ _ (conj Hi Vi) Vij); case.
+exists J=>y m [e][He]Pe.
+move: (Hi e He)=>Hi'.
+case: (fr_st e _ _ (conj Hi' Vi) Vij)=>pf P.
+move: Pe.
+rewrite (_ : relaxd (single J) (pre_sup_leq He) = single pf); last first.
+- by congr Ideal; apply: pf_irr.
+case/P=>h' [E][V']P'.
+exists h'; do!split=>//.
+exists e, He.
+rewrite (_ : relaxd (single (conj Hi Vi)) (pre_sup_leq He) = single (conj Hi' Vi)) //.
 by congr Ideal; apply: pf_irr.
 Qed.
 
-Definition st_sup u := Prog (@prog_sup_coh u) (@prog_sup_dstrict u) (@prof_sup_frame u).
+Definition st_sup u := Prog (@prog_sup_coh u) (@prog_sup_dstrict u) (@prog_sup_frame u).
 
 Lemma st_supP u e : e \In u -> e <== st_sup u.
 Proof.
@@ -327,7 +282,7 @@ have J : p <== pre_sup u.
 - by move=>/= x Px e' pf; case: (R _ pf)=>/= + _; apply.
 exists J=>p0 y m [e0][pf H1]; have Cx := coh_st e0.
 case: (R _ pf)=>/= Hx; apply=>//.
-case/Cx: H1=>i [pf1 M]; apply/Cx; exists i.
+case/Cx: H1=>i [pf1 M1]; apply/Cx; exists i.
 have J2 : i \In id_val (relaxd p0 Hx) by exact: pf1.
 exists J2.
 by rewrite (_ : bound J2 = bound pf1) //; apply: pf_irr.
@@ -376,7 +331,11 @@ by apply: poset_trans.
 Qed.
 
 Lemma st_bot_has_spec : @st_bot A \In has_spec s.
-Proof. by move=>*. Qed.
+Proof.
+move=>g i H V /=.
+have J: i \In PredT by [].
+by exists J.
+Qed.
 
 Definition stsp_bot := STprog st_bot_has_spec.
 
@@ -393,16 +352,18 @@ Definition st_sup' (u : Pred STspec) : ST A :=
 
 Lemma st_sup_has_spec' u : st_sup' u \In has_spec s.
 Proof.
-move=>g i p pf y m [e][[[e' S][/= He HS]]] Hd; subst e'.
-have J : i \In defed (pre_of e).
-- apply/defed_mono/pf/pre_sup_leq.
-  by exists (STprog S).
-apply: (S _ _ p J).
-have Cx := coh_st e.
-case/Cx: Hd=>i'[pf' M]; apply/Cx; exists i'.
-have J2 : i' \In id_val (single J) by exact: pf'.
-exists J2.
-by rewrite (_: bound J2 = bound pf') //; apply: pf_irr.
+move=>g i p Vi.
+have J : i \In pre_of (st_sup' u).
+- move=>e [e1][{e}->]; case: e1=>/= e P _.
+  by case: (P _ _ p Vi).
+exists J=>y m /= [e][[[e1 P][/= E He1]]] H; subst e1.
+case: (P _ _ p Vi)=>Hi; apply.
+rewrite (_ : single (conj Hi Vi) =
+             relaxd (single (conj J Vi))
+                    (pre_sup_leq
+                      (ex_intro (fun e0 => e = model e0 /\ e0 \In u)
+                                (STprog P) (conj (erefl e) He1)))) //.
+by congr Ideal; apply: pf_irr.
 Qed.
 
 Definition stsp_sup u := STprog (@st_sup_has_spec' u).
@@ -417,45 +378,8 @@ Proof. by case: e=>p S R; apply: supM=>/= y[q][->]; apply: R. Qed.
 Definition stspLatticeMixin := LatticeMixin stsp_supP stsp_supM.
 Canonical stspLattice := Lattice STspec stspLatticeMixin.
 
-(* In proofs, we keep goals in form (i, x, m) \In runs_of (prog_of (model e)). *)
-(* We need a couple of lemmas about this form. *)
-
-(*
-Lemma bot_runs : runs_of (prog_of (bot : ST A)) =p Pred0.
-Proof. by move=>[[i y]m]; split=>//=; case. Qed.
-
-Lemma model_runs (e : ST A) p y m :
-        m \In prog_of e p y <->
-        exists i, i \In id_val p /\ (i, y, m) \In runs_of (prog_of e).
-Proof.
-case: e p =>pr e C _ /= p; split.
-- by case/C=>i [H1 H2]; exists i; split=>//; exists (bound H1).
-case=>i [H1 H2]; apply/C.
-exists i, H1; case: H2 =>/= H2.
-by rewrite (pf_irr H2 (bound H1)).
-Qed.
-
-Lemma def_runs i y m (e : ST A) :
-        (i, y, m) \In runs_of (prog_of e) ->
-        [/\ valid i, pre_of e i & valid m].
-Proof.
-case: e=>/= p e _ D; case=>/=; case=>Hi Hv Hm; split=>//.
-by case: m Hm=>//; move/D.
-Qed.
-
-Lemma spec_runs i y m g (e : STspec) :
-        (i, y, m) \In runs_of (prog_of (model e)) ->
-        (s g).1 i -> (s g).2 y m.
-Proof.
-case: e; case=>p e C S H /= R.
-by move/H=>/= [_]; apply.
-Qed.
-*)
 End STspecDef.
-(*
-Arguments spec_runs [G A s i y m g].
-Prenex Implicits bot_runs model_runs def_runs spec_runs.
-*)
+
 (************************************)
 (* modeling the language primitives *)
 (************************************)
@@ -486,7 +410,7 @@ Definition ret_pre : pre := PredT.
 
 Definition ret_prog : prog ret_pre A :=
   fun p y m =>
-  m \In id_val p /\ y = Val x.
+    m \In id_val p /\ y = Val x.
 
 Lemma ret_coherent : coherent ret_prog.
 Proof.
@@ -499,11 +423,9 @@ Proof. by case=>p H y /= []; case/H. Qed.
 
 Lemma ret_frame : frameable ret_prog.
 Proof.
-move=>i j [[] Hv].
-have J : i \In defed ret_pre by split=>//; apply: (validL Hv).
-exists J=>y m; split.
-- by case=><- ->; exists i.
-by case=>h [-> [Hv'][<-]].
+move=>i j [[] Hv] Vij.
+have J : i \+ j \In defed ret_pre by [].
+by exists J=>y m [<- ->]; exists i.
 Qed.
 
 Definition ret_st := Prog ret_coherent ret_dstrict ret_frame.
@@ -511,7 +433,11 @@ Definition ret_st := Prog ret_coherent ret_dstrict ret_frame.
 Lemma vrf_ret (Q : post A) i :
         valid i -> Q (Val x) i ->
         vrf i ret_st Q.
-Proof. by move=>_ Hi [[] V] y m [/= <- ->]. Qed.
+Proof.
+move=>_ Hi V.
+have J : i \In pre_of ret_st by [].
+by exists J=>y m [/= <- ->].
+Qed.
 
 End Return.
 
@@ -522,7 +448,7 @@ Definition throw_pre : pre := PredT.
 
 Definition throw_prog : prog throw_pre A :=
   fun p y m =>
-  m \In id_val p /\ y = @Exn A e.
+    m \In id_val p /\ y = @Exn A e.
 
 Lemma throw_coherent : coherent throw_prog.
 Proof.
@@ -535,11 +461,9 @@ Proof. by case=>p H y /= []; case/H. Qed.
 
 Lemma throw_frame : frameable throw_prog.
 Proof.
-move=>i j [[] Hv].
-have J : i \In defed throw_pre by split=>//; apply: (validL Hv).
-exists J=>y m; split.
-- by case=><- ->; exists i.
-by case=>h [-> [Hv'][<-]].
+move=>i j [[] Hv] Vij.
+have J : i \+ j \In defed throw_pre by [].
+by exists J=>y m [<- ->]; exists i.
 Qed.
 
 Definition throw_st := Prog throw_coherent throw_dstrict throw_frame.
@@ -547,7 +471,11 @@ Definition throw_st := Prog throw_coherent throw_dstrict throw_frame.
 Lemma vrf_throw (Q : post A) i :
         valid i -> Q (Exn e) i ->
         vrf i throw_st Q.
-Proof. by move=>_ Hi [[] V] y m [/= <- ->]. Qed.
+Proof.
+move=>_ Hi V.
+have J : i \In pre_of throw_st by [].
+by exists J=>y m [/= <- ->].
+Qed.
 
 End Throw.
 
@@ -561,15 +489,13 @@ Definition bind_pre : pre :=
 
 Definition bind_prog : prog bind_pre B :=
   fun p y m =>
-  exists i x h, i \In id_val p /\
-    exists pf : i \In defed (pre_of e1), h \In prog_of e1 (single pf) x /\
-    match x with
-    | Val x' => exists pf' : h \In defed (pre_of (e2 x')),
-                  m \In prog_of (e2 x') (single pf') y
-    | Exn e => y = Exn e /\ m = h
-    end.
-
-Check bind_prog.
+    exists i x h, i \In id_val p /\
+      exists pf : i \In defed (pre_of e1), h \In prog_of e1 (single pf) x /\
+      match x with
+      | Val x' => exists pf' : h \In defed (pre_of (e2 x')),
+                    m \In prog_of (e2 x') (single pf') y
+      | Exn e => y = Exn e /\ m = h
+      end.
 
 Lemma bind_coherent : coherent bind_prog.
 Proof.
@@ -590,26 +516,35 @@ Qed.
 
 Lemma bind_frame : frameable bind_prog.
 Proof.
-move=>i j [[Hij P] Hv].
-have J : i \In defed bind_pre.
-- split=>//; last by apply: (validL Hv).
-  case: (fr_st Hij)=>pf H'.
-  exists pf=>x m H.
-  have Vm : valid m by case: m H=>// /dstr_st.
-  suff pf': m \+ j \In defed (pre_of (e2 x)).
-  - by case: (fr_st pf'); case.
-  split.
-  - apply/P/H'; exists m; do!split=>//.
+move=>i j [[Hi P] Hv] Vij.
+have J : i \+ j \In defed bind_pre.
+- split=>//.
+  case: (fr_st Hi Vij)=>pf H.
+  exists pf=>x m /H [h][->][Vhj] /P P1.
+  have J' : h \In defed (pre_of (e2 x)) by split=>//; apply: (validL Vhj).
+  by case: (fr_st J' Vhj); case.
+exists J=>y m; case=>h0[x][h1][/= <-][H0][H1].
+case: x H1=>[x|e] H1.
+- case=>H1' P2.
+  case: (fr_st Hi Vij)=>pf H.
+  move: H1; rewrite (_ : single H0 = single pf); last by congr Ideal; apply: pf_irr.
+  case/H=>h' [E1][V1]P1.
+  rewrite E1 in H1' P2; move: (P _ _ P1)=>H1''.
+  have J' : h' \In defed (pre_of (e2 x)) by split=>//; apply: (validL V1).
+  case: (fr_st J' V1)=>pf2 H2.
+  move: P2; rewrite (_ : single H1' = single pf2); last by congr Ideal; apply: pf_irr.
+  case/H2=>h'' [E''][V'']P''.
+  exists h''; do!split=>//.
+  by exists i, (Val x), h'=>/=; split=>//; exists Hi; split=>//; exists J'.
+case=>->->.
+case: (fr_st Hi Vij)=>pf H.
+move: H1; rewrite (_ : single H0 = single pf); last by congr Ideal; apply: pf_irr.
+case/H=>h' [E1][V1]P1.
+exists h'; do!split=>//.
+by exists i, (Exn e), h'; split=>//; exists Hi.
+Qed.
 
-  apply/coh_st. exists (i \+ j).
-
-  erefl.
-
-
-
-
-
-Definition bind_st := Prog bind_coherent bind_dstrict.
+Definition bind_st := Prog bind_coherent bind_dstrict bind_frame.
 
 Lemma vrf_bind (Q : post B) i :
         vrf i e1 (fun x m => match x with
@@ -618,12 +553,23 @@ Lemma vrf_bind (Q : post B) i :
                   end) ->
         vrf i bind_st Q.
 Proof.
-move=>Hi [/= [Hd Hp] Hv] y m [j][x][h][/= <-][Hd'].
-case: x=>[x|e].
-- case=>H1 [Hd2 H2].
-  by apply: (Hi _ _ _ H1).
-case=>He [-> ->].
-by apply: (Hi _ _ _ He).
+move=>H Vi.
+case: (H Vi)=>pf P.
+have J : i \In pre_of bind_st.
+- exists (conj pf Vi)=>x m P1.
+  have Vm: valid m by case: m P1=>// /dstr_st.
+  by case: (P _ _ P1 Vm).
+exists J=>y j /= [h][x][m][{h}<-][pf'][Hm]F.
+have Vm: valid m by case: m Hm {F}=>// /dstr_st.
+case: x Hm F=>[x|e] Pm.
+- case=>Hm2 Hj.
+  move: Pm; rewrite (_ : single pf' = single (conj pf Vi)); last by congr Ideal; apply: pf_irr.
+  move/P=>P'; case: (P' Vm)=>pf''; apply.
+  rewrite (_ : single (conj pf'' Vm) = single Hm2) //.
+  by congr Ideal; apply: pf_irr.
+case=>->->.
+move: Pm; rewrite (_ : single pf' = single (conj pf Vi)); last by congr Ideal; apply: pf_irr.
+by move/P.
 Qed.
 
 End Bind.
@@ -638,27 +584,16 @@ Definition try_pre : pre :=
              (forall y m, prog_of e (single pf) (Val y) m -> pre_of (e1 y) m) /\
               forall ex m, prog_of e (single pf) (Exn ex) m -> pre_of (e2 ex) m.
 
-(*
-Definition try_post : post B :=
-  fun y i m => (exists x h, s.2 (Val x) i h /\ (s1 x).2 y h m) \/
-               (exists e h, s.2 (Exn e) i h /\ (s2 e).2 y h m).
-Definition try_s := (try_pre, try_post).
-*)
-
-(*
-Definition runs_of (e : prog) : Pred (heap * ans A * heap) :=
-  fun '(i,y,m) => exists pf : i \In defed P, m \In e (single pf) y.
-*)
-
-Definition try_prog (p : ideald try_pre) y m :=
-   exists i x h, i \In id_val p /\
-     exists pf : i \In defed (pre_of e), h \In prog_of e (single pf) x /\
-     match x with
-     | Val x' => exists pf' : h \In defed (pre_of (e1 x')),
-                   m \In prog_of (e1 x') (single pf') y
-     | Exn ex => exists pf' : h \In defed (pre_of (e2 ex)),
-                   m \In prog_of (e2 ex) (single pf') y
-     end.
+Definition try_prog : prog try_pre B :=
+  fun p y m =>
+    exists i x h, i \In id_val p /\
+      exists pf : i \In defed (pre_of e), h \In prog_of e (single pf) x /\
+      match x with
+      | Val x' => exists pf' : h \In defed (pre_of (e1 x')),
+                    m \In prog_of (e1 x') (single pf') y
+      | Exn ex => exists pf' : h \In defed (pre_of (e2 ex)),
+                    m \In prog_of (e2 ex) (single pf') y
+      end.
 
 Lemma try_coherent : coherent try_prog.
 Proof.
@@ -675,7 +610,48 @@ move=>p y [i][x][h][H1][H2][].
 by case: x=>[x'|e'] H3; case=>H4 /dstr_st.
 Qed.
 
-Definition try_st := Prog try_coherent try_dstrict.
+Lemma try_frame : frameable try_prog.
+Proof.
+move=>i j [[Hi [P1 P2]] Vi] Vij.
+have J : i \+ j \In defed try_pre.
+- split=>//.
+  case: (fr_st Hi Vij)=>pf H.
+  exists pf; split.
+  - move=>x m /H [h][->][Vhj] /P1 P1'.
+    have J' : h \In defed (pre_of (e1 x)) by split=>//; apply: (validL Vhj).
+    by case: (fr_st J' Vhj); case.
+  move=>ex m /H [h][->][Vhj] /P2 P2'.
+  have J' : h \In defed (pre_of (e2 ex)) by split=>//; apply: (validL Vhj).
+  by case: (fr_st J' Vhj); case.
+exists J=>y m; case=>h0[x][h1][/= <-][H0][H1].
+case: x H1=>[x|ex] H1.
+- case=>H1' Po.
+  case: (fr_st Hi Vij)=>pf H.
+  move: H1; rewrite (_ : single H0 = single pf); last by congr Ideal; apply: pf_irr.
+  case/H=>h'[E'][V']P'.
+  rewrite E' in H1' Po; move: (P1 _ _ P')=>H1''.
+  have J' : h' \In defed (pre_of (e1 x)) by split=>//; apply: (validL V').
+  case: (fr_st J' V')=>pf2 H2.
+  move: Po; rewrite (_ : single H1' = single pf2); last by congr Ideal; apply: pf_irr.
+  case/H2=>h''[E''][V'']P''.
+  exists h''; do!split=>//.
+  exists i, (Val x), h'=>/=; split=>//.
+  by exists Hi; split=>//; exists J'.
+case=>H1' Po.
+case: (fr_st Hi Vij)=>pf H.
+move: H1; rewrite (_ : single H0 = single pf); last by congr Ideal; apply: pf_irr.
+case/H=>h'[E'][V']P'.
+rewrite E' in H1' Po; move: (P2 _ _ P')=>H1''.
+have J' : h' \In defed (pre_of (e2 ex)) by split=>//; apply: (validL V').
+case: (fr_st J' V')=>pf2 H2.
+move: Po; rewrite (_ : single H1' = single pf2); last by congr Ideal; apply: pf_irr.
+case/H2=>h''[E''][V'']P''.
+exists h''; do!split=>//.
+exists i, (Exn ex), h'=>/=; split=>//.
+by exists Hi; split=>//; exists J'.
+Qed.
+
+Definition try_st := Prog try_coherent try_dstrict try_frame.
 
 Lemma vrf_try (Q : post B) i :
         vrf i e (fun x m => match x with
@@ -684,95 +660,33 @@ Lemma vrf_try (Q : post B) i :
                  end) ->
         vrf i try_st Q.
 Proof.
-move=>Hi [/= [Hd Hp] Hv] y m [j][x][h][/= <-][Hd'].
-case: x=>[x|ex]; case=>H1 [Hd2 H2];
-by apply: (Hi _ _ _ H1).
+move=>H Vi.
+case: (H Vi)=>pf P.
+have J : i \In pre_of try_st.
+- exists (conj pf Vi); split.
+  - move=>x m P1.
+    have Vm: valid m by case: m P1=>// /dstr_st.
+    by case: (P _ _ P1 Vm).
+  move=>ex m P2.
+  have Vm: valid m by case: m P2=>// /dstr_st.
+  by case: (P _ _ P2 Vm).
+exists J=>y j /= [h][x][m][{h}<-][pf'][Hm]F.
+have Vm: valid m by case: m Hm {F}=>// /dstr_st.
+case: x Hm F=>[x|ex] Pm.
+- case=>Hm2 Hj.
+  move: Pm; rewrite (_ : single pf' = single (conj pf Vi)); last by congr Ideal; apply: pf_irr.
+  move/P=>P'; case: (P' Vm)=>pf''; apply.
+  rewrite (_ : single (conj pf'' Vm) = single Hm2) //.
+  by congr Ideal; apply: pf_irr.
+case=>Hm2 Hj.
+move: Pm; rewrite (_ : single pf' = single (conj pf Vi)); last by congr Ideal; apply: pf_irr.
+move/P=>P'; case: (P' Vm)=>pf''; apply.
+rewrite (_ : single (conj pf'' Vm) = single Hm2) //.
+by congr Ideal; apply: pf_irr.
 Qed.
-
-(*
-Lemma try_has_spec : try_sp \In has_spec try_s.
-Proof.
-move=>i y m; case=>[[[/= S1 [S2 S3]]]] D [h][x][j][<-][].
-case: x=>[x'|e'] T1 T2; [left; exists x' | right; exists e'];
-exists j; by split; [apply: spec_runs T1 | apply: spec_runs T2].
-Qed.
-
-Definition try := STprog try_coherent try_dstrict try_has_spec.
-*)
 
 End Try.
 
-(*
-Definition conseq A (s1 s2 : spec A) :=
-  forall i, s2.1 i -> valid i ->
-    s1.1 i /\ forall y m, s1.2 y i m -> valid m -> s2.2 y i m.
-
-Lemma conseq_refl (A : Type) (s : spec A) : conseq s s.
-Proof. by []. Qed.
-
- *)
-
-Lemma vrf_conseq A (e : ST A) (Q1 Q2 : post A) i :
-  valid i ->
-  (forall y m, valid m -> Q1 y m -> Q2 y m) ->
-  vrf i e Q1 -> vrf i e Q2.
-Proof.
-move=>_ H H1 Hp y m Hx.
-apply/H/H1=>//.
-by case: m Hx=>//= /dstr_st.
-Qed.
-
-
-(*
-Definition conseq A (p1 p2 : pre) (Q1 Q2 : post A) :=
-  forall i, p2 i -> valid i ->
-    p1 i /\ forall y m, Q1 y m -> valid m -> Q2 y m.
-
-Lemma conseq_refl (A : Type) (p : pre) (Q : post A) : conseq p p Q Q.
-Proof. by []. Qed.
-
-#[export]
-Hint Resolve conseq_refl : core.
-
-
-Section Consequence.
-Variables (A : Type) (p1 p2 : pre) (Q1 Q2 : post A) (e : ST A) (pf : conseq p1 p2 Q1 Q2).
-
-Definition do_prog (p : ideald p2) y m :=
-  exists i, i \In id_val p /\
-    exists pf : i \In defed (pre_of e), m \In prog_of e (single pf) y.
-
-Lemma do_coherent : coherent do_prog.
-Proof.
-case=>q H y m; split.
-- by case=>i [/= H1 T1]; exists i, H1, i.
-by case=>i [/= H1][_][<-] T1; exists i.
-Qed.
-
-Lemma do_dstrict : def_strict do_prog.
-Proof. by move=>q y [h][/= H][H2] /dstr_st. Qed.
-
-(*
-Lemma do_has_spec : do_sp \In has_spec s2.
-Proof.
-move=>i y m [[/= S1 D1]][_][<-] T; case/def_runs: (T)=>_ S2 D2.
-by apply: (proj2 (pf S1 D1)) D2; apply: spec_runs T.
-Qed.
-*)
-Definition Do := Prog do_coherent do_dstrict.
-
-Lemma vrf_do i :
-  vrf i Do Q1 -> vrf i Do Q2.
-Proof.
-move=>Hi [/= H2 Hv]; split=>// y m.
-case=>h [/= {h}<-][Hd]Hm.
-case: (pf H2 Hv)=>H1; apply.
-- by case: Hi=>//= Hd2 _; apply; exists i; split=>//; exists Hd.
-by case: m Hm=>// /dstr_st.
-Qed.
-
-End Consequence.
-*)
 
 Section Read.
 Variable (A : Type) (x : ptr).
@@ -782,18 +696,9 @@ Local Notation idyn v := (@dyn _ id _ v).
 Definition read_pre : pre :=
   fun i => x \in dom i /\ exists v : A, find x i = Some (idyn v).
 
-Definition read_prog (p : ideald read_pre) (v : ans A) m :=
-  m \In id_val p /\ exists w, v = Val w /\ find x m = Some (idyn w).
-
-(*
-Definition read_s : spec A :=
-  (fun i : heap => x \in dom i /\ exists v : A, find x i = Some (idyn v),
-   fun y (i : heap) m => m = i /\
-     forall v, find x i = Some (idyn v) -> y = Val v).
-
-Definition read_sp (p : ideald read_s.1) (v : ans A) m :=
-  m \In id_val p /\ exists w, v = Val w /\ find x m = Some (idyn w).
-*)
+Definition read_prog : prog read_pre A :=
+  fun p y m =>
+    m \In id_val p /\ exists w, y = Val w /\ find x m = Some (idyn w).
 
 Lemma read_coherent : coherent read_prog.
 Proof.
@@ -806,24 +711,33 @@ Qed.
 Lemma read_dstrict : def_strict read_prog.
 Proof. by case=>p H y []; case/H. Qed.
 
-(*
-Lemma read_has_spec : read_sp \In has_spec read_s.
+Lemma read_frame : frameable read_prog.
 Proof.
-move=>i y m [[[/= H1]]][v] H2 D [<-][w][->] H3.
-by split=>// b1; rewrite H3; case; move/inj_pair2=>->.
+move=>i j [[Hx][v E] Vi] Vij.
+have J : i \+ j \In defed read_pre.
+- split=>//; split.
+  - by rewrite domUn inE Vij Hx.
+  by exists v; rewrite findUnL // Hx.
+exists J=>y m [/= <-][w][->]H.
+exists i; do!split=>//; exists w; split=>//.
+by rewrite findUnL // Hx in H.
 Qed.
-*)
 
-Definition read_st := Prog read_coherent read_dstrict.
+Definition read_st := Prog read_coherent read_dstrict read_frame.
 
-Lemma vrf_read (i : heap) (Q : post A) :
+Lemma vrf_read (i : heap) (Q : post A) (v : A) j :
        valid i ->
-       (forall v j, i = x :-> v \+ j -> Q (Val v) i) ->
+       i = x :-> v \+ j ->
+       (forall w h, i = x :-> w \+ h -> Q (Val w) i) ->
        vrf i read_st Q.
 Proof.
-move=>_ H1; case; case=>Hx [v H] Hv y m [/= {m}<-][w][{y}->].
-rewrite H; case; move/inj_pair2=>{w}<-.
-by apply/H1/um_eta2.
+move=>_ E H2 Vi.
+have J : i \In read_pre.
+- rewrite E in Vi *; split; first by rewrite domPtUnE.
+  by exists v; rewrite findPtUn.
+exists J=>y m [/= <-][w][->] H'; rewrite E in Vi H'.
+rewrite findPtUn // in H'; case: H' =>/inj_pair2 E'.
+by apply: H2; rewrite -E'; apply: E.
 Qed.
 
 End Read.
@@ -837,19 +751,11 @@ Local Notation idyn v := (@dyn _ id _ v).
 Definition write_pre : pre :=
   fun i => x \in dom i.
 
-Definition write_prog (p : ideald write_pre) (y : ans unit) m :=
-  exists i, i \In id_val p /\ x \in dom i /\
-            y = Val tt /\ m = upd x (idyn v) i.
+Definition write_prog : prog write_pre unit :=
+  fun p y m =>
+    exists i, i \In id_val p /\ x \in dom i /\
+              y = Val tt /\ m = upd x (idyn v) i.
 
-(*
-Definition write_s : spec unit :=
-  (fun i : heap => x \in dom i : Prop,
-   fun y (i : heap) m => y = Val tt /\ upd x (idyn v) i = m).
-
-Definition write_sp (p : ideald write_s.1) (y : ans unit) m :=
-  exists i, i \In id_val p /\ x \in dom i /\
-            y = Val tt /\ m = upd x (idyn v) i.
-*)
 Lemma write_coherent : coherent write_prog.
 Proof.
 move=>p y m; split; case=>i [H1].
@@ -864,12 +770,19 @@ suff L: valid (upd x (idyn v) i) by move=>H4; rewrite -H4 in L.
 by rewrite validU (dom_cond H2) (dom_valid H2).
 Qed.
 
-(*
-Lemma write_has_spec : write_sp \In has_spec write_s.
-Proof. by move=>i y m [[/= H1 D1]][_][<-][H2][->] ->. Qed.
-*)
+Lemma write_frame : frameable write_prog.
+Proof.
+move=>i j [Hi Vi] Vij.
+have J : i \+ j \In defed write_pre.
+- by split=>//; rewrite /write_pre -toPredE /= domUn inE Vij Hi.
+exists J=>y m [h][/= {h}<-][Hx][->->].
+exists (upd x (idyn v) i); do!split.
+- by rewrite updUnL Hi.
+- by rewrite validUUn.
+by exists i.
+Qed.
 
-Definition write_st := Prog write_coherent write_dstrict.
+Definition write_st := Prog write_coherent write_dstrict write_frame.
 
 Lemma vrf_write (Q : post unit) i j B (w : B) :
         valid i ->
@@ -877,9 +790,13 @@ Lemma vrf_write (Q : post unit) i j B (w : B) :
         (valid (x :-> v \+ j) -> Q (Val tt) (x :-> v \+ j)) -> (* maybe erase valid j *)
         vrf i write_st Q.
 Proof.
-move=>_ -> H; case=>/= Hi Hv y m.
-case=>h [/= {h}<-][_][->->]; rewrite updPtUn.
-by apply: H; move: Hv; rewrite !validPtUn.
+move=>_ E H Vi.
+have J : i \In write_pre.
+- rewrite E in Vi *.
+  by rewrite /write_pre -toPredE /= domPtUnE.
+exists J=>y m /= [h][/= {h}<-][_][->->].
+rewrite E in Vi *; rewrite updPtUn; apply: H.
+by rewrite (@validPtUnE _ _ _ _ (idyn w)).
 Qed.
 
 End Write.
@@ -890,22 +807,13 @@ Variables (A : Type) (v : A).
 
 Local Notation idyn v := (@dyn _ id _ v).
 
-Definition alloc_pre : pre := valid.
+Definition alloc_pre : pre := valid.  (* should this be just PredT? *)
 
-Definition alloc_prog (p : ideald alloc_pre) y m :=
-  exists i, i \In id_val p /\ exists l : ptr, y = Val l /\
-    m = l :-> v \+ i /\ l != null /\ l \notin dom i.
+Definition alloc_prog : prog alloc_pre ptr :=
+  fun p y m =>
+    exists i, i \In id_val p /\ exists l : ptr, y = Val l /\
+      m = l :-> v \+ i /\ l != null /\ l \notin dom i.
 
-(*
-Definition alloc_s : spec ptr :=
-  (fun i => valid i : Prop,
-   fun y (i : heap) m => exists x, x != null /\ y = Val x /\ x \notin dom i /\
-                                   upd x (idyn v) i = m).
-
-Definition alloc_sp (p : ideald alloc_s.1) y m :=
-  exists i, i \In id_val p /\ exists l : ptr, y = Val l /\
-    m = i \+ l :-> v /\ l != null /\ l \notin dom i.
-*)
 Lemma alloc_coherent : coherent alloc_prog.
 Proof.
 move=>p x m; split.
@@ -922,23 +830,30 @@ suff {H3}: valid (l :-> v \+ m) by rewrite -H3.
 by rewrite validPtUn; apply/and3P.
 Qed.
 
-(*
-Lemma alloc_has_spec : alloc_sp \In has_spec alloc_s.
+Lemma alloc_frame : frameable alloc_prog.
 Proof.
-move=>i y m [[/= H D]][_][<-][l][->][->][H1] H2.
-exists l; do !split=>//.
-by rewrite -[i]unitR updUnL (negbTE H2) unitR.
+move=>i j [Vi] Vi' Vij.
+have J: i \+ j \In defed alloc_pre by [].
+exists J=>y m [h][/= {h}<-][x][{y}->][{m}->][Hx Hx2].
+exists (x :-> v \+ i). rewrite -joinA; do!split=>//.
+- rewrite validUnAE validPt Hx Vij domPtK Hx /= all_predC.
+  apply/hasP=>[[y Hy]]; rewrite !inE=>/eqP E.
+  by move: Hy Hx2; rewrite E=>->.
+exists i; split=>//; exists x; do!split=>//.
+by apply/dom_NNL/Hx2.
 Qed.
-*)
-Definition alloc_st := Prog alloc_coherent alloc_dstrict.
+
+Definition alloc_st := Prog alloc_coherent alloc_dstrict alloc_frame.
 
 Lemma vrf_alloc (Q : post ptr) i:
   (forall x, valid (x :-> v \+ i) -> Q (Val x) (x :-> v \+ i)) ->
   vrf i alloc_st Q.
 Proof.
-move=>H; case=>/= Hi Hi' y m.
-case=>h [/= {h}<-][x][->][->][H1 H2]; apply: H.
-by rewrite validPtUn; apply/and3P.
+move=>H Vi /=.
+have J: i \In alloc_pre by [].
+exists J=>y m [h][/= {h}<-][x][{y}->][{m}->][Hx Hx2].
+apply: H.
+by rewrite validPtUn Hx Vi.
 Qed.
 
 End Allocation.
@@ -947,21 +862,13 @@ End Allocation.
 Section BlockAllocation.
 Variables (A : Type) (v : A) (n : nat).
 
-Definition allocb_pre : pre := valid.
+Definition allocb_pre : pre := valid.  (* should this also be just PredT? *)
 
-Definition allocb_prog (p : ideald allocb_pre) y m :=
-  exists i, i \In id_val p /\ y = Val (fresh i) /\
-            m = updi (fresh i) (nseq n v) \+ i.
+Definition allocb_prog : prog allocb_pre ptr :=
+  fun p y m =>
+    exists i, i \In id_val p /\ y = Val (fresh i) /\
+              m = updi (fresh i) (nseq n v) \+ i.
 
-(*
-Definition allocb_s : spec ptr :=
-  (fun i => valid i : Prop,
-   fun y i m => exists r, y = Val r /\ m = i \+ updi r (nseq n v)).
-
-Definition allocb_sp (p : ideald allocb_s.1) y m :=
-  exists i, i \In id_val p /\ y = Val (fresh i) /\
-            m = i \+ updi (fresh i) (nseq n v).
-*)
 Lemma allocb_coherent : coherent allocb_prog.
 Proof.
 move=>p x m; split.
@@ -981,7 +888,22 @@ rewrite domUn !inE /= negb_and IH negb_or /=.
 by rewrite dom_fresh updimV negb_and fresh_null ltnn.
 Qed.
 
-Definition allocb_st := Prog allocb_coherent allocb_dstrict.
+Lemma allocb_frame : frameable allocb_prog.
+Proof.
+move=>i j [Vi Vi'] Vij.
+have J : i \+ j \In defed allocb_pre by [].
+exists J=>y m [h][/= {h}<-][{y}-> {m}->].
+exists (updi (fresh (i \+ j)) (nseq n v) \+ i); rewrite -joinA.
+do!split=>//.
+- rewrite validUnAE updiD fresh_null Vij /= all_predC.
+  apply/hasP=>[[x Hx]] /= /updiP [_ [m [E _]]].
+  move: (dom_fresh (i \+ j) m).
+  by rewrite E in Hx; rewrite Hx.
+exists i. do!split=>//=.
+rewrite /allocb_prog /=.
+Admitted.
+
+Definition allocb_st := Prog allocb_coherent allocb_dstrict allocb_frame.
 
 Lemma vrf_allocb (Q : post ptr) i :
         valid i ->
@@ -989,12 +911,15 @@ Lemma vrf_allocb (Q : post ptr) i :
            Q (Val x) (updi x (nseq n v) \+ i)) ->
         vrf i allocb_st Q.
 Proof.
+(*
 move=>_ H; case=>/= Hi Hi' y m.
 case=>h [/= {h}<-][->->]; apply: H.
 rewrite validUnAE Hi updiD fresh_null /=.
 apply/allP=>z Hz /=; apply/updiP; case=>_ [x][E _].
 by move: Hz; rewrite E; apply/negP/dom_fresh.
 Qed.
+*)
+Admitted.
 
 End BlockAllocation.
 
@@ -1007,15 +932,6 @@ Definition dealloc_pre : pre :=
 
 Definition dealloc_prog (p : ideald dealloc_pre) (y : ans unit) m :=
   exists i, i \In id_val p /\ y = Val tt /\ x \in dom i /\ m = free i x.
-
-(*
-Definition dealloc_s : spec unit :=
-  (fun i : heap => x \in dom i : Prop,
-   fun y (i : heap) m => y = Val tt /\ free i x = m).
-
-Definition dealloc_sp (p : ideald dealloc_s.1) (y : ans unit) m :=
-  exists i, i \In id_val p /\ y = Val tt /\ x \in dom i /\ m = free i x.
-*)
 
 Lemma dealloc_coherent : coherent dealloc_prog.
 Proof.
@@ -1031,13 +947,20 @@ suff: valid (free h x) by rewrite -H4.
 by rewrite validF.
 Qed.
 
-(*
-Lemma dealloc_has_spec : dealloc_sp \In has_spec dealloc_s.
-Proof. by move=>i y m [[/= H1 D1]][_][<-][->][H2] ->. Qed.
-*)
+Lemma dealloc_frame : frameable dealloc_prog.
+Proof.
+move=>i j [Hi Vi] Vij.
+have J: i \+ j \In defed dealloc_pre.
+- by split=>//; rewrite /dealloc_pre -toPredE /= domUn inE Vij Hi.
+exists J=>y m [h][/= {h}<-][{y}->][Hx {m}->].
+exists (free i x); do!split.
+- by apply/freeUnR/dom_inNL/Hi.
+- by apply: validFUn.
+by exists i.
+Qed.
 
 Definition dealloc_st :=
-  Prog dealloc_coherent dealloc_dstrict.
+  Prog dealloc_coherent dealloc_dstrict dealloc_frame.
 
 Lemma vrf_dealloc i (Q : post unit) B (v : B) j:
         valid i ->
@@ -1045,13 +968,13 @@ Lemma vrf_dealloc i (Q : post unit) B (v : B) j:
         (valid j -> Q (Val tt) j) ->
         vrf i dealloc_st Q.
 Proof.
-move=>_ -> H; case=>/= Hi Hi' y m.
-case=>h [/= {h}<-][-> [_ ->]].
-rewrite freePtUn //; apply: H.
-by move/validR: Hi'.
+move=>_ E H Vi /=.
+have J: i \In dealloc_pre.
+- by rewrite E in Vi *; rewrite /dealloc_pre -toPredE /= domPtUnE.
+exists J=> y m [h][/= {h}<-][{y}->][Hx {m}->]; rewrite E in Vi *.
+by rewrite freePtUn //; apply/H/(validR Vi).
 Qed.
 
 End Deallocation.
 
 End Model.
-

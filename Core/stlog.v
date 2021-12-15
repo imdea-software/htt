@@ -6,21 +6,22 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Local Notation cont A := (ans A -> heap -> Prop).
+(*Local Notation cont A := (ans A -> heap -> Prop).*)
 
-Lemma vrf_mono A (e : ST A) i (r1 r2 : cont A) :
-        r1 <== r2 -> verify i e r1 -> verify i e r2.
+Lemma vrf_mono A (e : ST A) i (r1 r2 : post A) :
+        r1 <== r2 -> vrf i e r1 -> vrf i e r2.
 Proof.
-by move=>H H1 /H1 {H1} [H1 H2]; split=>// y m H3 /(H2 _ _ H3); apply: H.
+move=>H H1 Vi; case: (H1 Vi)=>pf P.
+by exists pf=>y m /P; apply: H.
 Qed.
 
-Lemma vrfV A (e : ST A) i (r : cont A) :
-       (valid i -> verify i e r) -> verify i e r.
+Lemma vrfV A (e : ST A) i (r : post A) :
+       (valid i -> vrf i e r) -> vrf i e r.
 Proof. by move=>H V; apply: H. Qed.
 
 Lemma bnd_is_try (A B : Type) (e1 : ST A) (e2 : A -> ST B) i r :
-        verify i (ttry e1 e2 (throw B)) r ->
-        verify i (bind e1 e2) r.
+        vrf i (Model.try_st e1 e2 (Model.throw_st B)) r ->
+        vrf i (bind e1 e2) r.
 Proof.
 move=>H; apply: frame0=>D.
 case: {H D} (H D) (D)=>[[i1]][i2][->][[H1 [H2 H3]]] _ T D.
@@ -38,80 +39,80 @@ move=>j1 j2 E D _; rewrite {m1 D2}E in T1 D H4 *.
 by exists j1; do !split=>//; move=>k1 k2 -> D2 ->.
 Qed.
 
-Lemma val_do' A (e : ST A) i j (r : cont A) :
+Lemma val_do' A (e : ST A) i j (r : post A) :
         (valid i -> pre_of e i) ->
         (forall x m, post_of e (Val x) i m ->
                        valid (m \+ j) -> r (Val x) (m \+ j)) ->
         (forall x m, post_of e (Exn x) i m ->
                        valid (m \+ j) -> r (Exn x) (m \+ j)) ->
-        verify (i \+ j) e r.
+        vrf (i \+ j) e r.
 Proof.
 move=>H1 H2 H3; apply: frame; apply: frame0=>D; split; first by apply: H1.
 by case=>x m H4 D1 D2; [apply: H2 | apply: H3].
 Qed.
 
-Lemma val_ret A v i (r : cont A) :
-       (valid i -> r (Val v) i) -> verify i (ret v) r.
+Lemma val_ret A v i (r : post A) :
+       (valid i -> r (Val v) i) -> vrf i (ret v) r.
 Proof. by rewrite -[i]unitL=>H; apply: val_do'=>// x m [->] // [->]. Qed.
 
-Lemma val_read A v x i (r : cont A) :
+Lemma val_read A v x i (r : post A) :
         (valid (x :-> v \+ i) -> r (Val v) (x :-> v \+ i)) ->
-        verify (x :-> v \+ i) (read A x) r.
+        vrf (x :-> v \+ i) (read A x) r.
 Proof.
 move=>*; apply: val_do'; first by [exists v];
 by move=>y m [<-]; move/(_ v (erefl _))=>// [->].
 Qed.
 
-Lemma val_write A B (v : A) (w : B) x i (r : cont unit) :
+Lemma val_write A B (v : A) (w : B) x i (r : post unit) :
         (valid (x :-> v \+ i) -> r (Val tt) (x :-> v \+ i)) ->
-        verify (x :-> w \+ i) (write x v) r.
+        vrf (x :-> w \+ i) (write x v) r.
 Proof.
 move=>*; apply: val_do'; first by [exists B, w];
 by move=>y m [// [->] ->].
 Qed.
 
-Lemma val_alloc A (v : A) i (r : cont ptr) :
+Lemma val_alloc A (v : A) i (r : post ptr) :
         (forall x, valid (x :-> v \+ i) -> r (Val x) (x :-> v \+ i)) ->
-        verify i (alloc v) r.
+        vrf i (alloc v) r.
 Proof.
 move=>H; rewrite -[i]unitL; apply: val_do'=>//;
 by move=>y m [x][//][-> ->]; apply: H.
 Qed.
 
-Lemma val_allocb A (v : A) n i (r : cont ptr) :
+Lemma val_allocb A (v : A) n i (r : post ptr) :
         (forall x, valid (updi x (nseq n v) \+ i) ->
            r (Val x) (updi x (nseq n v) \+ i)) ->
-        verify i (allocb v n) r.
+        vrf i (allocb v n) r.
 Proof.
 move=>H; rewrite -[i]unitL; apply: val_do'=>//;
 by move=>y m [x][//][->->]; apply: H.
 Qed.
 
-Lemma val_dealloc A (v : A) x i (r : cont unit) :
+Lemma val_dealloc A (v : A) x i (r : post unit) :
         (valid i -> r (Val tt) i) ->
-        verify (x :-> v \+ i) (dealloc x) r.
+        vrf (x :-> v \+ i) (dealloc x) r.
 Proof.
 move=>H; apply: val_do'; first by [exists A; exists v];
 by move=>y m [//][->] ->; rewrite unitL.
 Qed.
 
-Lemma val_throw A x i (r : cont A) :
-        (valid i -> r (Exn x) i) -> verify i (throw A x) r.
+Lemma val_throw A x i (r : post A) :
+        (valid i -> r (Exn x) i) -> vrf i (throw A x) r.
 Proof.
 move=>H; rewrite -[i]unitL; apply: val_do'=>//;
 by move=>y m [->] // [->]; rewrite unitL.
 Qed.
 
 (* sequential composition: try e e1 e2 or bind e1 e2 can be reduced to *)
-(* a verify e1 followed by verify of the continuations. *)
+(* a vrf e1 followed by vrf of the postinuations. *)
 
-Lemma try_seq A B e (e1 : A -> ST B) e2 i (r : cont B) :
-        verify i e (fun y m =>
+Lemma try_seq A B e (e1 : A -> ST B) e2 i (r : post B) :
+        vrf i e (fun y m =>
           match y with
-            Val x => verify m (e1 x) r
-          | Exn x => verify m (e2 x) r
+            Val x => vrf m (e1 x) r
+          | Exn x => vrf m (e2 x) r
           end) ->
-        verify i (ttry e e1 e2) r.
+        vrf i (ttry e e1 e2) r.
 Proof.
 have L P Q j k : valid j -> (P # top) j -> (P --o Q) j k -> valid k.
 - move=>V H1; rewrite -[j]unitR in V *.
@@ -128,13 +129,13 @@ case=>y [m'][H]; move: (L _ _ _ _ Vi H1 H)=>Vm';
 by case: (H2 _ _ H Vm' Vm')=>T1 T2 T3; apply: T2.
 Qed.
 
-Lemma bnd_seq A B e1 (e2 : A -> ST B) i (r : cont B) :
-        verify i e1 (fun y m =>
+Lemma bnd_seq A B e1 (e2 : A -> ST B) i (r : post B) :
+        vrf i e1 (fun y m =>
           match y with
-            Val x => verify m (e2 x) r
+            Val x => vrf m (e2 x) r
           | Exn x => valid m -> r (Exn x) m
           end) ->
-        verify i (bind e1 e2) r.
+        vrf i (bind e1 e2) r.
 Proof.
 move=>H; apply: bnd_is_try; apply: try_seq.
 by apply: vrf_mono H=>y m; case: y=>// e; apply: val_throw.
@@ -153,7 +154,7 @@ Lemma gE G A (pq : G -> spec A) (c : STbin (logvar pq)) (g : G) (Q : post A) s :
 Proof. by move=>X Y; apply: (gM g)=>// + + + + _. Qed.
 (*
 Lemma ghR A e rT p q (f : @gh_form A rT p q) :
-        (forall i x, p x i -> valid i -> verify i e (q x)) ->
+        (forall i x, p x i -> valid i -> vrf i e (q x)) ->
         conseq e f.
 *)
 
@@ -167,9 +168,9 @@ Qed.
 
 (* a lemma for instantiating a ghost *)
 
-Lemma gh_ex A C (t : C) i (s : C -> spec A) e (r : cont A) :
-        verify i (do' (gh_conseq (t:=t) e)) r ->
-        verify i (with_spec (logvar s) e) r.
+Lemma gh_ex A C (t : C) i (s : C -> spec A) e (r : post A) :
+        vrf i (do' (gh_conseq (t:=t) e)) r ->
+        vrf i (with_spec (logvar s) e) r.
 Proof.
 move=>H /H /=; case E: (s t)=>[a b] /= [H1 H2]; split=>[|y m].
 - case: H1=>h1 [h2][->][T1 T2].
@@ -192,21 +193,21 @@ Arguments gh_ex [A C] t [i s e r].
 Section ValDoLemmas.
 Variables (A B : Type) (p : Pred heap) (q : ans A -> Pred heap).
 
-Lemma val_do i j {e} (r : cont A) :
+Lemma val_do i j {e} (r : post A) :
         (valid i -> i \In p) ->
         (forall x m, q (Val x) m -> valid (m \+ j) -> r (Val x) (m \+ j)) ->
         (forall x m, q (Exn x) m -> valid (m \+ j) -> r (Exn x) (m \+ j)) ->
-        verify (i \+ j) (with_spec (binarify p q) e) r.
+        vrf (i \+ j) (with_spec (binarify p q) e) r.
 Proof.
 move=>H1 H2 H3 V; apply: val_do' (V)=>//=;
 move=>x m /(_ (H1 (validL V))); [apply: H2 | apply: H3].
 Qed.
 
-Lemma val_do0 i {e} (r : cont A) :
+Lemma val_do0 i {e} (r : post A) :
         (valid i -> i \In p) ->
         (forall x m, q (Val x) m -> valid m -> r (Val x) m) ->
         (forall x m, q (Exn x) m -> valid m -> r (Exn x) m) ->
-        verify i (with_spec (binarify p q) e) r.
+        vrf i (with_spec (binarify p q) e) r.
 Proof.
 move=>H1 H2 H3; rewrite -[i]unitR; apply: val_do=>// x m;
 by rewrite unitR; eauto.
@@ -236,7 +237,7 @@ by move/H1; apply: vrf_mono=>y1 m1 T1 x2 y2; apply: (T1 (x2, y2)).
 Qed.
 
 Lemma gh (p : B -> pre) (q : B -> ans A -> pre) :
-        (forall i x, p x i -> valid i -> verify i e (q x)) ->
+        (forall i x, p x i -> valid i -> vrf i e (q x)) ->
         conseq e (logvar (fun x => logbase (p x) (q x))).
 Proof.
 move=>H1 i /= [x] H2 V; case: (H1 _ _ H2 V V)=>H3 _.
@@ -252,7 +253,7 @@ Definition push (A : Type) x (v:A) := (joinCA (x :-> v), joinC (x :-> v)).
 
 (* some notation for writing posts that signify no exceptions are raised *)
 
-Definition vfun' A (f : A -> heap -> Prop) : cont A :=
+Definition vfun' A (f : A -> heap -> Prop) : post A :=
   fun y i => if y is Val v then f v i else false.
 
 Notation "[ 'vfun' x => p ]" := (vfun' (fun x => p))

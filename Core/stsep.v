@@ -18,6 +18,7 @@ Definition top : Pred heap := PredT.
 Notation "p1 '#' p2" := (star p1 p2)
   (at level 57, right associativity) : rel_scope.
 
+(*
 Definition lolli (p : Pred heap) q (i m : heap) : Prop :=
   forall i1 h, i = i1 \+ h -> valid i -> p i1 ->
     exists m1, m = m1 \+ h /\ valid m /\ q i1 m1.
@@ -46,7 +47,7 @@ Qed.
 
 Lemma fr_pre p i j : (p # top) i -> (p # top) (i \+ j).
 Proof. by case=>i1 [i2][->][H] _; rewrite -joinA; exists i1, (i2 \+ j). Qed.
-
+*)
 Module Iter.
 Section Iter.
 Variable A : Type.
@@ -248,7 +249,7 @@ Proof. by rewrite (sepitS x) in_setT. Qed.
 
 End FinIter.
 End FinIter.
-
+(*
 (********************)
 (* Separation monad *)
 (********************)
@@ -581,27 +582,31 @@ Notation tp := (forall x, STbin (s x)).
 Definition Fix (f : tp -> tp) : tp := Model.ffix f.
 
 End SepFix.
-
+*)
 (****************************************************)
 (* Notation to move from binary posts to unary ones *)
 (****************************************************)
 
-Definition logbase {A} (p : pre) (q : ans A -> pre) : spec A :=
-  (p, fun y i m => p i -> q y m).
+Notation "'Do' e" := (@STprog _ _ _ e _) (at level 80).
 
-Definition logvar {B A} (G : A -> Type) (s : forall x : A, G x -> spec B) :
-  {x : A & G x} -> spec B :=
+Definition bind A B (e1 : ST A) (e2 : A -> ST B) := Model.bind_st e1 e2.
+
+Definition logbase A (p : pre) (q : post A) : spec unit A :=
+  fun => (p, q).
+
+Definition logvar {B A} (G : A -> Type) (s : forall x : A, spec (G x) B) :
+  spec {x : A & G x} B :=
   fun '(existT x g) => s x g.
 
-Notation "'STsep' ( p , q ) " := (STbin (logbase p q)) (at level 0).
+Notation "'STsep' ( p , q ) " := (STspec (logbase p q)) (at level 0).
 
 Notation "{ x .. y }, 'STsep' ( p , q ) " :=
-  (STbin (logvar (fun x => .. (logvar (fun y => logbase p q)) .. )))
+  (STspec (logvar (fun x => .. (logvar (fun y => logbase p q)) .. )))
    (at level 0, x binder, y binder, right associativity).
 
 Notation "x '<--' c1 ';' c2" := (bind c1 (fun x => c2))
   (at level 78, right associativity) : stsep_scope.
 Notation "c1 ';;' c2" := (bind c1 (fun _ => c2))
   (at level 78, right associativity) : stsep_scope.
-Notation "'!' x" := (read _ x) (at level 50) : stsep_scope.
-Notation "e1 '::=' e2" := (write e1 e2) (at level 60) : stsep_scope.
+Notation "'!' x" := (Model.read_st _ x) (at level 50) : stsep_scope.
+Notation "e1 '::=' e2" := (Model.write_st e1 e2) (at level 60) : stsep_scope.
