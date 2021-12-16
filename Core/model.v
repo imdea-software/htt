@@ -1,7 +1,7 @@
 From mathcomp Require Import ssreflect ssrbool ssrfun ssrnat eqtype seq.
 From fcsl Require Import axioms pred prelude.
 From fcsl Require Import pcm unionmap heap.
-From HTT Require Import domain.
+From HTT Require Import domain heap_extra.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -371,6 +371,17 @@ Definition ffix : tp := tarski_lfp f'.
 
 End Fix.
 
+Lemma vrf_mono A i (e : ST A) (Q1 Q2 : post A) :
+        Q1 <== Q2 -> vrf i e Q1 -> vrf i e Q2.
+Proof.
+move=>H H1 Vi; case: (H1 Vi)=>pf {}H1.
+by exists pf=>y m /H1; apply: H.
+Qed.
+
+Lemma vrfV A i (e : ST A) (Q : post A) :
+       (valid i -> vrf i e Q) -> vrf i e Q.
+Proof. by move=>H V; apply: H. Qed.
+
 Lemma vrf_frame A i j (e : ST A) (Q : post A) :
         vrf i e (fun y m => valid (m \+ j) -> Q y (m \+ j)) ->
         vrf (i \+ j) e Q.
@@ -382,7 +393,17 @@ case/P=>h [{m}->][Vhj {}P].
 by apply: H.
 Qed.
 
-Lemma vrf_conseq A i (e : ST A) (Q1 Q2 : post A) :
+Lemma frame_star A i (e : ST A) (Q : post A) (r : Pred heap) :
+  i \In (fun h => vrf h e Q) # r -> vrf i e (fun v => Q v # r).
+Proof.
+case=>h1[h2][{i}-> H1 H2].
+apply: vrf_frame=>V1; case: (H1 V1)=>Hp Hr.
+exists Hp=>y m Pm Vm2.
+exists m, h2; split=>//.
+by apply: Hr.
+Qed.
+
+Lemma vrf_post A i (e : ST A) (Q1 Q2 : post A) :
         (forall y m, valid m -> Q1 y m -> Q2 y m) ->
         vrf i e Q1 -> vrf i e Q2.
 Proof.
@@ -619,18 +640,17 @@ exists i, (Exn ex), h'=>/=; split=>//.
 by exists Hi; split=>//; exists J'.
 Qed.
 
-Definition try_st := Prog try_coherent try_dstrict try_frame.
+Definition try := Prog try_coherent try_dstrict try_frame.
 
 Lemma vrf_try (Q : post B) i :
         vrf i e (fun x m => match x with
                  | Val x' => vrf m (e1 x') Q
                  | Exn ex => vrf m (e2 ex) Q
                  end) ->
-        vrf i try_st Q.
+        vrf i try Q.
 Proof.
-move=>H Vi.
-case: (H Vi)=>pf P.
-have J : i \In pre_of try_st.
+move=>H Vi; case: (H Vi)=>pf P /=.
+have J : i \In try_pre.
 - exists (conj pf Vi); split=>x m Pm;
   by case: (P _ _ Pm (dstr_valid Pm)).
 exists J=>y j /= [_][x][m][<-][pf'][Pm]F.
@@ -685,11 +705,11 @@ exists i; do!split=>//; exists w; split=>//.
 by rewrite findUnL // Hx in H.
 Qed.
 
-Definition read_st := Prog read_coherent read_dstrict read_frame.
+Definition read := Prog read_coherent read_dstrict read_frame.
 
 Lemma vrf_read (Q : post A) (v : A) j :
        (valid (x :-> v \+ j) -> Q (Val v) (x :-> v \+ j)) ->
-       vrf (x :-> v \+ j) read_st Q.
+       vrf (x :-> v \+ j) read Q.
 Proof.
 move=>H Vi /=.
 have J : x :-> v \+ j \In read_pre.
@@ -740,11 +760,11 @@ rewrite updUnL Hi validUUn //; do!split=>//.
 by exists i.
 Qed.
 
-Definition write_st := Prog write_coherent write_dstrict write_frame.
+Definition write := Prog write_coherent write_dstrict write_frame.
 
 Lemma vrf_write (Q : post unit) j B (u : B) :
         (valid (x :-> v \+ j) -> Q (Val tt) (x :-> v \+ j)) ->
-        vrf (x :-> u \+ j) write_st Q.
+        vrf (x :-> u \+ j) write Q.
 Proof.
 move=>H Vi /=.
 have J : x :-> u \+ j \In write_pre.
@@ -797,11 +817,11 @@ exists i, x; split=>//.
 by apply/dom_NNL/Hx2.
 Qed.
 
-Definition alloc_st := Prog alloc_coherent alloc_dstrict alloc_frame.
+Definition alloc := Prog alloc_coherent alloc_dstrict alloc_frame.
 
 Lemma vrf_alloc (Q : post ptr) i :
   (forall x, valid (x :-> v \+ i) -> Q (Val x) (x :-> v \+ i)) ->
-  vrf i alloc_st Q.
+  vrf i alloc Q.
 Proof.
 move=>H Vi /=.
 exists I=>_ _ [_][x][-> -> <- Hx Hx2].
@@ -840,12 +860,12 @@ exists i, l; do!split=>//.
 by rewrite joinA in V; apply: (validL V).
 Qed.
 
-Definition allocb_st := Prog allocb_coherent allocb_dstrict allocb_frame.
+Definition allocb := Prog allocb_coherent allocb_dstrict allocb_frame.
 
 Lemma vrf_allocb (Q : post ptr) i :
         (forall x, valid (updi x (nseq n v) \+ i) ->
            Q (Val x) (updi x (nseq n v) \+ i)) ->
-        vrf i allocb_st Q.
+        vrf i allocb Q.
 Proof.
 move=>H Vi /=.
 exists I=>y m [_][l][/= {y}-> {m}-> <- V].
@@ -890,12 +910,12 @@ exists (free i x); do!split.
 by exists i.
 Qed.
 
-Definition dealloc_st :=
+Definition dealloc :=
   Prog dealloc_coherent dealloc_dstrict dealloc_frame.
 
 Lemma vrf_dealloc (Q : post unit) B (v : B) j:
         (x \notin dom j -> valid j -> Q (Val tt) j) ->
-        vrf (x :-> v \+ j) dealloc_st Q.
+        vrf (x :-> v \+ j) dealloc Q.
 Proof.
 move=>H Vi /=.
 have J: x :-> v \+ j \In dealloc_pre.
@@ -908,3 +928,29 @@ Qed.
 End Deallocation.
 
 End Model.
+
+(****************************************************)
+(* Notation to move from binary posts to unary ones *)
+(****************************************************)
+
+Notation "'Do' e" := (@STprog _ _ _ e _) (at level 80).
+
+Definition logbase A (p : pre) (q : post A) : spec unit A :=
+  fun => (p, q).
+
+Definition logvar {B A} (G : A -> Type) (s : forall x : A, spec (G x) B) :
+             spec {x : A & G x} B :=
+  fun '(existT x g) => s x g.
+
+Notation "'STsep' ( p , q ) " := (STspec (logbase p q)) (at level 0).
+
+Notation "{ x .. y }, 'STsep' ( p , q ) " :=
+  (STspec (logvar (fun x => .. (logvar (fun y => logbase p q)) .. )))
+   (at level 0, x binder, y binder, right associativity).
+
+Notation "x '<--' c1 ';' c2" := (Model.bind c1 (fun x => c2))
+  (at level 78, right associativity).
+Notation "c1 ';;' c2" := (Model.bind c1 (fun _ => c2))
+  (at level 78, right associativity).
+Notation "'!' x" := (Model.read _ x) (at level 50).
+Notation "e1 '::=' e2" := (Model.write e1 e2) (at level 60).

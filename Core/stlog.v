@@ -1,27 +1,15 @@
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype seq ssrfun.
 From fcsl Require Import pred.
 From fcsl Require Import pcm unionmap heap.
-From HTT Require Import domain stmod stsep.
+From HTT Require Import heap_extra domain model.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-(*Local Notation cont A := (ans A -> heap -> Prop).*)
-
-Lemma vrf_mono A (e : ST A) i (r1 r2 : post A) :
-        r1 <== r2 -> vrf i e r1 -> vrf i e r2.
-Proof.
-move=>H H1 Vi; case: (H1 Vi)=>pf P.
-by exists pf=>y m /P; apply: H.
-Qed.
-
-Lemma vrfV A (e : ST A) i (r : post A) :
-       (valid i -> vrf i e r) -> vrf i e r.
-Proof. by move=>H V; apply: H. Qed.
-
+(*
 Lemma bnd_is_try (A B : Type) (e1 : ST A) (e2 : A -> ST B) i r :
-        vrf i (Model.try_st e1 e2 (Model.throw_st B)) r ->
-        vrf i (bind e1 e2) r.
+        vrf i (Model.try e1 e2 (Model.throw B)) r ->
+        vrf i (Model.bind e1 e2) r.
 Proof.
 move=>H; apply: frame0=>D.
 case: {H D} (H D) (D)=>[[i1]][i2][->][[H1 [H2 H3]]] _ T D.
@@ -41,67 +29,50 @@ Qed.
 
 Lemma val_do' A (e : ST A) i j (r : post A) :
         (valid i -> pre_of e i) ->
-        (forall x m, post_of e (Val x) i m ->
+        (forall x m, exists (pf : )
+                     prog_of e (single (bound (Val x))) i m ->
                        valid (m \+ j) -> r (Val x) (m \+ j)) ->
-        (forall x m, post_of e (Exn x) i m ->
+        (forall x m, prog_of e (Exn x) i m ->
                        valid (m \+ j) -> r (Exn x) (m \+ j)) ->
         vrf (i \+ j) e r.
 Proof.
 move=>H1 H2 H3; apply: frame; apply: frame0=>D; split; first by apply: H1.
 by case=>x m H4 D1 D2; [apply: H2 | apply: H3].
 Qed.
-
+*)
 Lemma val_ret A v i (r : post A) :
-       (valid i -> r (Val v) i) -> vrf i (ret v) r.
-Proof. by rewrite -[i]unitL=>H; apply: val_do'=>// x m [->] // [->]. Qed.
+       (valid i -> r (Val v) i) -> vrf i (Model.ret v) r.
+Proof. by move=>H; apply: Model.vrfV=>Vi; apply/Model.vrf_ret/H. Qed.
 
 Lemma val_read A v x i (r : post A) :
         (valid (x :-> v \+ i) -> r (Val v) (x :-> v \+ i)) ->
-        vrf (x :-> v \+ i) (read A x) r.
-Proof.
-move=>*; apply: val_do'; first by [exists v];
-by move=>y m [<-]; move/(_ v (erefl _))=>// [->].
-Qed.
+        vrf (x :-> v \+ i) (Model.read A x) r.
+Proof. by move=>H; apply: Model.vrfV=>Vi; apply/Model.vrf_read/H. Qed.
 
 Lemma val_write A B (v : A) (w : B) x i (r : post unit) :
         (valid (x :-> v \+ i) -> r (Val tt) (x :-> v \+ i)) ->
-        vrf (x :-> w \+ i) (write x v) r.
-Proof.
-move=>*; apply: val_do'; first by [exists B, w];
-by move=>y m [// [->] ->].
-Qed.
+        vrf (x :-> w \+ i) (Model.write x v) r.
+Proof. by move=>H; apply: Model.vrfV=>Vi; apply/Model.vrf_write/H. Qed.
 
 Lemma val_alloc A (v : A) i (r : post ptr) :
         (forall x, valid (x :-> v \+ i) -> r (Val x) (x :-> v \+ i)) ->
-        vrf i (alloc v) r.
-Proof.
-move=>H; rewrite -[i]unitL; apply: val_do'=>//;
-by move=>y m [x][//][-> ->]; apply: H.
-Qed.
+        vrf i (Model.alloc v) r.
+Proof. by move=>H; apply: Model.vrfV=>Vi; apply/Model.vrf_alloc/H. Qed.
 
 Lemma val_allocb A (v : A) n i (r : post ptr) :
         (forall x, valid (updi x (nseq n v) \+ i) ->
            r (Val x) (updi x (nseq n v) \+ i)) ->
-        vrf i (allocb v n) r.
-Proof.
-move=>H; rewrite -[i]unitL; apply: val_do'=>//;
-by move=>y m [x][//][->->]; apply: H.
-Qed.
+        vrf i (Model.allocb v n) r.
+Proof. by move=>H; apply: Model.vrfV=>Vi; apply/Model.vrf_allocb/H. Qed.
 
 Lemma val_dealloc A (v : A) x i (r : post unit) :
         (valid i -> r (Val tt) i) ->
-        vrf (x :-> v \+ i) (dealloc x) r.
-Proof.
-move=>H; apply: val_do'; first by [exists A; exists v];
-by move=>y m [//][->] ->; rewrite unitL.
-Qed.
+        vrf (x :-> v \+ i) (Model.dealloc x) r.
+Proof. by move=>H; apply: Model.vrfV=>Vi; apply/Model.vrf_dealloc=>_ _; apply/H/(validR Vi). Qed.
 
 Lemma val_throw A x i (r : post A) :
-        (valid i -> r (Exn x) i) -> vrf i (throw A x) r.
-Proof.
-move=>H; rewrite -[i]unitL; apply: val_do'=>//;
-by move=>y m [->] // [->]; rewrite unitL.
-Qed.
+        (valid i -> r (Exn x) i) -> vrf i (Model.throw A x) r.
+Proof. by move=>H; apply: Model.vrfV=>Vi; apply/Model.vrf_throw/H. Qed.
 
 (* sequential composition: try e e1 e2 or bind e1 e2 can be reduced to *)
 (* a vrf e1 followed by vrf of the postinuations. *)
@@ -112,22 +83,8 @@ Lemma try_seq A B e (e1 : A -> ST B) e2 i (r : post B) :
             Val x => vrf m (e1 x) r
           | Exn x => vrf m (e2 x) r
           end) ->
-        vrf i (ttry e e1 e2) r.
-Proof.
-have L P Q j k : valid j -> (P # top) j -> (P --o Q) j k -> valid k.
-- move=>V H1; rewrite -[j]unitR in V *.
-  by case/(locality V H1)=>k' [->][]; rewrite unitR.
-move=>H Vi; case: (H Vi)=>H1 H2 {H}; split.
-- exists i, Unit; rewrite unitR; do !split=>//;
-  move=>x m H; move: (L _ _ _ _ Vi H1 H)=>Vm;
-  by case: (H2 _ _ H Vm Vm).
-move=>x m H Vm; case: {H} (H i Unit)=>//; first by rewrite unitR.
-- do !split=>//; move=>x' m' H; move: (L _ _ _ _ Vi H1 H)=>Vm';
-  by case: (H2 _ _ H Vm' Vm').
-move=>m'; rewrite unitR; case=><-{m'} [_]; case;
-case=>y [m'][H]; move: (L _ _ _ _ Vi H1 H)=>Vm';
-by case: (H2 _ _ H Vm' Vm')=>T1 T2 T3; apply: T2.
-Qed.
+        vrf i (Model.try e e1 e2) r.
+Proof. by move=>H; apply/Model.vrf_try. Qed.
 
 Lemma bnd_seq A B e1 (e2 : A -> ST B) i (r : post B) :
         vrf i e1 (fun y m =>
@@ -135,19 +92,34 @@ Lemma bnd_seq A B e1 (e2 : A -> ST B) i (r : post B) :
             Val x => vrf m (e2 x) r
           | Exn x => valid m -> r (Exn x) m
           end) ->
-        vrf i (bind e1 e2) r.
+        vrf i (Model.bind e1 e2) r.
 Proof.
-move=>H; apply: bnd_is_try; apply: try_seq.
-by apply: vrf_mono H=>y m; case: y=>// e; apply: val_throw.
+move=>H; apply/Model.vrf_bind/Model.vrf_post/H.
+by case=>[x|ex] m Vm //; apply.
 Qed.
-
 
 (***********************************************)
 (* Specialized lemmas for instantiating ghosts *)
 (* and doing sequential composition            *)
 (***********************************************)
 
-Lemma gE G A (pq : G -> spec A) (c : STbin (logvar pq)) (g : G) (Q : post A) s :
+Lemma gE G A (pq : spec G A) (e : STspec pq) g (Q : post A) i :
+        (pq g).1 i ->
+        (forall y m, valid m -> (pq g).2 y m -> Q y m) ->
+        vrf i (model e) Q.
+Proof.
+case: e=>e H /H X Y; apply: Model.vrfV=>Vi /=.
+by apply/Model.vrf_post/X.
+Qed.
+
+Lemma stepE G A B (s : spec G A) (e : STspec s) e2 i (Q : post B) (g : G) :
+        (s g).1 i ->
+        (forall y m, (s g).2 y m -> valid m -> vrf m (e2 y) Q) ->
+        vrf i (Model.bind (model e) e2) Q.
+Proof. by move=>H1 H2; apply: step=>//; apply: gE H1 H2. Qed.
+
+(*
+Lemma gE G A (pq : spec G A) (c : STspec (logvar pq)) (g : G) (Q : post A) s :
         (pq g).1 s ->
         (forall v m, (pq g).2 v m -> coh V m -> Q v m) ->
         vrf c Q s.
@@ -250,6 +222,7 @@ End Ghosts.
 
 Definition pull (A : Type) x (v:A) := (joinC (x :-> v), joinCA (x :-> v)).
 Definition push (A : Type) x (v:A) := (joinCA (x :-> v), joinC (x :-> v)).
+*)
 
 (* some notation for writing posts that signify no exceptions are raised *)
 

@@ -1,7 +1,7 @@
 From mathcomp Require Import ssreflect ssrbool ssrnat ssrfun seq eqtype fintype finset bigop.
 From fcsl Require Import axioms pred.
 From fcsl Require Import pcm unionmap heap.
-From HTT Require Import interlude stmod.
+From HTT Require Import interlude.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -213,29 +213,3 @@ Proof. by rewrite (sepitS x) in_setT. Qed.
 
 End FinIter.
 End FinIter.
-
-(****************************************************)
-(* Notation to move from binary posts to unary ones *)
-(****************************************************)
-
-Notation "'Do' e" := (@STprog _ _ _ e _) (at level 80).
-
-Definition logbase A (p : pre) (q : post A) : spec unit A :=
-  fun => (p, q).
-
-Definition logvar {B A} (G : A -> Type) (s : forall x : A, spec (G x) B) :
-             spec {x : A & G x} B :=
-  fun '(existT x g) => s x g.
-
-Notation "'STsep' ( p , q ) " := (STspec (logbase p q)) (at level 0).
-
-Notation "{ x .. y }, 'STsep' ( p , q ) " :=
-  (STspec (logvar (fun x => .. (logvar (fun y => logbase p q)) .. )))
-   (at level 0, x binder, y binder, right associativity).
-
-Notation "x '<--' c1 ';' c2" := (Model.bind c1 (fun x => c2))
-  (at level 78, right associativity) : stsep_scope.
-Notation "c1 ';;' c2" := (Model.bind c1 (fun _ => c2))
-  (at level 78, right associativity) : stsep_scope.
-Notation "'!' x" := (Model.read_st _ x) (at level 50) : stsep_scope.
-Notation "e1 '::=' e2" := (Model.write_st e1 e2) (at level 60) : stsep_scope.
