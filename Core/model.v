@@ -55,7 +55,8 @@ Definition safe_mono :=
   forall i j, i \In P -> valid (i \+ j) -> i \+ j \In P.
 
 (* defined heaps map to defined heaps *)
-Definition def_strict (e : prog) := forall i p v x, Heap.Undef \Notin e i p v x.
+Definition def_strict (e : prog) :=
+  forall i p v x, Heap.Undef \Notin e i p v x.
 
 (* frame property *)
 Definition frameable (e : prog) :=
@@ -78,8 +79,6 @@ Structure ST := Prog {
 Lemma sfm_st e : safe_mono (pre_of e).
 Proof. by case: e. Qed.
 
-Arguments sfm_st : clear implicits.
-
 Arguments prog_of : clear implicits.
 
 Lemma dstr_st e : def_strict (prog_of e).
@@ -89,12 +88,10 @@ Corollary dstr_valid e i p v x m :
             m \In prog_of e i p v x -> valid m.
 Proof. by case: m=>// /dstr_st. Qed.
 
-Arguments dstr_st : clear implicits.
-
 Lemma fr_st e : frameable (prog_of e).
 Proof. by case: e. Qed.
 
-Arguments fr_st : clear implicits.
+Arguments fr_st [e i j].
 
 (* poset structure on ST *)
 
@@ -140,7 +137,7 @@ Qed.
 Definition pre_bot : pre := top.
 
 Definition prog_bot : prog pre_bot A :=
-  fun _ _ _ _ _ => False.
+  fun _ _ _ _ => bot.
 
 Lemma sfmono_bot : safe_mono pre_bot.
 Proof. by []. Qed.
@@ -188,7 +185,7 @@ Lemma prog_sup_frame u : frameable (prog_sup u).
 Proof.
 move=>i j Pi Vij Pij y m [e][He]Pe.
 have Pi' := Pi e He; have Pij' := Pij e He.
-have P := fr_st _ _ _ Pi' Vij Pij' y m.
+have P := fr_st Pi' Vij Pij' y m.
 move: Pe; rewrite (pf_irr (pre_sup_leq He Pij) Pij').
 case/P=>h [{m P}-> Vhj Ph].
 exists h; split=>//; exists e, He.
@@ -221,9 +218,9 @@ Canonical stLattice := Lattice ST stLatticeMixin.
 End STDef.
 
 Arguments prog_of [A].
-Arguments sfm_st [A].
-Arguments dstr_st [A].
-Arguments fr_st [A].
+Arguments sfm_st [A e i j].
+Arguments dstr_st [A e i].
+Arguments fr_st [A e i j].
 
 Section STspecDef.
 Variables (G A : Type) (s : spec G A).
@@ -291,7 +288,7 @@ have J : i \In pre_of (st_sup' u).
 - by move=>_ [e][->]; case: e=>e P; case: (P _ _ p Vi).
 exists J=>y m /= [e][[[e1 P]]][/= E He1] H; subst e1.
 case: (P _ _ p Vi)=>Hi; apply.
-set I' := (X in prog_of e i X) in H.
+set I' := (X in prog_of e _ X) in H.
 by rewrite (pf_irr Hi I').
 Qed.
 
@@ -337,30 +334,38 @@ Definition Fix : tp := tarski_lfp f'.
 
 End Fix.
 
-Lemma vrf_mono A i (e : ST A) (Q1 Q2 : post A) :
-        Q1 <== Q2 -> vrf i e Q1 -> vrf i e Q2.
-Proof.
-move=>H H1 Vi; case: (H1 Vi)=>pf {}H1.
-by exists pf=>y m /H1; apply: H.
-Qed.
+Section Vrf.
+Variables (A : Type) (e : ST A).
 
-Lemma vrfV A i (e : ST A) (Q : post A) :
+Lemma vrfV i (Q : post A) :
        (valid i -> vrf i e Q) -> vrf i e Q.
 Proof. by move=>H V; apply: H. Qed.
 
-Lemma vrf_frame A i j (e : ST A) (Q : post A) :
+Lemma vrf_post i (Q1 Q2 : post A) :
+        (forall y m, valid m -> Q1 y m -> Q2 y m) ->
+        vrf i e Q1 -> vrf i e Q2.
+Proof.
+move=>H H1 Vi; case: (H1 Vi)=>pf {}H1.
+exists pf=>y m Hm.
+by apply/H/H1=>//; exact: (dstr_valid Hm).
+Qed.
+
+Corollary vrf_mono i : monotone (vrf i e).
+Proof. by move=>/= Q1 Q2 H; apply: vrf_post=>y m _; apply: H. Qed.
+
+Lemma vrf_frame i j (Q : post A) :
         vrf i e (fun y m => valid (m \+ j) -> Q y (m \+ j)) ->
         vrf (i \+ j) e Q.
 Proof.
 move=>H Vij; have Vi := validL Vij; case: (H Vi)=>Hi {}H.
-have Hij := sfm_st _ _ _ Hi Vij.
+have Hij := sfm_st Hi Vij.
 exists Hij=>y m.
-case/(fr_st _ _ _ Hi Vij Hij)=>h [{m}-> Vhj P].
+case/(fr_st Hi Vij Hij)=>h [{m}-> Vhj P].
 apply: H=>//.
 by rewrite (pf_irr Vi (validL Vij)).
 Qed.
 
-Lemma frame_star A i (e : ST A) (Q : post A) (r : Pred heap) :
+Lemma frame_star i (Q : post A) (r : Pred heap) :
   i \In (fun h => vrf h e Q) # r -> vrf i e (fun v => Q v # r).
 Proof.
 case=>h1[h2][{i}-> H1 H2].
@@ -370,14 +375,7 @@ exists m, h2; split=>//.
 by apply: Hr.
 Qed.
 
-Lemma vrf_post A i (e : ST A) (Q1 Q2 : post A) :
-        (forall y m, valid m -> Q1 y m -> Q2 y m) ->
-        vrf i e Q1 -> vrf i e Q2.
-Proof.
-move=>H H1 Vi; case: (H1 Vi)=>pf {}H1.
-exists pf=>y m Hm.
-by apply/H/H1=>//; exact: (dstr_valid Hm).
-Qed.
+End Vrf.
 
 Section Return.
 Variables (A : Type) (x : A).
@@ -438,26 +436,26 @@ Variables (e1 : ST A) (e2 : A -> ST B).
 Definition bind_pre : pre :=
   fun i =>
     exists (Pi : i \In pre_of e1) (Vi : valid i),
-      forall x m, prog_of e1 i Pi Vi (Val x) m -> pre_of (e2 x) m.
+      forall x m, prog_of e1 _ Pi Vi (Val x) m -> pre_of (e2 x) m.
 
 Definition bind_pre_proj i : i \In bind_pre -> i \In pre_of e1 :=
   fun '(ex_intro e _) => e.
 
 Definition bind_prog : prog bind_pre B :=
   fun i P V y m =>
-    exists x h (Ph : h \In prog_of e1 i (bind_pre_proj P) V x),
+    exists x h (Ph : h \In prog_of e1 _ (bind_pre_proj P) V x),
       match x with
       | Val x' => exists Ph' : h \In pre_of (e2 x'),
-                    m \In prog_of (e2 x') h Ph' (dstr_valid Ph) y
+                    m \In prog_of (e2 x') _ Ph' (dstr_valid Ph) y
       | Exn e => y = Exn e /\ m = h
       end.
 
 Lemma bind_sfmono : safe_mono bind_pre.
 Proof.
 move=>i j [Pi][Vi]P Vij.
-have Pij := sfm_st _ _ _ Pi Vij.
+have Pij := sfm_st Pi Vij.
 exists Pij, Vij=>x m.
-case/(fr_st _ _ _ Pi Vij Pij)=>h [{m}-> Vhj].
+case/(fr_st Pi Vij Pij)=>h [{m}-> Vhj].
 rewrite (pf_irr (validL Vij) Vi)=>/P Ph.
 by apply: sfm_st=>//; apply: (validL Vhj).
 Qed.
@@ -473,13 +471,13 @@ Qed.
 Lemma bind_frame : frameable bind_prog.
 Proof.
 move=>i j [Pi [Vi P]] Vij [Pij _] y m [x][h][/=].
-move: (fr_st _ _ _ Pi Vij Pij)=>H.
+move: (fr_st Pi Vij Pij)=>H.
 case: x=>[x|e] Ph.
 - case=>Ph'.
   case: (H _ _ Ph)=>h1[Eh V1 Ph1]; subst h.
   rewrite (pf_irr (validL Vij) Vi) in Ph1 *; move: (P _ _  Ph1)=> P21.
   rewrite (pf_irr (dstr_valid Ph) V1).
-  case/(fr_st _ _ _ P21 V1 Ph')=>h2[Em Vm Ph2].
+  case/(fr_st P21 V1 Ph')=>h2[Em Vm Ph2].
   exists h2; split=>//; exists (Val x), h1, Ph1, P21.
   by rewrite (pf_irr (dstr_valid Ph1) (validL V1)).
 case=>->->.
@@ -519,8 +517,8 @@ Variables (e : ST A) (e1 : A -> ST B) (e2 : exn -> ST B).
 Definition try_pre : pre :=
   fun i =>
     exists (Pi : i \In pre_of e) (Vi : valid i),
-      (forall y  m, prog_of e i Pi Vi (Val y)  m -> pre_of (e1 y)  m) /\
-       forall ex m, prog_of e i Pi Vi (Exn ex) m -> pre_of (e2 ex) m.
+      (forall y  m, prog_of e _ Pi Vi (Val y)  m -> pre_of (e1 y)  m) /\
+       forall ex m, prog_of e _ Pi Vi (Exn ex) m -> pre_of (e2 ex) m.
 
 Definition try_pre_proj i : i \In try_pre -> i \In pre_of e :=
   fun '(ex_intro e _) => e.
@@ -530,22 +528,22 @@ Definition try_prog : prog try_pre B :=
     exists x h (Ph : h \In prog_of e i (try_pre_proj P) V x),
       match x with
       | Val x' => exists (Ph' : h \In pre_of (e1 x')),
-                    m \In prog_of (e1 x') h Ph' (dstr_valid Ph) y
+                    m \In prog_of (e1 x') _ Ph' (dstr_valid Ph) y
       | Exn ex => exists (Ph' : h \In pre_of (e2 ex)),
-                    m \In prog_of (e2 ex) h Ph' (dstr_valid Ph) y
+                    m \In prog_of (e2 ex) _ Ph' (dstr_valid Ph) y
       end.
 
 Lemma try_sfmono : safe_mono try_pre.
 Proof.
 move=>i j [Pi [Vi][E1 E2]] Vij.
-have Pij := sfm_st _ _ _ Pi Vij.
+have Pij := sfm_st Pi Vij.
 exists Pij, Vij; split.
 - move=>y m.
-  case/(fr_st _ _ _ Pi Vij Pij)=>h [{m}-> Vhj].
+  case/(fr_st Pi Vij Pij)=>h [{m}-> Vhj].
   rewrite (pf_irr (validL Vij) Vi)=>/E1 Ph.
   by apply: sfm_st=>//; apply: (validL Vhj).
 move=>ex m.
-case/(fr_st _ _ _ Pi Vij Pij)=>h [{m}-> Vhj].
+case/(fr_st Pi Vij Pij)=>h [{m}-> Vhj].
 rewrite (pf_irr (validL Vij) Vi)=>/E2 Ph.
 by apply: sfm_st=>//; apply: (validL Vhj).
 Qed.
@@ -559,20 +557,20 @@ Qed.
 Lemma try_frame : frameable try_prog.
 Proof.
 move=>i j [Pi [Vi][E1 E2]] Vij [Pij _] y m [x][h][/=].
-move: (fr_st _ _ _ Pi Vij Pij)=>H.
+move: (fr_st Pi Vij Pij)=>H.
 case: x=>[x|ex] Ph.
 - case=>Ph'.
   case: (H _ _ Ph)=>h1[Eh V1 Ph1]; subst h.
   rewrite (pf_irr (validL Vij) Vi) in Ph1 *; move: (E1 _ _  Ph1)=>P21.
   rewrite (pf_irr (dstr_valid Ph) V1).
-  case/(fr_st _ _ _ P21 V1 Ph')=>h2[Em Vm Ph2].
+  case/(fr_st P21 V1 Ph')=>h2[Em Vm Ph2].
   exists h2; split=>//; exists (Val x), h1, Ph1, P21.
   by rewrite (pf_irr (dstr_valid Ph1) (validL V1)).
 case=>Ph'.
 case: (H _ _ Ph)=>h1[Eh V1 Ph1]; subst h.
 rewrite (pf_irr (validL Vij) Vi) in Ph1 *; move: (E2 _ _  Ph1)=> P21.
 rewrite (pf_irr (dstr_valid Ph) V1).
-case/(fr_st _ _ _ P21 V1 Ph')=>h2[Em Vm Ph2].
+case/(fr_st P21 V1 Ph')=>h2[Em Vm Ph2].
 exists h2; split=>//; exists (Exn ex), h1, Ph1, P21.
 by rewrite (pf_irr (dstr_valid Ph1) (validL V1)).
 Qed.
@@ -599,6 +597,22 @@ Qed.
 
 End Try.
 
+(* doesn't look useful *)
+Lemma bnd_is_try A B (e1 : ST A) (e2 : A -> ST B) i r :
+        vrf i (try e1 e2 (throw B)) r ->
+        vrf i (bind e1 e2) r.
+Proof.
+move=>H Vi; case: (H Vi)=>[[P1][Vi' /= [E1 E2]]] {}H.
+have J : i \In pre_of (bind e1 e2).
+- exists P1, Vi=>y m.
+  by rewrite (pf_irr Vi Vi')=>/E1.
+exists J=>y m /= [x][h][Ph]C.
+apply: H; exists x, h=>/=.
+rewrite (pf_irr P1 (bind_pre_proj J)) in E2 *; exists Ph.
+move: Ph C; case: x=>// e Ph [{y}-> {m}->].
+rewrite (pf_irr Vi' Vi) in E2.
+by exists (E2 _ _ Ph).
+Qed.
 
 Section Read.
 Variable (A : Type) (x : ptr).
@@ -859,3 +873,42 @@ Notation "c1 ';;' c2" := (Model.bind c1 (fun _ => c2))
   (at level 78, right associativity).
 Notation "'!' x" := (Model.read _ x) (at level 50).
 Notation "e1 '::=' e2" := (Model.write e1 e2) (at level 60).
+
+(***********************************************)
+(* Specialized lemmas for instantiating ghosts *)
+(* and doing sequential composition            *)
+(***********************************************)
+
+Lemma gE G A (pq : spec G A) (e : STspec pq) g (Q : post A) i :
+        (pq g).1 i ->
+        (forall y m, valid m -> (pq g).2 y m -> Q y m) ->
+        vrf i (model e) Q.
+Proof.
+case: e=>e H /H X Y; apply: Model.vrfV=>Vi /=.
+by apply/Model.vrf_post/X.
+Qed.
+
+(*
+Lemma stepE G A B (s : spec G A) (e : STspec s) e2 i (Q : post B) (g : G) :
+        (s g).1 i ->
+        (forall y m, (s g).2 y m -> valid m -> vrf m (e2 y) Q) ->
+        vrf i (Model.bind (model e) e2) Q.
+Proof. by move=>H1 H2; apply: step=>//; apply: gE H1 H2. Qed.*)
+
+
+(* some notation for writing posts that signify no exceptions are raised *)
+
+Definition vfun' A (f : A -> heap -> Prop) : post A :=
+  fun y i => if y is Val v then f v i else false.
+
+Notation "[ 'vfun' x => p ]" := (vfun' (fun x => p))
+  (at level 0, x name, format "[ 'vfun'  x  =>  p ]") : fun_scope.
+
+Notation "[ 'vfun' x : aT => p ]" := (vfun' (fun (x : aT) => p))
+  (at level 0, x name, only parsing) : fun_scope.
+
+Notation "[ 'vfun' x i => p ]" := (vfun' (fun x i => p))
+  (at level 0, x name, format "[ 'vfun'  x  i  =>  p ]") : fun_scope.
+
+Notation "[ 'vfun' ( x : aT ) i => p ]" := (vfun' (fun (x : aT) i => p))
+  (at level 0, x name, only parsing) : fun_scope.
