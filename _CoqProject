@@ -5,8 +5,8 @@ Core/interlude.v
 Core/heap_extra.v
 Core/domain.v
 Core/model.v
-Core/heaptac.v
 Core/stlog.v
+Core/heaptac.v
 Core/stlogR.v
 Examples/exploit.v
 Examples/llistR.v
