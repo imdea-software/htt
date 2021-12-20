@@ -20,10 +20,15 @@ move=>H1 H2 H3; apply: frame; apply: frame0=>D; split; first by apply: H1.
 by case=>x m H4 D1 D2; [apply: H2 | apply: H3].
 Qed.
 *)
+(*
 Lemma val_ret A v i (Q : post A) :
        (valid i -> Q (Val v) i) -> vrf i (Model.ret v) Q.
-Proof. by move=>H; apply: Model.vrfV=>Vi; apply/Model.vrf_ret/H. Qed.
-(*
+Proof. by exact: Model.vrf_ret. Qed.
+
+Lemma val_throw A x i (Q : post A) :
+        (valid i -> Q (Exn x) i) -> vrf i (Model.throw A x) Q.
+Proof. by exact: Model.vrf_throw. Qed.
+
 Lemma val_read A v x i (Q : post A) :
         (valid (x :-> v \+ i) -> Q (Val v) (x :-> v \+ i)) ->
         vrf (x :-> v \+ i) (Model.read A x) Q.
@@ -44,15 +49,13 @@ Lemma val_allocb A (v : A) n i (Q : post ptr) :
            Q (Val x) (updi x (nseq n v) \+ i)) ->
         vrf i (Model.allocb v n) Q.
 Proof. by exact: Model.vrf_allocb. Qed.
+
 *)
 Lemma val_dealloc A (v : A) x i (Q : post unit) :
         (valid i -> Q (Val tt) i) ->
         vrf (x :-> v \+ i) (Model.dealloc x) Q.
 Proof. by move=>H; apply: Model.vrf_dealloc=>_. Qed.
 
-Lemma val_throw A x i (Q : post A) :
-        (valid i -> Q (Exn x) i) -> vrf i (Model.throw A x) Q.
-Proof. by move=>H; apply: Model.vrfV=>Vi; apply/Model.vrf_throw/H. Qed.
 
 (* sequential composition: try e e1 e2 or bind e1 e2 can be reduced to *)
 (* a vrf e1 followed by vrf of the postinuations. *)
@@ -66,7 +69,7 @@ Lemma try_seq A B e (e1 : A -> ST B) e2 i (Q : post B) :
           end) ->
         vrf i (Model.try e e1 e2) Q.
 Proof. by exact: Model.vrf_try. Qed.
-*)
+
 Lemma bnd_seq A B e1 (e2 : A -> ST B) i (Q : post B) :
         vrf i e1 (fun y m =>
           match y with
@@ -78,7 +81,7 @@ Proof.
 move=>H; apply/Model.vrf_bind/Model.vrf_post/H.
 by case=>[x|ex] m Vm //; apply.
 Qed.
-
+*)
 
 (*
 Lemma gE G A (pq : spec G A) (c : STspec (logvar pq)) (g : G) (Q : post A) s :
