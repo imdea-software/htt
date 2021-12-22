@@ -2,7 +2,7 @@
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq.
 From fcsl Require Import axioms pred.
 From fcsl Require Import pcm unionmap heap.
-From HTT Require Import domain stmod stsep stlog stlogR.
+From HTT Require Import domain heap_extra model heapauto.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -104,23 +104,23 @@ Program Definition insert p (x : A) :
       q ::= x;;
       ret q).
 Next Obligation.
-move=>p x.
-apply: ghR=>i l H _; step=>q.
-by rewrite unitR -joinA; heval.
+move=>p x [l []] i /= H.
+step=>q; rewrite unitR -joinA.
+by heval.
 Qed.
 
 (* removing *)
 
-Program Definition remove p : {xs : seq A}, STsep (lseq p xs, [vfun p' => lseq p' (behead xs)]) :=
+Program Definition remove p :
+  {xs : seq A}, STsep (lseq p xs, [vfun p' => lseq p' (behead xs)]) :=
   Do (if p == null then ret p
       else pnext <-- !(p .+ 1);
            dealloc p;;
            dealloc p .+ 1;;
            ret pnext).
 Next Obligation.
-move=>p.
-apply: ghR=>i xs H V; case: ifP H=>H1.
-- by rewrite (eqP H1); case/(lseq_null V)=>->->; heval.
+move=>p [xs []] i /= H; apply: vrfV=>V; case: ifP H=>H1.
+- by rewrite (eqP H1); case/(lseq_null V)=>->->/=; heval.
 case/(lseq_pos (negbT H1))=>x [q][h][->] <- /= H2.
 by heval; rewrite 2!unitL.
 Qed.
@@ -140,30 +140,30 @@ Program Definition len p :
                                  go (pnext, l + 1)))
       in len (p, 0)).
 Next Obligation.
-move=>_ ?? p l /= _.
-apply: ghR=>i xs H V; case: eqP H.
+move=>_ ?? p l /= _ [xs []] i /= H; apply: vrfV=>V.
+case: eqP H.
 - move=>->; case/(lseq_null V)=>->->/=.
-  by apply: val_ret; rewrite addn0.
+  by step; rewrite addn0.
 move/eqP=>Hp; case/lseq_pos=>// x0 [r][h'][->] <- /= H1.
 step; rewrite joinA joinC.
-apply/frame/(gh_ex (behead xs))/val_doR=>//=.
-move=>y h2 [/eqP -> Hl] V2; split; first by rewrite -addnA add1n.
+apply/vrf_frame/[gE (behead xs)]=>//=.
+case=>// y h2 _ [/eqP -> Hl] V2; split; first by rewrite -addnA add1n.
 by exists r, h2; split=>//; rewrite joinC joinA.
 Qed.
 Next Obligation.
-move=>p /=.
-apply: ghR=>i xs H V.
-by apply/(gh_ex xs)/val_do0.
+move=>p [xs []] i /= H; apply: vrfV=>V.
+by apply: [gE xs].
 Qed.
 
 (* concatenation *)
 
 Definition catT (p2 : ptr) : Type :=
-  forall (p1 : ptr), {xs : seq A * seq A}, STsep (fun h => p1 != null /\ (lseq p1 xs.1 # lseq p2 xs.2) h,
-                                                 [vfun _ : unit => lseq p1 (xs.1 ++ xs.2)]).
+  forall (p1 : ptr), {xs1 xs2 : seq A}, STsep (fun h => p1 != null /\ (lseq p1 xs1 # lseq p2 xs2) h,
+                                                 [vfun _ : unit => lseq p1 (xs1 ++ xs2)]).
 
-Program Definition concat p1 p2 : {xs1 xs2 : seq A}, STsep (lseq p1 xs1 # lseq p2 xs2,
-                                                           [vfun a => lseq a (xs1 ++ xs2)]) :=
+Program Definition concat p1 p2 :
+  {xs1 xs2 : seq A}, STsep (lseq p1 xs1 # lseq p2 xs2,
+                           [vfun a => lseq a (xs1 ++ xs2)]) :=
   Do (let: cat := Fix (fun (go : catT p2) q =>
                         Do (next <-- !(q .+ 1);
                             if (next : ptr) == null
@@ -175,41 +175,43 @@ Program Definition concat p1 p2 : {xs1 xs2 : seq A}, STsep (lseq p1 xs1 # lseq p
            else cat p1;;
                 ret p1).
 Next Obligation.
-move=>_ p2 ? q.
-apply: ghR=>i [xs1 xs2] /= [Hq [i1][i2][{i}->][H1 H2]] V.
+move=>_ p2 ? q [xs1][xs2][] _ /= [Hq][i1][i2][-> H1 H2]; apply: vrfV=>V.
 case: (lseq_pos Hq H1)=>x [r0][i0][E]<-H0.
 step; case: ifP.
-- move/eqP=>E0; rewrite {}E0 in H0. do 2!step.
+- move/eqP=>E0; rewrite {}E0 in H0 *.
+  (* TODO why *)
+  rewrite joinCA; do 2!step.
   move=>V0; rewrite joinC !joinA joinC in V0.
   case: (lseq_null (validL V0) H0)=>E1 ->; rewrite {}E1 in E; rewrite {}E /= unitR.
-  by exists p2, i2; rewrite joinA.
+  by exists p2, i2=>/=; rewrite joinCA joinA //.
 move/negbT=>E0.
 rewrite joinA -[_ \+ i0 \+ i2]joinA joinC.
-apply/frame/(gh_ex (behead xs1, xs2))/val_doR=>//=.
-- by move=>V0; split=>//; exists i0, i2.
-move=>[] m ???; rewrite E /=.
+apply/vrf_frame/[gE (behead xs1), xs2]=>/=.
+- by split=>//; exists i0, i2.
+case=>//= [[]] m ???; rewrite E /=.
 by exists r0, m; rewrite joinC joinA.
 Qed.
 Next Obligation.
-move=>p1 p2 /=.
-apply: ghR=>i [xs1 xs2] /= [i1][i2][{i}->][H1 H2] V; case: ifP.
+move=>p1 p2 /= [xs1][xs2][] _ [i1][i2][-> H1 H2]; apply: vrfV=>V.
+case: ifP.
 - move/eqP=>E0; rewrite {}E0 in H1; step=>_.
   by case: (lseq_null (validL V) H1)=>->->/=; rewrite unitL.
 move/negbT=>E0.
-apply/bnd_seq/(gh_ex (xs1, xs2))/val_do0=>//=.
-- by move=>?; split=>//; exists i1, i2.
-move=>_ m ? _.
-by apply: val_ret.
+apply: [stepE xs1, xs2]=>/=.
+- by heval.
+case=>// [[]] m _ /= Hm.
+by heval.
 Qed.
 
 (* in-place reversal *)
 
-Definition shape_rev p (s : seq A * seq A) := [Pred h | h \In lseq p.1 s.1 # lseq p.2 s.2].
+Definition shape_rev p (s1 s2 : seq A) := [Pred h | h \In lseq p.1 s1 # lseq p.2 s2].
 
-Definition revT : Type := (* ps.1 = i, ps.2 = done *)
-  forall p, {ps}, STsep (shape_rev p ps, [vfun y => lseq y (catrev ps.1 ps.2)]).
+Definition revT : Type := forall p,
+  {i done}, STsep (shape_rev p i done, [vfun y => lseq y (catrev i done)]).
 
-Program Definition reverse p : {xs : seq A}, STsep (lseq p xs, [vfun p' => lseq p' (rev xs)]) :=
+Program Definition reverse p :
+  {xs : seq A}, STsep (lseq p xs, [vfun p' => lseq p' (rev xs)]) :=
   Do (let: reverse := Fix (fun (go : revT) '(i, done) =>
                         Do (if i == null then ret done
                             else next <-- !i .+ 1;
@@ -217,30 +219,32 @@ Program Definition reverse p : {xs : seq A}, STsep (lseq p xs, [vfun p' => lseq 
                                  go (next, i)))
       in reverse (p, null)).
 Next Obligation.
-move=>_ ?? p done _.
-apply: ghR=>i [x1 x2][i1][i2][->] /= [H1 H2] V.
+move=>_ go _ p done _ [x1][x2][] _ /= [i1][i2][-> H1 H2]; apply: vrfV=>V.
 case: eqP H1=>[->|E].
 - by case/(lseq_null (validL V))=>->->; rewrite unitL; step.
 case/lseq_pos=>[|xd [xn][h'][->] <- /= H1]; first by case: eqP.
-heval; rewrite -!joinA -!(joinCA h'); apply: (gh_ex (behead x1, xd::x2)).
-by apply: val_doR=>//; vauto.
+(* TODO why *)
+step; rewrite joinCA; step; rewrite joinCA.
+rewrite -!joinA -!(joinCA h').
+apply: [gE (behead x1), xd::x2]=>//=.
+by vauto.
 Qed.
 Next Obligation.
-move=>p /=.
-apply: ghR=>i xs H _; apply: (gh_ex (xs, [::])).
-by apply: val_do0=>// ?; exists i; hhauto.
+move=>p /= [xs][] i /= H.
+apply: [gE xs, [::]]=>//=.
+by exists i; hhauto.
 Qed.
 
 Variable B : Type.
 
 (* Type of recursive map *)
-Definition lmap_type (f : A -> B) :=
+Definition lmapT (f : A -> B) :=
   forall (p : ptr),
     {xs : seq A}, STsep (lseq p xs,
                          fun (_ : ans unit) => lseq p (map f xs)).
 
-Program Definition lmap f : lmap_type f :=
-  Fix (fun (lmap : lmap_type f) p =>
+Program Definition lmap f : lmapT f :=
+  Fix (fun (lmap : lmapT f) p =>
     Do (if p == null
         then ret tt
         else t <-- !p;
@@ -249,8 +253,7 @@ Program Definition lmap f : lmap_type f :=
              lmap nxt)).
 Next Obligation.
 (* Deconstruct the precondition *)
-move=>f lmap p.
-apply: ghR=>h xs P V.
+move=>f lmap p [xs][] h /= P; apply: vrfV=>V.
 
 (* Use if-rule *)
 case: ifP=>[X|/negbT X].
@@ -259,13 +262,13 @@ case: ifP=>[X|/negbT X].
 - move/eqP: X=>Z; rewrite {}Z in P *.
   by case: (lseq_null V P)=>->->; heval.
 
-(* 2. p != null => The list is non-empty. *)
+(* 2. p != null ==> The list is non-empty. *)
 case/(lseq_pos X): P=>t [nxt][h'][->]Z/=P; rewrite -{}Z in V *.
+
 (* Decompose the list predicate *)
 rewrite joinA joinC in V *; heval.
-apply: (gh_ex (behead xs)).
-by apply: (@val_do _ _ _ h')=>//=_ h2 Q V'; rewrite joinC;
-   exists nxt, h2; rewrite joinA.
+apply/vrf_frame/[gE (behead xs)]=>//=_ h2 _ Q V'.
+by rewrite joinC; exists nxt, h2; rewrite joinA.
 Qed.
 
 End LList.

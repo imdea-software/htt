@@ -334,6 +334,8 @@ Definition Fix : tp := tarski_lfp f'.
 
 End Fix.
 
+Arguments Fix [G A B s] f x.
+
 Section Vrf.
 Variables (A : Type) (e : ST A).
 
@@ -852,6 +854,32 @@ End Deallocation.
 
 End Model.
 
+(* TODO replace with a interface + instance a-la FCSL *)
+Definition Fix := Model.Fix.
+#[global]Opaque Fix.
+Definition ret := Model.ret.
+Definition throw := Model.throw.
+Definition bind := Model.bind.
+Definition try := Model.try.
+Definition read := Model.read.
+Definition write := Model.write.
+Definition alloc := Model.alloc.
+Definition allocb := Model.allocb.
+Definition dealloc := Model.dealloc.
+
+Definition vrfV := Model.vrfV.
+Definition vrf_post := Model.vrf_post.
+Definition vrf_frame := Model.vrf_frame.
+Definition vrf_ret := Model.vrf_ret.
+Definition vrf_throw := Model.vrf_throw.
+Definition vrf_bind := Model.vrf_bind.
+Definition vrf_try := Model.vrf_try.
+Definition vrf_read := Model.vrf_read.
+Definition vrf_write := Model.vrf_write.
+Definition vrf_alloc := Model.vrf_alloc.
+Definition vrf_allocb := Model.vrf_allocb.
+Definition vrf_dealloc := Model.vrf_dealloc.
+
 (****************************************************)
 (* Notation to move from binary posts to unary ones *)
 (****************************************************)
@@ -871,12 +899,12 @@ Notation "{ x .. y }, 'STsep' ( p , q ) " :=
   (STspec (logvar (fun x => .. (logvar (fun y => logbase p q)) .. )))
    (at level 0, x binder, y binder, right associativity).
 
-Notation "x '<--' c1 ';' c2" := (Model.bind c1 (fun x => c2))
+Notation "x '<--' c1 ';' c2" := (bind c1 (fun x => c2))
   (at level 78, right associativity).
-Notation "c1 ';;' c2" := (Model.bind c1 (fun _ => c2))
+Notation "c1 ';;' c2" := (bind c1 (fun _ => c2))
   (at level 78, right associativity).
-Notation "'!' x" := (Model.read _ x) (at level 50).
-Notation "e1 '::=' e2" := (Model.write e1 e2) (at level 60).
+Notation "'!' x" := (read _ x) (at level 50).
+Notation "e1 '::=' e2" := (write e1 e2) (at level 60).
 
 (***********************************************)
 (* Specialized lemmas for instantiating ghosts *)
@@ -888,9 +916,15 @@ Lemma gE G A (s : spec G A) g i (e : STspec s) (Q : post A) :
         (forall y m, valid m -> (s g).2 y m -> Q y m) ->
         vrf i e Q.
 Proof.
-case: e=>e H /H X Y; apply: Model.vrfV=>Vi /=.
-by apply/Model.vrf_post/X.
+case: e=>e H /H X Y; apply: vrfV=>Vi /=.
+by apply/vrf_post/X.
 Qed.
+
+Arguments gE [G A s] g [i e Q] _ _ _.
+
+Notation "[ 'gE' x1 , .. , xn ]" :=
+  (gE (existT _ x1 .. (existT _ xn tt) ..))
+  (at level 0).
 
 Lemma stepE G A B (s : spec G A) g i (e : STspec s) (e2 : A -> ST B) (Q : post B) :
         (s g).1 i ->
@@ -901,9 +935,14 @@ Lemma stepE G A B (s : spec G A) g i (e : STspec s) (e2 : A -> ST B) (Q : post B
         vrf i (x <-- e; e2 x) Q.
 Proof.
 move=>H1 H2.
-apply/Model.vrf_bind/(gE _ H1)=>y m Vm P _.
+apply/vrf_bind/(gE _ H1)=>y m Vm P _.
 by apply: H2.
 Qed.
+
+Arguments stepE [G A B s] g [i e e2 Q] _ _ _.
+
+Notation "[ 'stepE' x1 , .. , xn ]" :=
+  (stepE (existT _ x1 .. (existT _ xn tt) ..)) (at level 0).
 
 (* some notation for writing posts that signify no exceptions are raised *)
 

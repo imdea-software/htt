@@ -65,8 +65,6 @@ Canonical Structure search_right h r (f : forall k, form k r) k :=
 (* Reflective lemmas that apply module AC-theory of heaps *)
 (**********************************************************)
 
-(*Notation post A := (ans A -> heap -> Prop).*)
-
 Section EvalDoR.
 Variables (G A B : Type) (s : spec G A).
 
@@ -79,7 +77,7 @@ Lemma val_doR g i j (e : STspec s) (f : forall k, form k j) (r : post A) :
         vrf (f i) e r.
 Proof.
 case: e=>e /= H H1 H2 H3; rewrite formE.
-apply: (Model.vrf_frame)=>V; move: (H1 V)=>/H [P M].
+apply: vrf_frame=>V; move: (H1 V)=>/H [P M].
 exists P; case=>[x|ex] m /M.
 - by move: (H2 x m); rewrite formE.
 by move: (H3 ex m); rewrite formE.
@@ -112,15 +110,15 @@ End EvalDoR.
 Section EvalRetR.
 Variables (A B : Type).
 
-Definition val_retR := Model.vrf_ret.
+Definition val_retR := vrf_ret.
 
 Lemma try_retR e1 e2 (v : A) i (r : post B) :
-        vrf i (e1 v) r -> vrf i (Model.try (Model.ret v) e1 e2) r.
-Proof. by move=>H; apply/Model.vrf_try/val_retR. Qed.
+        vrf i (e1 v) r -> vrf i (try (ret v) e1 e2) r.
+Proof. by move=>H; apply/vrf_try/val_retR. Qed.
 
 Lemma bnd_retR e (v : A) i (r : post B) :
-        vrf i (e v) r -> vrf i (Model.bind (Model.ret v) e) r.
-Proof. by move=>H; apply/Model.vrf_bind/val_retR. Qed.
+        vrf i (e v) r -> vrf i (bind (ret v) e) r.
+Proof. by move=>H; apply/vrf_bind/val_retR. Qed.
 
 End EvalRetR.
 
@@ -130,18 +128,18 @@ Variables (A B : Type).
 
 Lemma val_readR v x i (f : form (x :-> v) i) (r : post A) :
         (valid (untag f) -> r (Val v) f) ->
-        vrf f (Model.read A x) r.
-Proof. by rewrite formE; apply: Model.vrf_read. Qed.
+        vrf f (read A x) r.
+Proof. by rewrite formE; apply: vrf_read. Qed.
 
 Lemma try_readR e1 e2 v x i (f : form (x :-> v) i) (r : post B) :
         vrf f (e1 v) r ->
-        vrf f (Model.try (Model.read A x) e1 e2) r.
-Proof. by move=>H; apply/Model.vrf_try/val_readR. Qed.
+        vrf f (try (read A x) e1 e2) r.
+Proof. by move=>H; apply/vrf_try/val_readR. Qed.
 
 Lemma bnd_readR e v x i (f : form (x :-> v) i) (r : post B) :
         vrf f (e v) r ->
-        vrf f (Model.bind (Model.read A x) e) r.
-Proof. by move=>H; apply/Model.vrf_bind/val_readR. Qed.
+        vrf f (bind (read A x) e) r.
+Proof. by move=>H; apply/vrf_bind/val_readR. Qed.
 
 End EvalReadR.
 
@@ -151,19 +149,19 @@ Variables (A B C : Type).
 
 Lemma val_writeR (v : A) (w : B) x i (f : forall k, form k i) (r : post unit) :
         (valid (untag (f (x :-> v))) -> r (Val tt) (f (x :-> v))) ->
-        vrf (f (x :-> w)) (Model.write x v) r.
-Proof. by rewrite !formE; apply: Model.vrf_write. Qed.
+        vrf (f (x :-> w)) (write x v) r.
+Proof. by rewrite !formE; apply: vrf_write. Qed.
 
 Lemma try_writeR e1 e2 (v : A) (w : B) x i
                  (f : forall k, form k i) (r : post C) :
         vrf (f (x :-> v)) (e1 tt) r ->
-        vrf (f (x :-> w)) (Model.try (Model.write x v) e1 e2) r.
-Proof. by move=>H; apply/Model.vrf_try/val_writeR. Qed.
+        vrf (f (x :-> w)) (try (write x v) e1 e2) r.
+Proof. by move=>H; apply/vrf_try/val_writeR. Qed.
 
 Lemma bnd_writeR e (v : A) (w : B) x i (f : forall k, form k i) (r : post C) :
         vrf (f (x :-> v)) (e tt) r ->
-        vrf (f (x :-> w)) (Model.bind (Model.write x v) e) r.
-Proof. by move=>H; apply/Model.vrf_bind/val_writeR. Qed.
+        vrf (f (x :-> w)) (bind (write x v) e) r.
+Proof. by move=>H; apply/vrf_bind/val_writeR. Qed.
 
 End EvalWriteR.
 
@@ -171,17 +169,17 @@ End EvalWriteR.
 Section EvalAllocR.
 Variables (A B : Type).
 
-Definition val_allocR := Model.vrf_alloc.
+Definition val_allocR := vrf_alloc.
 
 Lemma try_allocR e1 e2 (v : A) i (r : post B) :
         (forall x, vrf (x :-> v \+ i) (e1 x) r) ->
-        vrf i (Model.try (Model.alloc v) e1 e2) r.
-Proof. by move=>H; apply/Model.vrf_try/val_allocR. Qed.
+        vrf i (try (alloc v) e1 e2) r.
+Proof. by move=>H; apply/vrf_try/val_allocR. Qed.
 
 Lemma bnd_allocR e (v : A) i (r : post B) :
         (forall x, vrf (x :-> v \+ i) (e x) r) ->
-        vrf i (Model.bind (Model.alloc v) e) r.
-Proof. by move=>H; apply/Model.vrf_bind/val_allocR. Qed.
+        vrf i (bind (alloc v) e) r.
+Proof. by move=>H; apply/vrf_bind/val_allocR. Qed.
 
 End EvalAllocR.
 
@@ -189,17 +187,17 @@ End EvalAllocR.
 Section EvalAllocbR.
 Variables (A B : Type).
 
-Definition val_allocbR := Model.vrf_allocb.
+Definition val_allocbR := vrf_allocb.
 
 Lemma try_allocbR e1 e2 (v : A) n i (r : post B) :
         (forall x, vrf (updi x (nseq n v) \+ i) (e1 x) r) ->
-        vrf i (Model.try (Model.allocb v n) e1 e2) r.
-Proof. by move=>H; apply/Model.vrf_try/val_allocbR. Qed.
+        vrf i (try (allocb v n) e1 e2) r.
+Proof. by move=>H; apply/vrf_try/val_allocbR. Qed.
 
 Lemma bnd_allocbR e (v : A) n i (r : post B) :
         (forall x, vrf (updi x (nseq n v) \+ i) (e x) r) ->
-        vrf i (Model.bind (Model.allocb v n) e) r.
-Proof. by move=>H; apply/Model.vrf_bind/val_allocbR. Qed.
+        vrf i (bind (allocb v n) e) r.
+Proof. by move=>H; apply/vrf_bind/val_allocbR. Qed.
 
 End EvalAllocbR.
 
@@ -209,18 +207,18 @@ Variables (A B : Type).
 
 Lemma val_deallocR (v : A) x i (f : forall k, form k i) (r : post unit) :
         (valid (untag (f Unit)) -> r (Val tt) (f Unit)) ->
-        vrf (f (x :-> v)) (Model.dealloc x) r.
-Proof. by rewrite !formE unitL=>H; apply: Model.vrf_dealloc. Qed.
+        vrf (f (x :-> v)) (dealloc x) r.
+Proof. by rewrite !formE unitL=>H; apply: vrf_dealloc. Qed.
 
 Lemma try_deallocR e1 e2 (v : A) x i (f : forall k, form k i) (r : post B) :
         vrf (f Unit) (e1 tt) r ->
-        vrf (f (x :-> v)) (Model.try (Model.dealloc x) e1 e2) r.
-Proof. by move=>H; apply/Model.vrf_try/val_deallocR. Qed.
+        vrf (f (x :-> v)) (try (dealloc x) e1 e2) r.
+Proof. by move=>H; apply/vrf_try/val_deallocR. Qed.
 
 Lemma bnd_deallocR e (v : A) x i (f : forall k, form k i) (r : post B) :
         vrf (f Unit) (e tt) r ->
-        vrf (f (x :-> v)) (Model.bind (Model.dealloc x) e) r.
-Proof. by move=>H; apply/Model.vrf_bind/val_deallocR. Qed.
+        vrf (f (x :-> v)) (bind (dealloc x) e) r.
+Proof. by move=>H; apply/vrf_bind/val_deallocR. Qed.
 
 End EvalDeallocR.
 
@@ -228,21 +226,21 @@ End EvalDeallocR.
 Section EvalThrowR.
 Variables (A B : Type).
 
-Definition val_throwR := Model.vrf_throw.
+Definition val_throwR := vrf_throw.
 
 Lemma try_throwR e e1 e2 i (r : post B) :
         vrf i (e2 e) r ->
-        vrf i (Model.try (Model.throw A e) e1 e2) r.
-Proof. by move=>H; apply/Model.vrf_try/val_throwR. Qed.
+        vrf i (try (throw A e) e1 e2) r.
+Proof. by move=>H; apply/vrf_try/val_throwR. Qed.
 
 Lemma bnd_throwR e e1 i (r : post B) :
         (valid i -> r (Exn e) i) ->
-        vrf i (Model.bind (Model.throw A e) e1) r.
-Proof. by move=>H; apply/Model.vrf_bind/val_throwR. Qed.
+        vrf i (bind (throw A e) e1) r.
+Proof. by move=>H; apply/vrf_bind/val_throwR. Qed.
 
 End EvalThrowR.
 
-(*
+
 (****************************************************)
 (* Automating the selection of which lemma to apply *)
 (* (reflective implementation of the hstep tactic)  *)
@@ -262,7 +260,7 @@ Structure bnd_form A B i (e : A -> ST B) r (p : Prop) :=
 Structure try_form A B i (e1 : A -> ST B)
                          (e2 : exn -> ST B) r (p : Prop) :=
   TryForm {try_pivot :> ST A;
-           _ : p -> vrf i (ttry try_pivot e1 e2) r}.
+           _ : p -> vrf i (try try_pivot e1 e2) r}.
 
 (* The main lemma which triggers the selection. *)
 
@@ -284,7 +282,7 @@ Canonical Structure
 
 Lemma try_case_pf A B i (s1 : A -> ST B) (s2 : exn -> ST B) r p
                         (e : try_form i s1 s2 r p) :
-        p -> vrf i (ttry e s1 s2) r.
+        p -> vrf i (try e s1 s2) r.
 Proof. by case:e=>[?]; apply. Qed.
 
 (* After that, find the form in the following list.  Notice that the list *)
@@ -334,7 +332,7 @@ Canonical Structure try_dealloc_form A B s1 s2 v x r j f :=
   TryForm (@try_deallocR A B s1 s2 v x j f r).
 
 (* Second automation *)
-
+(*
 (**************************************************************************)
 (* A simple canonical structure program to automate applying ghE and gh.  *)
 (*                                                                        *)
@@ -397,7 +395,7 @@ End Automation.
 (* we keep some tactics to kill final goals, which *)
 (* are usually full of existentials *)
 Ltac vauto := (do ?econstructor=>//).
-Ltac step := (apply: stepE=>/=).
+Ltac step := (apply: hstep=>/=).
 
 Ltac hhauto := (vauto; try by [heap_congr])=>//.
 Ltac heval := do ![step | by hhauto].
