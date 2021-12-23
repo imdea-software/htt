@@ -922,6 +922,8 @@ Qed.
 
 Arguments gE [G A s] g [i e Q] _ _ _.
 
+Notation "[gE]" := (gE tt) (at level 0).
+
 Notation "[ 'gE' x1 , .. , xn ]" :=
   (gE (existT _ x1 .. (existT _ xn tt) ..))
   (at level 0).
