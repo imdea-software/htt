@@ -68,7 +68,8 @@ Canonical Structure search_right h r (f : forall k, form k r) k :=
 Section EvalDoR.
 Variables (G A B : Type) (s : spec G A).
 
-Lemma val_doR g i j (e : STspec s) (f : forall k, form k j) (r : post A) :
+(* a automated form of gE (is it useful?) *)
+Lemma gR g i j (e : STspec s) (f : forall k, form k j) (r : post A) :
         (valid i -> (s g).1 i) ->
         (forall x m, (s g).2 (Val x) m ->
            valid (untag (f m)) -> r (Val x) (f m)) ->
@@ -96,7 +97,7 @@ End EvalDoR.
 (* actually gives us some additional, spurious, validity hypotheses, which we *)
 (* always discard anyway. However the discarding interrupts automation, so we want to avoid it *)
 
-(* However, we only need only val_doR lemma *)
+(* However, we only need only gR lemma *)
 (* This one is always applied by hand, not automatically, so *)
 (* if we need to prefix it with a call to bnd_seq or try_seq, we can *)
 (* do that by hand *)

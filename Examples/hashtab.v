@@ -1,7 +1,7 @@
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq fintype tuple finfun finset.
 From fcsl Require Import axioms prelude pred ordtype finmap.
 From fcsl Require Import pcm unionmap heap.
-From HTT Require Import domain stmod stsep stlog stlogR.
+From HTT Require Import domain heap_extra model heapauto.
 From HTT Require Import array kvmaps.
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -25,7 +25,7 @@ Definition shape x s :=
 
 Definition new_loopinv x := forall k,
   STsep (fun h => k <= n /\ exists tab, h \In Array.shape x tab #
-                   sepit [set x:'I_n | x < k] (table tab (fun x:'I_n => nil K V)),
+                   sepit [set x:'I_n | x < k] (table tab (fun => nil K V)),
          [vfun y => shape y (nil K V)]).
 
 Program Definition new : STsep (emp, [vfun y => shape y (nil K V)]) :=
@@ -35,22 +35,22 @@ Program Definition new : STsep (emp, [vfun y => shape y (nil K V)]) :=
                | left pf => b <-- KVmap.new buckets;
                             Array.write t (Ordinal pf) b;;
                             loop k.+1
-               | _ => ret t end)) 0).
+               | _ => ret t
+               end)) 0).
 Next Obligation.
-move=>/= arr loop k h /= [Eleq][tab][h1][h2][-> [H1 H2]]; case: decP; last first.
-- case: ltnP Eleq (eqn_leq k n)=>// _ -> /= /eqP Ek _.
-  step=>_ [_ [tab2 H12]].
+(* TODO ? *)
+Opaque Array.write.
+move=>/= arr loop k [] _ /= [Eleq][tab][h1][h2][-> H1]; case: decP; last first.
+- case: ltnP Eleq (eqn_leq k n)=>// _ -> /= /eqP Ek _ H.
+  step=>_.
   exists tab, (fun _:'I_n => nil K V); split=>//; exists h1, h2; do!split=>//.
-  apply: (tableP2 _ _ _ H2)=>// x.
+  apply/tableP2: H=>//= x.
   by rewrite Ek !in_set ltn_ord.
-move=>Ho; rewrite -[h1 \+ h2]unitL.
-apply/bnd_seq/val_do'=>//= b m /(_ erefl) // Hm Vs.
-rewrite joinCA; case: H1=>H11 H12.
-apply/bnd_seq/val_do'=>/= _; last 1 first.
-- by move=>_ /(_ tab) + _ _ _; apply.
-- by exists tab.
-move=>m2 /(_ tab) [] // E2 {H11 H12}V2 _.
-apply/val_doR=>// _; split=>//.
+move=>Ho; rewrite -[h1 \+ h2]unitL=>H2.
+apply/vrf_bind/vrf_frame/[gE]=>//=; case=>//= b m _ Hm Vs _.
+rewrite joinCA.
+apply/vrf_bind/vrf_frame/[gE tab]=>//=; case=>//= [[]] m2 _ {H1}[E2 V2] _ _.
+apply/[gE]=>//=; split=>//.
 exists [ffun z => if z == Ordinal Ho then b else tab z]; exists m2, (m \+ h2); do!split=>//.
 rewrite (sepitS (Ordinal Ho)) in_set leqnn {1}/table ffunE eq_refl.
 exists m, h2; do!split=>//.
@@ -59,8 +59,11 @@ apply: tableP2 H2=>//.
 by move=>x _; rewrite in_set ffunE; case: eqP=>//->; rewrite ltnn.
 Qed.
 Next Obligation.
-move=>/= ? ->; apply/bnd_seq/val_do0=>//= y m H Vm.
-apply: val_do0=>//= _; split=>//.
+(* TODO ? *)
+Opaque Array.new.
+move=>/= [] ? ->.
+apply/vrf_bind/[gE]=>//=; case=>//= y m _ [H Vm] _.
+apply: [gE]=>//=; split=>//.
 exists [ffun _ => KVmap.default buckets].
 exists m, Unit; do!split=>//=; first by rewrite unitR.
 by rewrite (eq_sepit (s2 := set0)) // sepit0.
