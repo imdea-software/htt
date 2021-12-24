@@ -1,7 +1,7 @@
 From mathcomp Require Import ssreflect ssrbool ssrfun eqtype seq.
 From fcsl Require Import axioms pred.
 From fcsl Require Import pcm unionmap heap.
-From HTT Require Import domain stmod stsep stlog stlogR.
+From HTT Require Import domain heap_extra model heapauto.
 From HTT Require Import llistR.
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -28,13 +28,13 @@ Qed.
 
 Program Definition new : STsep (emp, [vfun y => shape y [::]]) :=
   Do (alloc null).
-Next Obligation. by move=>/= i ?; step=>?? _; exists null, i. Qed.
+Next Obligation. by move=>/= [] i ?; step=>??; exists null, i. Qed.
 
 Program Definition free s : STsep (shape s [::],
                                    [vfun _ h => h = Unit]) :=
   Do (dealloc s).
 Next Obligation.
-move=>s ? /= [?][?][V][<-][E E0]; step=>_ _.
+move=>s [] _ /= [?][?][V][<-][E E0]; step=>_.
 by rewrite E0 unitR.
 Qed.
 
@@ -45,16 +45,17 @@ Program Definition push s x : {xs}, STsep (shape s xs,
       nd .+ 1 ::= (hd : ptr);;
       s ::= nd).
 Next Obligation.
-move=>s x /= ? /= [xs][p][h0][V][<-]H.
-step; step=>p2; step; step.
-rewrite unitR=>V2 xs2 [?][?][V0][E]H0.
-case: (cancelO _ V0 E)=>E1; rewrite !unitL=>V1 E2.
+move=>s x [xs][] _ /= [p][h0][V][<- H].
+step; step=>p2.
+(* TODO step; step. *)
+apply: (bnd_writeR (x:=p2.+1))=>/=.
+apply: (val_writeR (x:=s))=>/=.
+rewrite unitR=>V2.
 rewrite joinC joinA in V2 *.
 exists p2, (h0 \+ p2 :-> x \+ p2 .+ 1 :-> p).
 rewrite !joinA; do!split=>//.
-exists p, h0; split.
-- by rewrite -joinA joinC joinA.
-by rewrite E1 E2 in H0.
+exists p, h0; split=>//.
+by rewrite -joinA joinC joinA.
 Qed.
 
 Program Definition pop s :
@@ -72,21 +73,23 @@ Program Definition pop s :
         s ::= (next : ptr);;
         ret x).
 Next Obligation.
-move=>s ? /= [xs][p][h0][V][<-]H.
+move=>s [xs][] _ /= [p][h0][V][<- H].
 step; case: eqP.
-- move=>Ep; apply: val_throw=>_ xs0 [?][?][V1][E1]H1.
-  case: (cancelO _ V1 E1)=>E2; rewrite !unitL=>V2 E3.
-  rewrite E2 E3 in H1; move: (lseq_func (validR V) H H1)=><-.
-  rewrite Ep in H *; case: (lseq_null (validR V) H)=>->?.
-  do!split=>//=; rewrite Ep in V.
+- move=>Ep; apply: val_throwR=>_.
+  rewrite Ep in H *; case: (lseq_null (validR V) H)=>->?/=.
+  split=>//; rewrite Ep in V.
   by exists null, h0.
-move/eqP =>Ep.
+move/eqP=>Ep.
 case: (lseq_pos Ep H)=>/= x[r][h1][E1]E0 H1; rewrite -{}E0 in H *.
-do 6!step; rewrite !unitL.
-move=>V1 xs1 [p2][h2][V2][E2]H2.
-case: (cancelO _ V2 E2)=>Ep2; rewrite !unitL=> V21 E21.
-rewrite Ep2 E21 in H2 V21.
-move: (lseq_func V21 H H2)=><-.
+(* TODO do 6!step *)
+step.
+apply: (bnd_readR (x:=p.+1))=>/=.
+apply: (bnd_deallocR (x:=p))=>/=.
+apply: (bnd_deallocR (x:=p.+1))=>/=.
+step.
+step.
+rewrite !unitL.
+move=>V1.
 by split=>//; exists r, h1.
 Qed.
 
