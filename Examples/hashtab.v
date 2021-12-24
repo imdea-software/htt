@@ -24,7 +24,8 @@ Definition shape x s :=
                h \In Array.shape x tab # sepit setT (table tab bucket)] ].
 
 Definition new_loopinv x := forall k,
-  STsep (fun h => k <= n /\ exists tab, h \In Array.shape x tab #
+  STsep (fun h => k <= n /\ exists tab,
+           h \In Array.shape x tab #
                    sepit [set x:'I_n | x < k] (table tab (fun => nil K V)),
          [vfun y => shape y (nil K V)]).
 
@@ -70,7 +71,8 @@ by rewrite (eq_sepit (s2 := set0)) // sepit0.
 Qed.
 
 Definition free_loopinv x := forall k,
-  STsep (fun h => k <= n /\ exists t b, h \In Array.shape x t #
+  STsep (fun h => k <= n /\ exists t b,
+          h \In Array.shape x t #
                   sepit [set x:'I_n | x >= k] (table t b),
          [vfun _ : unit => emp]).
 
@@ -83,22 +85,20 @@ Program Definition free x : {s}, STsep (shape x s,
                             loop k.+1
                | _ => Array.free x end)) 0).
 Next Obligation.
-move=>/= x loop k h /= [Eleq][tf][bf][h1][h2][-> [H1 H2]]; case: decP; last first.
-- case: ltnP Eleq (eqn_leq k n)=>// _ -> /= /eqP Ek _.
-  apply: val_do0=>// _; exists tf; move: H2.
+(* TODO ? *)
+Opaque Array.free Array.read.
+move=>/= x loop k [] h /= [Eleq][tf][bf][h1][h2][-> [H1 H2]]; case: decP; last first.
+- case: ltnP Eleq (eqn_leq k n)=>// _ -> /= /eqP Ek _ H.
+  apply: [gE]=>//=; exists tf; move: H.
   rewrite (eq_sepit (s2 := set0)); first by rewrite sepit0=>->; rewrite unitR.
   by move=>y; rewrite Ek in_set in_set0 leqNgt ltn_ord.
-move=>pf; apply/bnd_seq/val_do'=>/=; last 1 first.
-- by move=>_ ? /(_ tf h1) + _ _ _; apply.
-- by exists tf, h1.
-move=>b m /(_ tf h1) [] // ->-> Vh.
-move: H2; rewrite (sepitS (Ordinal pf)) in_set leqnn /table.
-move=>[h3][h4][->/= [H3 H4]]; rewrite joinCA.
-apply/bnd_seq/val_do'=>/= _; last 1 first.
-- by move=>? /(_ (bf (Ordinal pf))) + _ _ _; apply.
-- by exists (bf (Ordinal pf)).
-move=>m2 /(_ (bf (Ordinal pf)) H3) ->; rewrite unitL=>V4.
-apply: val_doR=>// _; split=>//.
+move=>pf H; apply/vrf_bind/vrf_frame/[gE tf, h1]=>//=.
+case=>//= _ _ _ [->->] _ _.
+move: H; rewrite (sepitS (Ordinal pf)) in_set leqnn /table.
+case=>h3[h4][{h2}-> H3 H4]; rewrite joinCA.
+apply/vrf_bind/vrf_frame/[gE (bf (Ordinal pf))]=>//=.
+case=>//= [[]] _ _ -> _ _; rewrite unitL.
+apply: [gE]=>//=; split=>//.
 exists tf, bf; exists h1, h4; do!split=>//.
 apply/tableP2/H4=>//.
 move=>z; rewrite !in_set; case: eqP=>/=.
@@ -106,8 +106,8 @@ move=>z; rewrite !in_set; case: eqP=>/=.
 by move/eqP; rewrite -val_eqE /= (leq_eqVlt k); case: ltngtP.
 Qed.
 Next Obligation.
-move=>/= x; apply: ghR=>h fm; case=>tf[bf][_ _ H] _.
-apply: val_do0=>// _; split=>//.
+move=>/= x [fm][] h /= [tf][bf][_ _ H].
+apply: [gE]=>//=; split=>//.
 by exists tf, bf.
 Qed.
 
@@ -119,22 +119,16 @@ Program Definition insert x k v : {s}, STsep (shape x s,
       Array.write x hk b';;
       ret x).
 Next Obligation.
-move=>/= x k v; apply: ghR=>h fm [tf][bf][Hf Hh [h1][h2][-> [H1 H2]]] Vh.
-apply/bnd_seq/val_do'=>/=; last 1 first.
-- by move=>_ ? /(_ tf h1) + _ _; apply.
-- by move=>_; exists tf, h1.
-move=>b m /(_ tf h1) [] // ->-> _.
-move: H2; rewrite (sepitT1 (hash k)) /table; case=>h3[h4][-> [H3 H4]].
+move=>/= x k v [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> H1 H2]].
+apply/vrf_bind/vrf_frame/[gE tf, h1]=>//=.
+case=>//= _ _ _ [->->] _ _.
+move: H2; rewrite (sepitT1 (hash k)) /table; case=>h3[h4][{h2}-> H3 H4].
 rewrite joinCA.
-apply/bnd_seq/val_do'=>/=; last 1 first.
-- by move=>_ ? /(_ (bf (hash k))) + _ _; apply.
-- by move=>_; exists (bf (hash k)).
-move=>b' m2 /(_ (bf (hash k)) H3) H' _; rewrite joinCA.
+apply/vrf_bind/vrf_frame/[gE (bf (hash k))]=>//=.
+case=>//= b' m2 _ H' _ _; rewrite joinCA.
 case: H1=>/= H11 H12.
-apply/bnd_seq/val_do'=>/= _; last 1 first.
-- by move=>? /(_ tf) + _ _; apply.
-- by exists tf.
-move=>m3 /(_ tf) [] // E3 V3 _.
+apply/vrf_bind/vrf_frame/[gE tf]=>//=.
+case=>//= [[]] m3 _ [E3 V3] _ _.
 step=>_.
 exists [ffun z => if z == hash k then b' else tf z],
        (fun b => if b == hash k then ins k v (bf b) else bf b); split=>/=.
@@ -158,22 +152,16 @@ Program Definition remove x k : {s}, STsep (shape x s,
       Array.write x hk b';;
       ret x).
 Next Obligation.
-move=>/= x k; apply: ghR=>h fm [tf][bf][Hf Hh [h1][h2][-> [H1 H2]]] Vh.
-apply/bnd_seq/val_do'=>/=; last 1 first.
-- by move=>_ ? /(_ tf h1) + _ _; apply.
-- by move=>_; exists tf, h1.
-move=>b m /(_ tf h1) [] // ->-> _.
-move: H2; rewrite (sepitT1 (hash k)) /table; case=>h3[h4][-> [H3 H4]].
+move=>/= x k [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> H1 H2]].
+apply/vrf_bind/vrf_frame/[gE tf, h1]=>//=.
+case=>//= _ _ _ [->->] _ _.
+move: H2; rewrite (sepitT1 (hash k)) /table; case=>h3[h4][{h2}-> H3 H4].
 rewrite joinCA.
-apply/bnd_seq/val_do'=>/=; last 1 first.
-- by move=>_ ? /(_ (bf (hash k))) + _ _; apply.
-- by move=>_; exists (bf (hash k)).
-move=>b' m2 /(_ (bf (hash k)) H3) H' _; rewrite joinCA.
+apply/vrf_bind/vrf_frame/[gE (bf (hash k))]=>//=.
+case=>//= b' m2 _ H' _ _; rewrite joinCA.
 case: H1=>/= H11 H12.
-apply/bnd_seq/val_do'=>/= _; last 1 first.
-- by move=>? /(_ tf) + _ _; apply.
-- by exists tf.
-move=>m3 /(_ tf) [] // E3 V3 _.
+apply/vrf_bind/vrf_frame/[gE tf]=>//=.
+case=>//= [[]] m3 _ [E3 V3] _ _.
 step=>_.
 exists [ffun z => if z == hash k then b' else tf z],
        (fun b => if b == hash k then rem k (bf b) else bf b); split=>/=.
@@ -194,17 +182,13 @@ Program Definition lookup x k : {s}, STsep (shape x s,
   Do (b <-- Array.read x (hash k);
       KVmap.lookup b k).
 Next Obligation.
-move=>/= x k; apply: ghR=>h fm [tf][bf][Hf Hh [h1][h2][-> [H1 H2]]] Vh.
-apply/bnd_seq/val_do'=>/=; last 1 first.
-- by move=>_ ? /(_ tf h1) + _ _; apply.
-- by move=>_; exists tf, h1.
-move=>b m /(_ tf h1) [] // ->-> _.
-move: H2; rewrite (sepitT1 (hash k)) /table; case=>h3[h4][-> [H3 H4]].
+move=>/= x k [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> H1 H2]].
+apply/vrf_bind/vrf_frame/[gE tf, h1]=>//=.
+case=>//= _ _ _ [->->] _ _.
+move: H2; rewrite (sepitT1 (hash k)) /table; case=>h3[h4][{h2}-> H3 H4].
 rewrite joinCA.
-apply: val_do'=>/=; last 1 first.
-- by move=>_ ? /(_ (bf (hash k))) + _; apply.
-- by move=>_; exists (bf (hash k)).
-move=>r m2 /(_ (bf (hash k)) H3) [H2 Hr] _; split; last by rewrite Hf.
+apply/vrf_frame/[gE (bf (hash k))]=>//=.
+case=>//= r m2 _ [H2 Hr] _; split; last by rewrite Hf.
 rewrite joinCA.
 exists tf, bf; do!split=>//=; exists h1, (m2 \+ h4); do!split=>//.
 by rewrite (sepitT1 (hash k)) /table; exists m2, h4.
