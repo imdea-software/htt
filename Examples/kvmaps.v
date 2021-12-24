@@ -6,7 +6,7 @@ From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype seq path.
 From fcsl Require Import axioms pred ordtype finmap.
 From fcsl Require Import pcm unionmap heap.
-From HTT Require Import interlude domain stmod stsep stlog stlogR.
+From HTT Require Import interlude domain heap_extra model heapauto.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -83,7 +83,7 @@ Lemma shape_cont (s : fmap) p h :
         p != null -> h \In shape p s ->
         exists k v q h',
          [/\ s = ins k v (behd s),            (* k:->v is the head entry*)
-             path ord k (supp (behd s)),
+             all (ord k) (supp (behd s)),
              h = p :-> k \+ (p .+ 1 :-> v \+ (p .+ 2 :-> q \+ h'))
            & h' \In shape q (behd s)].
 Proof.
@@ -92,14 +92,19 @@ elim: xs srt=>/=.
 - by move=>? [E0]; rewrite E0 in E.
 move=>[k v] /= l IH srt [q][h'][-> H].
 exists k,v,q,h'; split=>//.
-by rewrite fmapE /= last_ins'.
+- by rewrite fmapE /= last_ins'.
+by apply: path_all.
 Qed.
 
+(* TODO move to finmap? *)
+Lemma all_path (s : fmap) k : all (ord k) (supp s) -> path ord k (supp s).
+Proof. by rewrite path_sortedE // =>->/=; case: s. Qed.
+
 Lemma shape_cons (s : fmap) p q h k v :
-   path ord k (supp s) -> h \In shape q s ->
+   all (ord k) (supp s) -> h \In shape q s ->
    (p :-> k \+ (p .+ 1 :-> v \+ (p .+ 2 :-> q \+ h))) \In shape p (ins k v s).
 Proof.
-move=>S H.
+move/all_path=>S H.
 suff: ins k v s = FinMap (seq_of := (k,v)::seq_of s) S by move=>->; exists q,h.
 rewrite fmapE /=; case: s {H}S=>/= xs ??.
 by rewrite last_ins'.
@@ -146,7 +151,7 @@ Qed.
 
 Program Definition new : STsep (emp, [vfun x => shape x nil]) :=
   Do (ret null).
-Next Obligation. by move=>/= ?->; step. Qed.
+Next Obligation. by move=>[] /= _ ->; step. Qed.
 
 Definition freeT : Type :=
   forall p, {fm}, STsep (shape p fm, [vfun _ : unit => emp]).
@@ -160,13 +165,13 @@ Program Definition free : freeT :=
                dealloc (p .+ 2);;
                go pnext)).
 Next Obligation.
-move=>go p; apply: ghR=>i s H D.
+move=>go p [fm][] i /= H; apply: vrfV=>D.
 case: eqP.
 - move=>E; step=>_; rewrite E in H.
   by case: (shape_null D H).
 move/eqP=>E; case: (shape_cont E H)=>k[v][q][h'][_ _ -> H2].
 do 4!step; rewrite !unitL.
-by apply/(gh_ex (behd s))/val_doR.
+by apply: [gE (behd fm)].
 Qed.
 
 Definition lookupT k : Type :=
@@ -174,19 +179,19 @@ Definition lookupT k : Type :=
 
 Program Definition lookup x (k : K) : {fm}, STsep (shape x fm,
                                                   [vfun y m => m \In shape x fm /\ y = fnd k fm]) :=
- (Fix (fun (go : lookupT k) (cur : ptr) =>
-      Do (if cur == null then ret None
-          else
-            k' <-- !cur;
-            if k == k'
-              then v <-- !(cur .+ 1);
-                   ret (Some v)
-              else if ord k' k
-                then next <-- !(cur .+ 2);
-                     go next
-                else ret None))) x.
+  Fix (fun (go : lookupT k) (cur : ptr) =>
+       Do (if cur == null then ret None
+           else
+             k' <-- !cur;
+             if k == k'
+               then v <-- !(cur .+ 1);
+                    ret (Some v)
+               else if ord k' k
+                 then next <-- !(cur .+ 2);
+                      go next
+                 else ret None)) x.
 Next Obligation.
-move=>_ k go cur; apply: ghR=>h fm H Vh.
+move=>_ k go cur [fm][] i /= H; apply: vrfV=>Vh.
 case: eqP.
 - move=>Ec; step=>_; rewrite Ec in H.
   by case: (shape_null Vh H)=>->.
@@ -196,22 +201,22 @@ rewrite {Vh}Ei in H *; step; case: eqP.
   by rewrite Ef fnd_ins Ek eq_refl.
 move/eqP=>Ek; case: ifP=>Ho'.
 - step; rewrite !joinA joinC.
-  apply/frame/(gh_ex (behd fm))/val_doR=>//=.
-  move=>v0 h0' [??] _ _; rewrite Ef; split.
+  apply/vrf_frame/[gE (behd fm)]=>//=.
+  case=>// v0 h0' V0' [??] _ ; rewrite Ef; split.
   - by rewrite joinC -!joinA; apply: shape_cons.
   by rewrite fnd_ins (negbTE Ek).
 move: (semiconnex Ek); rewrite {}Ho' orbC /= =>Ho'.
 step=>_; split=>//.
 apply/esym/fnd_supp.
 rewrite Ef supp_ins inE negb_or; apply/andP; split=>//.
-by apply/notin_path/path_le/O'.
+by apply/notin_path/path_le/all_path/O'.
 Qed.
 
 Definition removeT p k : Type :=
   forall (prevcur : ptr * ptr),
     {fm}, STsep (fun h => exists fml fmr k' v',
                   [/\ fm = fcat (ins k' v' fml) fmr,
-                      all (ord^~ k') (supp fml) /\ path ord k' (supp fmr),
+                      all (ord^~ k') (supp fml) /\ all (ord k') (supp fmr),
                       k \notin supp fml /\ k != k' &
                       h \In
                        (shape_seg p prevcur.1 fml #
@@ -250,8 +255,8 @@ Program Definition remove x (k : K) : {fm}, STsep (shape x fm,
                           ret x
                      else ret x).
 Next Obligation.
-move=>x k0 go ? prev cur ?.
-apply: ghR=>h fm [fml][fmr][k][v][Ef [Ol Or][El E]]/=[hl][h1][{h}-> [Hl [h2][hr][{h1}-> [{h2}-> Hr]]]] Vh.
+move=>x k0 go _ prev cur _ [fm][] _ /= [fml][fmr][k][v][Ef [Ol Or][El E]][hl][_][-> Hl [_][hr][->->Hr]].
+apply: vrfV=>Vh.
 case: eqP.
 (* cur = null, nothing to process *)
 - move=>Ec; step=>_.
@@ -260,12 +265,15 @@ case: eqP.
   rewrite fcats0 unitR rem_ins (negbTE E) (rem_supp El) Ec.
   by apply: shape_seg_rcons.
 (* cur <> null *)
-move/eqP=>Ec; case: (shape_cont Ec Hr)=>k'[v'][next][hr'][Efr Or' Ehr Hr'].
+move/eqP=>Ec; case: (shape_cont Ec Hr)=>k'[v'][next][hr'][Efr /all_path Or' Ehr Hr'].
 rewrite {hr Hr Vh Ec}Ehr joinA joinC.
-move: (Or); rewrite {1}Efr; case/(path_supp_ins_inv Or')/andP=>Ho' Or''.
+move/all_path: (Or); rewrite {1}Efr; case/(path_supp_ins_inv Or')/andP=>Ho' Or''.
 step; case: eqP.
 (* k = k', element found *)
-- move=>Ek; do 4!step; rewrite !unitL; do 2!step; move=>_.
+- move=>Ek; do 4!step; rewrite !unitL /entry.
+  (* TODO do 2!step *)
+  apply: (bnd_writeR (x:=prev.+2))=>/=.
+  step=>_.
   rewrite Ef Efr -fcat_srem; last by rewrite supp_ins inE negb_or E.
   rewrite rem_ins {1}Ek eq_refl rem_supp; last by rewrite Ek; apply: notin_path.
   rewrite joinC; apply/shape_fcat/Hr'; last by apply: shape_seg_rcons.
@@ -276,15 +284,16 @@ step; case: eqP.
 move/eqP=>Ek; case: ifP=>Ho0.
 (* ord k' k, recursive call *)
 - step.
-  apply/(gh_ex (fcat (ins k' v' (ins k v fml)) (behd fmr)))/val_doR=>//=.
-  - move=>_; exists (ins k v fml), (behd fmr), k', v'; do!split=>//.
+  apply: [gE (fcat (ins k' v' (ins k v fml)) (behd fmr))]=>//=.
+  - exists (ins k v fml), (behd fmr), k', v'; do!split=>//.
     - rewrite (eq_all_r (s2:=k::supp fml)) /= ?Ho' /=; last by apply: supp_ins.
       by apply/sub_all/Ol=>? /trans; apply.
+    - by apply: path_all.
     - by rewrite supp_ins inE negb_or E.
     exists (hl \+ entry prev cur k v), (entry cur next k' v' \+ hr').
     rewrite joinC !joinA; do!split=>//; last by exists (entry cur next k' v'), hr'.
     by rewrite -!joinA; apply: shape_seg_rcons.
-  move=>_ m Hm _; rewrite Ef Efr.
+  case=>//= [[]] m Vm Hm; rewrite Ef Efr.
   rewrite fcat_inss // in Hm; first by rewrite -fcat_sins in Hm.
   by apply: notin_path.
 (* ord k k', abort *)
@@ -292,16 +301,16 @@ move: (semiconnex Ek); rewrite {}Ho0 orbC /= =>Ho0.
 step=>_; rewrite rem_supp Ef.
 - rewrite joinC; apply: shape_fcat; first 1 last.
   - by apply: shape_seg_rcons.
-  - by rewrite Efr; apply: shape_cons.
+  - by rewrite Efr; apply: shape_cons=>//; apply: path_all.
   rewrite (allrel_in_l (xs':=k::supp fml) _); last by apply: supp_ins.
-  rewrite allrel_consl path_all //=.
-  by apply/(allrel_ord (z:=k))/path_all.
+  rewrite allrel_consl Or /=.
+  by apply/(allrel_ord (z:=k)).
 rewrite Efr supp_fcat !inE negb_or; apply/andP; split;
   rewrite supp_ins !inE negb_or; apply/andP; split=>//.
 by apply/notin_path/path_le/Or'.
 Qed.
 Next Obligation.
-move=>/= x k0; apply: ghR=>h fm H Vh.
+move=>/= x k0 [fm][]i /= H; apply: vrfV=>Vh.
 case: eqP.
 (* x = null, nothing to process *)
 - by move: H=>/[swap] ->/(shape_null Vh) [->->]; step=>_.
@@ -311,28 +320,28 @@ step; case: eqP.
 (* k = k', element found in head position *)
 - move=>->; do 5!step; rewrite !unitL=>_.
   rewrite Ef rem_ins eq_refl rem_supp //.
-  by apply: notin_path.
+  by apply/notin_path/all_path.
 (* k <> k' *)
 move/eqP=>Ek; case: ifP=>Ho0.
 (* ord k' k, start recursing *)
 - step.
-  apply/bnd_seq/(gh_ex fm)/val_do0=>//=; last by move=>_ ???; step.
-  move=>_; exists nil, (behd fm), k, v; do!split=>//.
-  - by rewrite fcat_inss; [rewrite fcat0s|apply: notin_path].
+  apply/vrf_bind/[gE fm]=>/=; last by case=>//= [[]] ? _ ??; step.
+  exists nil, (behd fm), k, v; do!split=>//.
+  - by rewrite fcat_inss; [rewrite fcat0s|apply/notin_path/all_path].
   exists Unit, (entry x next k v \+ h'); do!split; first by rewrite /entry unitL !joinA.
   by exists (entry x next k v), h'.
 (* ord k k', abort *)
 move: (semiconnex Ek); rewrite {}Ho0 orbC /= =>Ho0.
 step=>_.
 rewrite -Eh rem_supp // Ef supp_ins !inE negb_or Ek /=.
-by apply/notin_path/path_le/Of.
+by apply/notin_path/path_le/all_path/Of.
 Qed.
 
 Definition insertT p k v : Type :=
   forall (prevcur : ptr * ptr),
     {fm}, STsep (fun h => exists fml fmr k' v',
                   [/\ fm = fcat (ins k' v' fml) fmr,
-                      all (ord^~ k') (supp fml) /\ path ord k' (supp fmr),
+                      all (ord^~ k') (supp fml) /\ all (ord k') (supp fmr),
                       k \notin supp fml /\ ord k' k &
                       h \In
                        (shape_seg p prevcur.1 fml #
@@ -380,12 +389,18 @@ Program Definition insert x (k : K) (v : V) : {fm}, STsep (shape x fm,
                          new .+ 2 ::= x;;
                          ret new).
 Next Obligation.
-move=>x k0 v0 go ? prev cur ?.
-apply: ghR=>h fm [fml][fmr][k][v][Ef [Ol Or][El Ho0]]/=[hl][h1][{h}-> [Hl [h2][hr][{h1}-> [{h2}-> Hr]]]] Vh.
+move=>x k0 v0 go _ prev cur _ [fm][] _ /= [fml][fmr][k][v][Ef [Ol Or][El Ho0]][hl][_][-> Hl [_][hr][->-> Hr]].
+apply: vrfV=>Vh.
 case: eqP.
 (* cur = null, insert as the last element *)
-- move=>Ec; step=>p; rewrite ptrA unitR; do 2!step.
-  rewrite joinC /entry; do 2!step; move=>_.
+- move=>Ec; step=>p; rewrite ptrA unitR.
+  (* TODO do 2!step *)
+  apply: (bnd_writeR (x:=p.+1))=>/=.
+  apply: (bnd_writeR (x:=p.+2))=>/=.
+  rewrite joinC /entry.
+  (* TODO do 2!step *)
+  apply: (bnd_writeR (x:=prev.+2))=>/=.
+  step=>_.
   rewrite Ec in Hr; rewrite !joinA in Vh.
   rewrite Ef; case: (shape_null (validR Vh) Hr)=>->->.
   rewrite fcats0 unitR.
@@ -395,25 +410,28 @@ case: eqP.
 (* cur <> null *)
 move/eqP=>Ec; case: (shape_cont Ec Hr)=>k'[v'][next][hr'][Efr Or' Ehr Hr'].
 rewrite {hr Hr Vh Ec}Ehr joinA joinC.
-move: (Or); rewrite {1}Efr; case/(path_supp_ins_inv Or')/andP=>Ho' Or''.
+move/all_path: (Or); rewrite {1}Efr; case/(path_supp_ins_inv (all_path Or'))/andP=>Ho' /path_all Or''.
 step; case: eqP.
 (* k = k', exact key found, update *)
-- move=>Ek; do 2!step; move=>_.
+- move=>Ek.
+  (* TODO do 2!step; *)
+  apply: (bnd_writeR (x:=cur.+1))=>/=.
+  step=>_.
   rewrite Ef Efr -fcat_sins ins_ins -Ek eq_refl joinC.
   apply: shape_fcat; first 1 last.
   - by apply: shape_seg_rcons.
   - by apply: shape_cons=>//; rewrite Ek.
   rewrite (allrel_in_l (xs':=k::supp fml) _); last by apply: supp_ins.
   rewrite (allrel_in_r (ys':=k0::supp (behd fmr)) _ _); last by apply: supp_ins.
-  rewrite allrel_consl allrel_consr /= Ho0 path_all //=; apply/andP; split.
+  rewrite allrel_consl allrel_consr /= Ho0 Or'' /=; apply/andP; split.
   - by apply/sub_all/Ol=>? /trans; apply.
-  by apply/(allrel_ord (z:=k))/path_all.
+  by apply: (allrel_ord (z:=k)).
 (* k <> k' *)
 move/eqP=>Ek; case: ifP=>Ho'0.
 (* ord k' k, recursive call *)
 - step.
-  apply/(gh_ex (fcat (ins k' v' (ins k v fml)) (behd fmr)))/val_doR=>//=.
-  - move=>_; exists (ins k v fml), (behd fmr), k', v'; do!split=>//.
+  apply/[gE (fcat (ins k' v' (ins k v fml)) (behd fmr))]=>/=.
+  - exists (ins k v fml), (behd fmr), k', v'; do!split=>//.
     - rewrite (eq_all_r (s2:=k::supp fml)) /= ?Ho' /=; last by apply: supp_ins.
       by apply/sub_all/Ol=>? /trans; apply.
     - rewrite supp_ins inE negb_or andbC El /=.
@@ -421,54 +439,71 @@ move/eqP=>Ek; case: ifP=>Ho'0.
     exists (hl \+ entry prev cur k v), (entry cur next k' v' \+ hr').
     rewrite joinC !joinA; do!split=>//; last by exists (entry cur next k' v'), hr'.
     by rewrite -!joinA; apply: shape_seg_rcons.
-  move=>_ m Hm _; rewrite Ef Efr.
+  case=>// [[]] m _ Hm; rewrite Ef Efr.
   rewrite fcat_inss // in Hm; first by rewrite -fcat_sins in Hm.
-  by apply: notin_path.
+  by apply/notin_path/all_path.
 (* ord k k', insert *)
 move: (semiconnex Ek); rewrite {}Ho'0 orbC /= =>Ho0'.
-step=>new; rewrite ptrA unitR; do 2!step.
-rewrite joinA joinC /entry; do 2!step; move=>_.
+step=>new; rewrite ptrA unitR.
+(* TODO do 2!step. *)
+apply: (bnd_writeR (x:=new.+1))=>/=.
+apply: (bnd_writeR (x:=new.+2))=>/=.
+rewrite joinA joinC /entry.
+(* TODO do 2!step. *)
+apply: (bnd_writeR (x:=prev.+2))=>/=.
+step=>_.
 rewrite Ef Efr -fcat_sins; apply: shape_fcat; first 1 last.
 - by apply: shape_seg_rcons.
 - rewrite -!joinA; apply: shape_cons.
-  - by apply: path_supp_ins=>//; apply/path_le/Or'.
+  - by apply/path_all/path_supp_ins=>//; apply/path_le/all_path/Or'.
   by apply: shape_cons.
 rewrite (allrel_in_l (xs':=k::supp fml) _); last by apply: supp_ins.
 rewrite (allrel_in_r (ys':=k0::k'::supp (behd fmr)) _ _); last first.
 - by move=>?; rewrite ?(supp_ins,inE).
-rewrite allrel_consl !allrel_consr /= Ho0 Ho' path_all //=; apply/and3P; split.
+rewrite allrel_consl !allrel_consr /= Ho0 Ho' Or'' /=; apply/and3P; split.
 - by apply/sub_all/Ol=>? /trans; apply.
 - by apply/sub_all/Ol=>? /trans; apply.
-by apply/(allrel_ord (z:=k))/path_all.
+by apply: (allrel_ord (z:=k)).
 Qed.
 Next Obligation.
-move=>/= x k0 v0; apply: ghR=>h fm H Vh.
+move=>/= x k0 v0 [fm][]h /= H; apply: vrfV=>Vh.
 case: eqP.
 (* x = null, insert as the only element *)
 - move: H=>/[swap] ->/(shape_null Vh) [->->].
-  step=>p; rewrite ptrA !unitR; do 3!step; move=>_.
+  step=>p; rewrite ptrA !unitR.
+  (* TODO do 3!step *)
+  apply: (bnd_writeR (x:=p.+1))=>/=.
+  apply: (bnd_writeR (x:=p.+2))=>/=.
+  step.
   by exists null, Unit; rewrite unitR.
 (* x <> null *)
 move/eqP=>Ex; case: (shape_cont Ex H)=>{Ex}k[v][next][h'][Ef Of -> H'].
 step; case: eqP.
 (* k = k', exact key found in head position, update *)
-- move=>->; do 2!step; move=>_.
+- move=>->.
+  (* TODO do 2!step *)
+  apply: (bnd_writeR (x:=x.+1))=>/=.
+  step=>_.
   rewrite Ef ins_ins eq_refl.
   by apply: shape_cons.
 (* k <> k' *)
 move/eqP=>Ek; case: ifP=>Ho0.
 (* ord k' k, start recursing *)
 - step.
-  apply/bnd_seq/(gh_ex fm)/val_do0=>//=; last by move=>_ ???; step.
-  move=>_; exists nil, (behd fm), k, v; do!split=>//.
-  - by rewrite fcat_inss; [rewrite fcat0s|apply: notin_path].
+  apply/vrf_bind/[gE fm]=>/=; last by case=>// [[]] /= ? _ ??; step.
+  exists nil, (behd fm), k, v; do!split=>//.
+  - by rewrite fcat_inss; [rewrite fcat0s|apply/notin_path/all_path].
   exists Unit, (entry x next k v \+ h'); do!split; first by rewrite /entry unitL !joinA.
   by exists (entry x next k v), h'.
 (* ord k k', insert *)
 move: (semiconnex Ek); rewrite {}Ho0 orbC /= =>Ho0.
-step=>q; rewrite ptrA unitR; do 3!step; move=>_.
+step=>q; rewrite ptrA unitR.
+(* do 3!step *)
+apply: (bnd_writeR (x:=q.+1))=>/=.
+apply: (bnd_writeR (x:=q.+2))=>/=.
+step=>_.
 rewrite Ef -!joinA; apply: shape_cons.
-- by apply: path_supp_ins=>//; apply/path_le/Of.
+- by apply/path_all/path_supp_ins=>//; apply/path_le/all_path/Of.
 by apply: shape_cons.
 Qed.
 
