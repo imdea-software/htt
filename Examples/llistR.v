@@ -158,8 +158,9 @@ Qed.
 (* concatenation *)
 
 Definition catT (p2 : ptr) : Type :=
-  forall (p1 : ptr), {xs1 xs2 : seq A}, STsep (fun h => p1 != null /\ (lseq p1 xs1 # lseq p2 xs2) h,
-                                                 [vfun _ : unit => lseq p1 (xs1 ++ xs2)]).
+  forall (p1 : ptr), {xs1 xs2 : seq A}, 
+    STsep (fun h => p1 != null /\ (lseq p1 xs1 # lseq p2 xs2) h,
+           [vfun _ : unit => lseq p1 (xs1 ++ xs2)]).
 
 Program Definition concat p1 p2 :
   {xs1 xs2 : seq A}, STsep (lseq p1 xs1 # lseq p2 xs2,
@@ -175,33 +176,27 @@ Program Definition concat p1 p2 :
            else cat p1;;
                 ret p1).
 Next Obligation.
-move=>_ p2 ? q [xs1][xs2][] _ /= [Hq][i1][i2][-> H1 H2]; apply: vrfV=>V.
-case: (lseq_pos Hq H1)=>x [r0][i0][E]<-H0.
-step; case: ifP.
-- move/eqP=>E0; rewrite {}E0 in H0 *.
-  (* TODO why *)
-  rewrite joinCA; do 2!step.
-  move=>V0; rewrite joinC !joinA joinC in V0.
-  case: (lseq_null (validL V0) H0)=>E1 ->; rewrite {}E1 in E; rewrite {}E /= unitR.
-  by exists p2, i2=>/=; rewrite joinCA joinA //.
-move/negbT=>E0.
-rewrite joinA -[_ \+ i0 \+ i2]joinA joinC.
-apply/vrf_frame/[gE (behead xs1), xs2]=>/=.
-- by split=>//; exists i0, i2.
-case=>//= [[]] m ???; rewrite E /=.
-by exists r0, m; rewrite joinC joinA.
+move=>_ p2 go q [xs1][xs2][_ /= [Hq][i1][i2]][-> H1 H2].
+case/(lseq_pos Hq): H1=>x [r][i][E <-{i1} H1]; step.
+case: ifP H1=>[/eqP ->{r}|/negbT N] H1.
+- rewrite !(pull i) -!joinA; step; step=>V.
+  (* TODO: the above rearrangement is just so that we can take validL V *)
+  (* the search for validity proofs can be automated, as validX in fcsl pcm *)
+  (* can we use validX in here? *)
+  case/(lseq_null (validL V)): H1 E=>->->->. 
+  by rewrite unitL; exists p2, i2. 
+rewrite !joinA !(pull i2) !(pull i) joinA.
+apply/vrf_frame/[gE (behead xs1), xs2]; first by split=>//; exists i, i2.  
+by case=>//= [[]] m *; rewrite E !(pullk q.+ 1) !(pullk q); exists r, m.  
+(* TODO: is there a better way to specify the frame than by explicit rewrites? *) 
 Qed.
 Next Obligation.
-move=>p1 p2 /= [xs1][xs2][] _ [i1][i2][-> H1 H2]; apply: vrfV=>V.
-case: ifP.
-- move/eqP=>E0; rewrite {}E0 in H1; step=>_.
-  by case: (lseq_null (validL V) H1)=>->->/=; rewrite unitL.
-move/negbT=>E0.
-apply: [stepE xs1, xs2]=>/=.
-- by heval.
-case=>// [[]] m _ /= Hm.
-by heval.
+move=>p1 p2 [xs1][xs2][/= _ [i1][i2][-> H1 H2]].
+case: ifP H1=>[/eqP ->|/negbT N] H1.
+- by step=>V; case/(lseq_null (validL V)): H1=>->->; rewrite unitL.
+by apply: [stepE xs1, xs2]=>[|[] // [] m _ /= Hm]; heval.
 Qed.
+
 
 (* in-place reversal *)
 
@@ -223,16 +218,11 @@ move=>_ go _ p done _ [x1][x2][] _ /= [i1][i2][-> H1 H2]; apply: vrfV=>V.
 case: eqP H1=>[->|E].
 - by case/(lseq_null (validL V))=>->->; rewrite unitL; step.
 case/lseq_pos=>[|xd [xn][h'][->] <- /= H1]; first by case: eqP.
-(* TODO why *)
-step; rewrite joinCA; step; rewrite joinCA.
-rewrite -!joinA -!(joinCA h').
-apply: [gE (behead x1), xd::x2]=>//=.
-by vauto.
+step; step; apply: [gE behead x1, xd::x2]=>//=.
+by rewrite !(pull h') -!joinA; vauto. 
 Qed.
 Next Obligation.
-move=>p /= [xs][] i /= H.
-apply: [gE xs, [::]]=>//=.
-by exists i; hhauto.
+by move=>p [xs][/= i H]; apply: [gE xs, [::]]=>//; exists i; hhauto.
 Qed.
 
 Variable B : Type.

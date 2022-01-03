@@ -144,39 +144,22 @@ Next Obligation. by []. Qed.
 Next Obligation.
 move=>q [xs][] _ /= [fr][bq][h][D <- H].
 step; case: ifP H=>Ef; rewrite /is_queue Ef.
+(* TODO: val_throwR should be enlinked into the automation *)
+(* so that we can just do step here as well *)
+(* insted of apply: val_throwR *)
 - case=>->->->/=; apply: val_throwR=>V; split=>//.
   exists fr, null, Unit; rewrite unitR in V *; split=>//.
   by rewrite Ef.
-case=>[[|y xt]][x][h'][->] {}D {h}<-.
-- case=>->->; step.
-  (* TODO steps *)
-  apply: (bnd_readR (x:=bq.+1))=>/=.
-  step.
-  apply: (bnd_deallocR (x:=bq))=>/=.
-  apply: (bnd_deallocR (x:=bq.+1))=>/=.
-  apply: (bnd_writeR (x:=back q))=>/=.
-  step.
-  rewrite !unitR=>V; split=>//.
+case=>[[|y xt]][x][h'][->] {}D {h}<- /=.
+- case=>->->; do !step; rewrite !unitR=>V; split=>//.
   by exists null, null, Unit; rewrite unitR.
-case=>next [h2][->] H.
-(* TODO 5!step *)
-apply: (bnd_readR (x:=fr))=>/=.
-apply: (bnd_readR (x:=fr.+1))=>/=.
-step.
-apply: (bnd_deallocR (x:=fr))=>/=.
-apply: (bnd_deallocR (x:=fr.+1))=>/=.
-rewrite !unitL; case: ifP H.
-- move/eqP =>-> H.
-  (* TODO do 2!step *)
-  apply: (bnd_writeR (x:=back q))=>/=.
-  step.
-  rewrite !joinA=>/validR V2; move: D.
-  by case: (lseg_null V2 H)=>->->->; rewrite validPtUn.
-move=>En H1; step=>V; split=>//.
-exists next, bq, (bq :-> x \+ (bq .+ 1 :-> null \+ h2)).
-split=>//; rewrite En.
-exists xt, x, h2; split=>//.
-by move/validR/validR: V.
+case=>next [h2][->] H; do !step; rewrite !unitL. 
+case: ifP H=>[/eqP ->|N] H.
+- rewrite !(pull h2); do ![step]=>V2; case/(lseg_null (validL V2)): H D=>->->->. 
+  by rewrite validPtUn. (* TODO: validX should obviate the rewrite by validPtUn *)
+step=>V; split=>//; exists next, bq, (bq :-> x \+ (bq .+ 1 :-> null \+ h2)).
+by rewrite N; split=>//; exists xt, x, h2; split=>//; move/validR/validR: V.
+(* TODO: validX should be used instead of validR/validR *)
 Qed.
 
 End Queue.

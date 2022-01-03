@@ -227,10 +227,12 @@ Variables (G A : Type) (s : spec G A).
 
 (* predicate transformer *)
 
-Definition vrf i (e : ST A) (Q : post A) :=
+Definition vrf' (e : ST A) i (Q : post A) :=
   forall (V : valid i),
     exists (pf : i \In pre_of e), forall y m,
       prog_of e _ V pf y m -> Q y m.
+
+Notation vrf i e Q := (vrf' e i Q).
 
 Definition has_spec (e : ST A) :=
   forall g i, (s g).1 i -> vrf i e (s g).2.
@@ -306,6 +308,8 @@ Canonical stspLattice := Lattice STspec stspLatticeMixin.
 
 End STspecDef.
 
+Notation vrf i e Q := (vrf' e i Q).
+
 (************************************)
 (* modeling the language primitives *)
 (************************************)
@@ -352,7 +356,7 @@ exists pf=>y m Hm.
 by apply/H/H1=>//; exact: (dstr_valid Hm).
 Qed.
 
-Corollary vrf_mono i : monotone (vrf i e).
+Corollary vrf_mono i : monotone (vrf' e i).
 Proof. by move=>/= Q1 Q2 H; apply: vrf_post=>y m _; apply: H. Qed.
 
 Lemma vrf_frame i j (Q : post A) :
@@ -368,7 +372,7 @@ by rewrite (pf_irr Vi (validL Vij)).
 Qed.
 
 Lemma frame_star i (Q : post A) (r : Pred heap) :
-  i \In (fun h => vrf h e Q) # r -> vrf i e (fun v => Q v # r).
+        i \In (fun h => vrf h e Q) # r -> vrf i e (fun v => Q v # r).
 Proof.
 case=>h1[h2][{i}-> H1 H2].
 apply: vrf_frame=>V1; case: (H1 V1)=>Hp Hr.
