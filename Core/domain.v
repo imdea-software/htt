@@ -343,17 +343,6 @@ Canonical natPoset := Eval hnf in Poset nat natPosetMixin.
 
 End NatPoset.
 
-(* constructing an ideal on predicates out of an individual value *)
-Section PredIdeal.
-Variable T : Type.
-
-Lemma singleP i (P : Pred T) : i \In P -> eq i <== P.
-Proof. by move=>pf1 h <-. Qed.
-
-Definition single i (P : Pred T) (pf : i \In P) : ideal P :=
-  Ideal (singleP pf).
-
-End PredIdeal.
 
 (*********************)
 (* Complete lattices *)

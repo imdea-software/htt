@@ -18,6 +18,8 @@ Definition top : Pred heap := PredT.
 Notation "p1 '#' p2" := (star p1 p2)
   (at level 57, right associativity) : rel_scope.
 
+(* iterated star *)
+
 Module Iter.
 Section Iter.
 Variable A : Type.
@@ -83,6 +85,8 @@ Qed.
 
 End Iter.
 
+(* iterated star on eqType *)
+
 Section IterEq.
 Variable A : eqType.
 
@@ -140,6 +144,8 @@ Qed.
 End IterEq.
 
 End Iter.
+
+(* iterated star on finType *)
 
 Module FinIter.
 Section FinIter.

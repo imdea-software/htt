@@ -339,6 +339,8 @@ Canonical Structure bnd_throw_form A B e e1 i r :=
 Canonical Structure try_throw_form A B e e1 e2 i r :=
   TryForm (@try_throwR A B e e1 e2 i r).
 
+Ltac step := (apply: hstep=>/=).
+
 (* Second automation *)
 (*
 (**************************************************************************)
@@ -403,7 +405,5 @@ End Automation.
 (* we keep some tactics to kill final goals, which *)
 (* are usually full of existentials *)
 Ltac vauto := (do ?econstructor=>//).
-Ltac step := (apply: hstep=>/=).
-
 Ltac hhauto := (vauto; try by [heap_congr])=>//.
 Ltac heval := do ![step | by hhauto].
