@@ -225,13 +225,16 @@ Arguments fr_st [A e i j].
 Section STspecDef.
 Variables (G A : Type) (s : spec G A).
 
-(* predicate transformer *)
+(* strongest postcondition predicate transformer *)
 
+(* we need program to come first in the argument list
+   so that automation can match on it *)
 Definition vrf' (e : ST A) i (Q : post A) :=
   forall (V : valid i),
     exists (pf : i \In pre_of e), forall y m,
       prog_of e _ V pf y m -> Q y m.
 
+(* recover the usual [pre]prog[post] order with a notation *)
 Notation vrf i e Q := (vrf' e i Q).
 
 Definition has_spec (e : ST A) :=
