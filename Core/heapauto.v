@@ -332,6 +332,13 @@ Canonical Structure bnd_dealloc_form A B s v x r j f :=
 Canonical Structure try_dealloc_form A B s1 s2 v x r j f :=
   TryForm (@try_deallocR A B s1 s2 v x j f r).
 
+Canonical Structure val_throw_form A e Q i :=
+  ValForm (@val_throwR A e Q i).
+Canonical Structure bnd_throw_form A B e e1 i r :=
+  BndForm (@bnd_throwR A B e e1 i r).
+Canonical Structure try_throw_form A B e e1 e2 i r :=
+  TryForm (@try_throwR A B e e1 e2 i r).
+
 (* Second automation *)
 (*
 (**************************************************************************)

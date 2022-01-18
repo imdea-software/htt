@@ -1,7 +1,7 @@
 
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq.
 From fcsl Require Import axioms pred.
-From fcsl Require Import pcm unionmap heap.
+From fcsl Require Import pcm unionmap heap automap.
 From HTT Require Import domain heap_extra model heapauto.
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -158,7 +158,7 @@ Qed.
 (* concatenation *)
 
 Definition catT (p2 : ptr) : Type :=
-  forall (p1 : ptr), {xs1 xs2 : seq A}, 
+  forall (p1 : ptr), {xs1 xs2 : seq A},
     STsep (fun h => p1 != null /\ (lseq p1 xs1 # lseq p2 xs2) h,
            [vfun _ : unit => lseq p1 (xs1 ++ xs2)]).
 
@@ -179,16 +179,13 @@ Next Obligation.
 move=>_ p2 go q [xs1][xs2][_ /= [Hq][i1][i2]][-> H1 H2].
 case/(lseq_pos Hq): H1=>x [r][i][E <-{i1} H1]; step.
 case: ifP H1=>[/eqP ->{r}|/negbT N] H1.
-- rewrite !(pull i) -!joinA; step; step=>V.
-  (* TODO: the above rearrangement is just so that we can take validL V *)
-  (* the search for validity proofs can be automated, as validX in fcsl pcm *)
-  (* can we use validX in here? *)
-  case/(lseq_null (validL V)): H1 E=>->->->. 
-  by rewrite unitL; exists p2, i2. 
+- step; step=>V.
+  case/(lseq_null (validX V)): H1 E=>/=->->->/=.
+  by rewrite unitR -joinA; exists p2, i2.
 rewrite !joinA !(pull i2) !(pull i) joinA.
-apply/vrf_frame/[gE (behead xs1), xs2]; first by split=>//; exists i, i2.  
-by case=>//= [[]] m *; rewrite E !(pullk q.+ 1) !(pullk q); exists r, m.  
-(* TODO: is there a better way to specify the frame than by explicit rewrites? *) 
+apply/vrf_frame/[gE (behead xs1), xs2]; first by split=>//; exists i, i2.
+by case=>//= [[]] m *; rewrite E !(pullk q.+ 1) !(pullk q); exists r, m.
+(* TODO: is there a better way to specify the frame than by explicit rewrites? *)
 Qed.
 Next Obligation.
 move=>p1 p2 [xs1][xs2][/= _ [i1][i2][-> H1 H2]].
@@ -218,8 +215,8 @@ move=>_ go _ p done _ [x1][x2][] _ /= [i1][i2][-> H1 H2]; apply: vrfV=>V.
 case: eqP H1=>[->|E].
 - by case/(lseq_null (validL V))=>->->; rewrite unitL; step.
 case/lseq_pos=>[|xd [xn][h'][->] <- /= H1]; first by case: eqP.
-step; step; apply: [gE behead x1, xd::x2]=>//=.
-by rewrite !(pull h') -!joinA; vauto. 
+step; step; apply: [gE (behead x1), xd::x2]=>//=.
+by rewrite !(pull h') -!joinA; vauto.
 Qed.
 Next Obligation.
 by move=>p [xs][/= i H]; apply: [gE xs, [::]]=>//; exists i; hhauto.

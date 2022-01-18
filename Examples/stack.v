@@ -46,10 +46,7 @@ Program Definition push s x : {xs}, STsep (shape s xs,
       s ::= nd).
 Next Obligation.
 move=>s x [xs][] _ /= [p][h0][V][<- H].
-step; step=>p2.
-(* TODO step; step. *)
-apply: (bnd_writeR (x:=p2.+1))=>/=.
-apply: (val_writeR (x:=s))=>/=.
+step; step=>p2; do 2!step.
 rewrite unitR=>V2.
 rewrite joinC joinA in V2 *.
 exists p2, (h0 \+ p2 :-> x \+ p2 .+ 1 :-> p).
@@ -76,20 +73,11 @@ Next Obligation.
 move=>s [xs][] _ /= [p][h0][V][<- H].
 step; case: eqP.
 - move=>Ep; apply: val_throwR=>_.
-  rewrite Ep in H *; case: (lseq_null (validR V) H)=>->?/=.
-  split=>//; rewrite Ep in V.
-  by exists null, h0.
+  rewrite Ep in H V *; case: (lseq_null (validR V) H)=>->?/=.
+  by split=>//; exists null, h0.
 move/eqP=>Ep.
 case: (lseq_pos Ep H)=>/= x[r][h1][E1]E0 H1; rewrite -{}E0 in H *.
-(* TODO do 6!step *)
-step.
-apply: (bnd_readR (x:=p.+1))=>/=.
-apply: (bnd_deallocR (x:=p))=>/=.
-apply: (bnd_deallocR (x:=p.+1))=>/=.
-step.
-step.
-rewrite !unitL.
-move=>V1.
+do 6!step; rewrite !unitL=>V1.
 by split=>//; exists r, h1.
 Qed.
 

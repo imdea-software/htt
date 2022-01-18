@@ -1,6 +1,6 @@
 From mathcomp Require Import ssreflect ssrbool ssrfun eqtype seq.
 From fcsl Require Import axioms pred.
-From fcsl Require Import pcm unionmap heap.
+From fcsl Require Import pcm unionmap heap automap.
 From HTT Require Import domain heap_extra model heapauto.
 From HTT Require Import llistR.
 Set Implicit Arguments.
@@ -93,15 +93,10 @@ Program Definition enq (q : queue) (x : T) :
          else ba .+ 1) ::= next).
 Next Obligation.
 move=>q x [xs][] _ /= [fr][bq][h'][D <- H].
-step=>next; step.
-(* TODO do 2!step *)
-apply: (bnd_readR (x:=back q))=>/=.
-apply: (bnd_writeR (x:=back q))=>/=.
+step=>next; do 3!step.
 rewrite -(backfront H) unitR.
 case: ifP H=>Ef; rewrite /is_queue ?Ef.
-- case=>_->->.
-  (* TODO step *)
-  apply: (val_writeR (x:=front q))=>/=.
+- case=>_->->; step.
   rewrite unitR=>V.
   exists next, next, (next :-> x \+ next .+ 1 :-> null).
   rewrite joinA joinC; split=>//.
@@ -109,9 +104,7 @@ case: ifP H=>Ef; rewrite /is_queue ?Ef.
   exists Unit; rewrite unitR; split=>//.
   by exact: (validL V).
 case=>s2[x2][i2][->] {}D <- H2.
-(* TODO step *)
-apply: (val_writeR (x:=bq.+1))=>/=.
-rewrite joinC !joinA=>V.
+step; rewrite joinC !joinA=>V.
 exists fr, next, (bq :-> x2 \+ bq .+ 1 :-> next \+ i2 \+ next :-> x \+ next .+ 1 :-> null).
 rewrite !joinA; split=>//.
 apply: is_queue_add_last.
@@ -144,22 +137,18 @@ Next Obligation. by []. Qed.
 Next Obligation.
 move=>q [xs][] _ /= [fr][bq][h][D <- H].
 step; case: ifP H=>Ef; rewrite /is_queue Ef.
-(* TODO: val_throwR should be enlinked into the automation *)
-(* so that we can just do step here as well *)
-(* insted of apply: val_throwR *)
-- case=>->->->/=; apply: val_throwR=>V; split=>//.
+- case=>->->->/=; step=>V; split=>//.
   exists fr, null, Unit; rewrite unitR in V *; split=>//.
   by rewrite Ef.
 case=>[[|y xt]][x][h'][->] {}D {h}<- /=.
 - case=>->->; do !step; rewrite !unitR=>V; split=>//.
   by exists null, null, Unit; rewrite unitR.
-case=>next [h2][->] H; do !step; rewrite !unitL. 
+case=>next [h2][->] H; do !step; rewrite !unitL.
 case: ifP H=>[/eqP ->|N] H.
-- rewrite !(pull h2); do ![step]=>V2; case/(lseg_null (validL V2)): H D=>->->->. 
-  by rewrite validPtUn. (* TODO: validX should obviate the rewrite by validPtUn *)
+- do ![step]=>V2.
+  by case/(lseg_null (validX V2)): H D=>/=->.
 step=>V; split=>//; exists next, bq, (bq :-> x \+ (bq .+ 1 :-> null \+ h2)).
-by rewrite N; split=>//; exists xt, x, h2; split=>//; move/validR/validR: V.
-(* TODO: validX should be used instead of validR/validR *)
+by rewrite N; split=>//; exists xt, x, h2; split=>//; apply: (validX V).
 Qed.
 
 End Queue.
