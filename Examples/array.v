@@ -1,10 +1,11 @@
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq fintype tuple finfun finset.
 From fcsl Require Import axioms prelude pred.
 From fcsl Require Import pcm unionmap heap.
-From HTT Require Import domain stmod stsep stlog stlogR.
+From HTT Require Import domain heap_extra model heapauto.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
+Set Bullet Behavior "None".
 Obligation Tactic := auto.
 
 Definition indx {I : finType} (x : I) := index x (enum I).
@@ -80,7 +81,8 @@ Program Definition new (x : T) : STsep (emp, [vfun y => shape y [ffun => x]]) :=
   Do (x <-- allocb x #|I|;
       ret (Array x)).
 Next Obligation.
-move=>x i ->; step=>y; heval; rewrite unitR; vauto; congr updi.
+move=>x [] _ /= ->; step=>y; step.
+rewrite unitR=>H; split=>//; congr updi.
 rewrite ?fgraph_codom /= codomE cardE.
 by elim: (enum I)=>[|t ts] //= ->; rewrite (ffunE _ _).
 Qed.
@@ -103,21 +105,22 @@ Program Definition newf (f : {ffun I -> T}) :
         in f (enum I)
       else ret (Array null)).
 Next Obligation.
-move=>f v x loop s _ /= [g][s'][[->]]; case: s=>[|k t] /= _ H1 H2.
-- rewrite cats0 in H1; step; vauto.
+move=>f v x loop s [] /= _ [g][s'][[-> _]]; case: s=>[|k t] /= H1 H2.
+- rewrite cats0 in H1; step=>H; split=>//.
   by rewrite (_ : g = f) // -ffunP=>y; apply: H2; rewrite H1 mem_enum.
-rewrite (updi_split x k); step; apply: val_do0=>//.
+rewrite (updi_split x k); step; apply: vrfV=>V; apply: [gE]=>//=.
 exists (finfun [eta g with k |-> f k]), (s' ++ [:: k]).
 rewrite /shape (updi_split x k) takeord dropord (ffunE _ _) /= eq_refl -catA.
 split=>// y; rewrite ffunE /= mem_cat inE /=.
 by case: eqP=>[->|_] //; rewrite orbF; apply: H2.
 Qed.
 Next Obligation.
-move=>f _ ->; case: fintype.pickP=>[v|] H /=.
-- apply: bnd_seq; apply: val_do0=>//= x m [->] _ _.
-  by apply: val_do0=>//; exists [ffun => f v], nil.
-step; do !split=>//.
-rewrite ?codom_ffun.
+move=>f [] _ ->; case: fintype.pickP=>[v|] H /=.
+- apply: vrf_bind=>/=; step=>x; rewrite unitR; step=>_ V.
+  apply: [gE]=>//=; exists [ffun => f v], nil; do!split=>//=.
+  congr updi; rewrite codomE cardE.
+  by elim: (enum I)=>//= ?? ->/=; rewrite ffunE.
+step=>_; split=>//; rewrite codom_ffun.
 suff L: #|I| = 0 by case: (fgraph f)=>/=; rewrite L; case.
 by rewrite cardE; case: (enum I)=>[|x s] //; move: (H x).
 Qed.
@@ -136,13 +139,15 @@ Program Definition free (a : array) :
                         f k.+1))
       in f 0).
 Next Obligation.
-move=>a f k _ /= [[|v xs]][->] /= _; first by rewrite add0n=>/eqP ->; apply: val_ret.
+move=>a f k [] i /= [[|v xs]][->] /= _; first by rewrite add0n=>/eqP ->; step.
 case: eqP=>[->|_ H]; first by move/eqP; rewrite -{2}(add0n #|I|) eqn_add2r.
-by step; apply: val_doR=>// V; exists xs; rewrite V ptrA addn1 -addSnnS unitL.
+step; apply: vrfV=>V; apply: [gE]=>//=.
+by exists xs; rewrite V ptrA addn1 -addSnnS unitL.
 Qed.
 Next Obligation.
-move=>a _ /= [f][->] _; apply: val_do0=>// V; exists (tval (fgraph f)).
-by rewrite ptr0 V {3}fgraph_codom /= codomE size_map -cardE addn0.
+move=>a [] /= _ [f][-> V]; apply: [gE]=>//=.
+exists (tval (fgraph f))=>/=.
+by rewrite ptr0 V {3}codomE size_map -cardE addn0.
 Qed.
 
 Program Definition read (a : array) (k : I) :
@@ -150,8 +155,8 @@ Program Definition read (a : array) (k : I) :
                  [vfun y m => m = h /\ y = f k]) :=
   Do (!a .+ (indx k)).
 Next Obligation.
-move=>a k.
-by apply: ghR=>x [f h][->][/= ->] _ _; rewrite /shape (updi_split a k); step.
+move=>a k [f][_][] _ [->][/= -> _].
+by rewrite (updi_split a k); step.
 Qed.
 
 Program Definition write (a : array) (k : I) (x : T) :
@@ -159,8 +164,7 @@ Program Definition write (a : array) (k : I) (x : T) :
               [vfun _ => shape a [ffun z => [eta f with k |-> x] z]]) :=
   Do (a .+ (indx k) ::= x).
 Next Obligation.
-move=>a k x.
-apply: ghR=>_ f [->] _ _; rewrite /shape !(updi_split a k).
+move=>a k x [f][] _ [-> _] /=; rewrite /shape !(updi_split a k).
 by step; rewrite takeord dropord ffunE eq_refl.
 Qed.
 

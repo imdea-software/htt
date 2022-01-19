@@ -2,12 +2,11 @@
 -arg "-w -notation-overridden,-local-declaration,-redundant-canonical-projection,-projection-no-head-constant"
 
 Core/interlude.v
+Core/heap_extra.v
 Core/domain.v
+Core/model.v
 Core/heaptac.v
-Core/stmod.v
-Core/stsep.v
-Core/stlog.v
-Core/stlogR.v
+Core/heapauto.v
 Examples/exploit.v
 Examples/llistR.v
 Examples/array.v

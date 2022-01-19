@@ -303,6 +303,9 @@ Definition propPosetMixin :=
   PosetMixin prop_botP prop_refl prop_asym prop_trans.
 Canonical propPoset := Eval hnf in Poset Prop propPosetMixin.
 
+Lemma prop_topP x : x <== True.
+Proof. by []. Qed.
+
 End PropPoset.
 
 (* Pred is a poset *)
@@ -317,6 +320,9 @@ Variable A : Type.
 Definition predPosetMixin : Poset.mixin_of (Pred A) :=
   funPosetMixin A propPoset.
 Canonical predPoset := Eval hnf in Poset (Pred A) predPosetMixin.
+
+Lemma pred_topP (x : Pred A) : x <== PredT.
+Proof. by []. Qed.
 
 End PredPoset.
 
@@ -336,6 +342,7 @@ Definition natPosetMixin := PosetMixin nat_botP nat_refl nat_asym nat_trans.
 Canonical natPoset := Eval hnf in Poset nat natPosetMixin.
 
 End NatPoset.
+
 
 (*********************)
 (* Complete lattices *)
