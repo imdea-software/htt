@@ -268,8 +268,7 @@ rewrite {hr Hr Vh Ec}Ehr joinA joinC.
 move/all_path: (Or); rewrite {1}Efr; case/(path_supp_ins_inv Or')/andP=>Ho' Or''.
 step; case: eqP.
 (* k = k', element found *)
-- move=>Ek; do 4!step; rewrite !unitL /entry.
-  step; step=>_.
+- move=>Ek; do 4!step; rewrite !unitL /entry; do 2![step]=>_.
   rewrite Ef Efr -fcat_srem; last by rewrite supp_ins inE negb_or E.
   rewrite rem_ins {1}Ek eq_refl rem_supp; last by rewrite Ek; apply: notin_path.
   rewrite joinC; apply/shape_fcat/Hr'; last by apply: shape_seg_rcons.
@@ -390,7 +389,7 @@ apply: vrfV=>Vh.
 case: eqP.
 (* cur = null, insert as the last element *)
 - move=>Ec; rewrite {}Ec in Hr.
-  step=>p; rewrite ptrA unitR; do 2!step; rewrite joinC; step; step=>_.
+  step=>p; rewrite ptrA unitR; do 2!step; rewrite joinC; do 2![step]=>_.
   case: (shape_null (validX Vh) Hr)=>/=->->.
   rewrite fcats0 unitR.
   apply: shape_seg_rcons; last by apply: shape_seg_rcons.
@@ -402,7 +401,7 @@ rewrite {hr Hr Vh Ec}Ehr joinA joinC.
 move/all_path: (Or); rewrite {1}Efr; case/(path_supp_ins_inv (all_path Or'))/andP=>Ho' /path_all Or''.
 step; case: eqP.
 (* k = k', exact key found, update *)
-- move=>Ek; step; step=>_.
+- move=>Ek; do 2![step]=>_.
   rewrite Efr -fcat_sins ins_ins -Ek eq_refl joinC.
   apply: shape_fcat; first 1 last.
   - by apply: shape_seg_rcons.
@@ -430,7 +429,7 @@ move/eqP=>Ek; case: ifP=>Ho'0.
   by apply/notin_path/all_path.
 (* ord k k', insert *)
 move: (semiconnex Ek); rewrite {}Ho'0 orbC /= =>Ho0'.
-step=>new; rewrite ptrA unitR; do 2!step; rewrite joinA joinC; step; step=>_.
+step=>new; rewrite ptrA unitR; do 2!step; rewrite joinA joinC; do 2![step]=>_.
 rewrite Efr -fcat_sins; apply: shape_fcat; first 1 last.
 - by apply: shape_seg_rcons.
 - rewrite -!joinA; apply: shape_cons; last by apply: shape_cons.
@@ -448,13 +447,13 @@ move=>/= x k0 v0 [fm][]h /= H; apply: vrfV=>Vh.
 case: eqP.
 (* x = null, insert as the only element *)
 - move: H=>/[swap] ->/(shape_null Vh) [->->].
-  step=>p; rewrite ptrA !unitR; do 2!step; step=>_.
+  step=>p; rewrite ptrA !unitR; do 3![step]=>_.
   by exists null, Unit; rewrite unitR.
 (* x <> null *)
 move/eqP=>Ex; case: (shape_cont Ex H)=>{Ex}k[v][next][h'][Ef Of -> H'].
 step; case: eqP.
 (* k = k', exact key found in head position, update *)
-- move=>->; step; step=>_.
+- move=>->; do 2![step]=>_.
   rewrite Ef ins_ins eq_refl.
   by apply: shape_cons.
 (* k <> k' *)
@@ -468,7 +467,7 @@ move/eqP=>Ek; case: ifP=>Ho0.
   by exists (entry x next k v), h'.
 (* ord k k', insert *)
 move: (semiconnex Ek); rewrite {}Ho0 orbC /= =>Ho0.
-step=>q; rewrite ptrA unitR; do 2!step; step=>_.
+step=>q; rewrite ptrA unitR; do 3![step]=>_.
 rewrite Ef -!joinA; apply: shape_cons; last by apply: shape_cons.
 by apply/path_all/path_supp_ins=>//; apply/path_le/all_path/Of.
 Qed.

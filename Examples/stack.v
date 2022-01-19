@@ -46,7 +46,7 @@ Program Definition push s x : {xs}, STsep (shape s xs,
       s ::= nd).
 Next Obligation.
 move=>s x [xs][] _ /= [p][h0][V][<- H].
-step; step=>p2; do 2!step.
+do 2![step]=>p2; do 2!step.
 rewrite unitR=>V2.
 rewrite joinC joinA in V2 *.
 exists p2, (h0 \+ p2 :-> x \+ p2 .+ 1 :-> p).

@@ -179,7 +179,7 @@ Next Obligation.
 move=>_ p2 go q [xs1][xs2][_ /= [Hq][i1][i2]][-> H1 H2].
 case/(lseq_pos Hq): H1=>x [r][i][E <-{i1} H1]; step.
 case: ifP H1=>[/eqP ->{r}|/negbT N] H1.
-- step; step=>V.
+- do 2![step]=>V.
   case/(lseq_null (validX V)): H1 E=>/=->->->/=.
   by rewrite unitR -joinA; exists p2, i2.
 rewrite !joinA !(pull i2) !(pull i) joinA.
@@ -215,7 +215,7 @@ move=>_ go _ p done _ [x1][x2][] _ /= [i1][i2][-> H1 H2]; apply: vrfV=>V.
 case: eqP H1=>[->|E].
 - by case/(lseq_null (validL V))=>->->; rewrite unitL; step.
 case/lseq_pos=>[|xd [xn][h'][->] <- /= H1]; first by case: eqP.
-step; step; apply: [gE (behead x1), xd::x2]=>//=.
+do 2!step; apply: [gE (behead x1), xd::x2]=>//=.
 by rewrite !(pull h') -!joinA; vauto.
 Qed.
 Next Obligation.

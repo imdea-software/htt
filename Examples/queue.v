@@ -78,7 +78,7 @@ Program Definition free (q : queue) :
 Next Obligation.
 move=>q [] _ /= [fr][bq][h][/[swap]<-/[swap]].
 case/is_queue_nil=>->->->; rewrite unitR=>V.
-by step; step=>_; rewrite unitR.
+by do 2![step]=>_; rewrite unitR.
 Qed.
 
 Program Definition enq (q : queue) (x : T) :
@@ -93,11 +93,9 @@ Program Definition enq (q : queue) (x : T) :
          else ba .+ 1) ::= next).
 Next Obligation.
 move=>q x [xs][] _ /= [fr][bq][h'][D <- H].
-step=>next; do 3!step.
-rewrite -(backfront H) unitR.
+step=>next; do 3!step; rewrite -(backfront H) unitR.
 case: ifP H=>Ef; rewrite /is_queue ?Ef.
-- case=>_->->; step.
-  rewrite unitR=>V.
+- case=>_->->; step; rewrite unitR=>V.
   exists next, next, (next :-> x \+ next .+ 1 :-> null).
   rewrite joinA joinC; split=>//.
   apply: (@is_queue_add_last _ _ [::]).
@@ -141,11 +139,11 @@ step; case: ifP H=>Ef; rewrite /is_queue Ef.
   exists fr, null, Unit; rewrite unitR in V *; split=>//.
   by rewrite Ef.
 case=>[[|y xt]][x][h'][->] {}D {h}<- /=.
-- case=>->->; do !step; rewrite !unitR=>V; split=>//.
+- case=>->->; do 7!step; rewrite !unitR=>V; split=>//.
   by exists null, null, Unit; rewrite unitR.
-case=>next [h2][->] H; do !step; rewrite !unitL.
+case=>next [h2][->] H; do 5!step; rewrite !unitL.
 case: ifP H=>[/eqP ->|N] H.
-- do ![step]=>V2.
+- do 2![step]=>V2.
   by case/(lseg_null (validX V2)): H D=>/=->.
 step=>V; split=>//; exists next, bq, (bq :-> x \+ (bq .+ 1 :-> null \+ h2)).
 by rewrite N; split=>//; exists xt, x, h2; split=>//; apply: (validX V).

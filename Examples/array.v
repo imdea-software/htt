@@ -93,7 +93,6 @@ Definition newf_loop a (f : {ffun I -> T}) : Type :=
                                       forall x, x \in s' -> g x = f x],
                            [vfun y => shape y f]).
 
-Set Printing Unfocused.
 Program Definition newf (f : {ffun I -> T}) :
   STsep (emp, [vfun y => shape y f]) :=
   Do (if [pick x in I] is Some v return _ then
@@ -117,7 +116,7 @@ by case: eqP=>[->|_] //; rewrite orbF; apply: H2.
 Qed.
 Next Obligation.
 move=>f [] _ ->; case: fintype.pickP=>[v|] H /=.
-- apply: vrf_bind=>/=. step=>x; rewrite unitR.
+- apply: vrf_bind=>/=; step=>x; rewrite unitR.
   step=>_ V.
   apply: [gE]=>//=; exists [ffun => f v], nil; do!split=>//=.
   congr updi; rewrite codomE cardE.
