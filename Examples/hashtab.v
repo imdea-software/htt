@@ -17,6 +17,9 @@ Definition hashtab := {array 'I_n -> KVmap.tp buckets}.
 Notation KVshape := (@KVmap.shape _ _ buckets).
 Notation table := (table KVshape).
 
+(* TODO is there another way to prevent unfolding these? *)
+Opaque Array.write Array.new Array.free Array.read.
+
 Definition shape x s :=
   [Pred h | exists tab bucket,
            [/\ forall k, fnd k s = fnd k (bucket (hash k)),
@@ -39,8 +42,6 @@ Program Definition new : STsep (emp, [vfun y => shape y (nil K V)]) :=
                | _ => ret t
                end)) 0).
 Next Obligation.
-(* TODO ? *)
-Opaque Array.write.
 move=>/= arr loop k [] _ /= [Eleq][tab][h1][h2][-> H1]; case: decP; last first.
 - case: ltnP Eleq (eqn_leq k n)=>// _ -> /= /eqP Ek _ H.
   step=>_.
@@ -48,11 +49,11 @@ move=>/= arr loop k [] _ /= [Eleq][tab][h1][h2][-> H1]; case: decP; last first.
   apply/tableP2: H=>//= x.
   by rewrite Ek !in_set ltn_ord.
 move=>Ho; rewrite -[h1 \+ h2]unitL=>H2.
-apply/vrf_bind/vrf_frame/[gE]=>//=; case=>//= b m _ Hm Vs _.
-rewrite joinCA.
-apply/vrf_bind/vrf_frame/[gE tab]=>//=; case=>//= [[]] m2 _ {H1}[E2 V2] _ _.
+apply/vrf_bind/vrf_frame/[gE]=>//; case=>//= b m _ Hm Vs _.
+rewrite joinCA; apply/vrf_bind/vrf_frame/[gE tab]=>//=.
+case=>//= [[]] m2 _ {H1}[E2 V2] _ _.
 apply/[gE]=>//=; split=>//.
-exists [ffun z => if z == Ordinal Ho then b else tab z]; exists m2, (m \+ h2); do!split=>//.
+exists [ffun z => if z == Ordinal Ho then b else tab z], m2, (m \+ h2); do!split=>//.
 rewrite (sepitS (Ordinal Ho)) in_set leqnn {1}/table ffunE eq_refl.
 exists m, h2; do!split=>//.
 apply: tableP2 H2=>//.
@@ -60,13 +61,11 @@ apply: tableP2 H2=>//.
 by move=>x _; rewrite in_set ffunE; case: eqP=>//->; rewrite ltnn.
 Qed.
 Next Obligation.
-(* TODO ? *)
-Opaque Array.new.
 move=>/= [] ? ->.
-apply/vrf_bind/[gE]=>//=; case=>//= y m _ [H Vm] _.
+apply: [stepE]=>//=; case=>//= y m _ [H Vm].
 apply: [gE]=>//=; split=>//.
-exists [ffun _ => KVmap.default buckets].
-exists m, Unit; do!split=>//=; first by rewrite unitR.
+exists [ffun => KVmap.default buckets], m, Unit.
+do!split=>//=; first by rewrite unitR.
 by rewrite (eq_sepit (s2 := set0)) // sepit0.
 Qed.
 
@@ -85,9 +84,7 @@ Program Definition free x : {s}, STsep (shape x s,
                             loop k.+1
                | _ => Array.free x end)) 0).
 Next Obligation.
-(* TODO ? *)
-Opaque Array.free Array.read.
-move=>/= x loop k [] h /= [Eleq][tf][bf][h1][h2][-> [H1 H2]]; case: decP; last first.
+move=>/= x loop k [] _ /= [Eleq][tf][bf][h1][h2][-> [H1 H2]]; case: decP; last first.
 - case: ltnP Eleq (eqn_leq k n)=>// _ -> /= /eqP Ek _ H.
   apply: [gE]=>//=; exists tf; move: H.
   rewrite (eq_sepit (s2 := set0)); first by rewrite sepit0=>->; rewrite unitR.
@@ -99,7 +96,7 @@ case=>h3[h4][{h2}-> H3 H4]; rewrite joinCA.
 apply/vrf_bind/vrf_frame/[gE (bf (Ordinal pf))]=>//=.
 case=>//= [[]] _ _ -> _ _; rewrite unitL.
 apply: [gE]=>//=; split=>//.
-exists tf, bf; exists h1, h4; do!split=>//.
+exists tf, bf, h1, h4; do!split=>//.
 apply/tableP2/H4=>//.
 move=>z; rewrite !in_set; case: eqP=>/=.
 - by move=>->/=; rewrite ltnn.
@@ -123,13 +120,11 @@ move=>/= x k v [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> H1 H2]].
 apply/vrf_bind/vrf_frame/[gE tf, h1]=>//=.
 case=>//= _ _ _ [->->] _ _.
 move: H2; rewrite (sepitT1 (hash k)) /table; case=>h3[h4][{h2}-> H3 H4].
-rewrite joinCA.
-apply/vrf_bind/vrf_frame/[gE (bf (hash k))]=>//=.
+rewrite joinCA; apply/vrf_bind/vrf_frame/[gE (bf (hash k))]=>//=.
 case=>//= b' m2 _ H' _ _; rewrite joinCA.
 case: H1=>/= H11 H12.
 apply/vrf_bind/vrf_frame/[gE tf]=>//=.
-case=>//= [[]] m3 _ [E3 V3] _ _.
-step=>_.
+case=>//= [[]] m3 _ [E3 V3] _ _; step=>_.
 exists [ffun z => if z == hash k then b' else tf z],
        (fun b => if b == hash k then ins k v (bf b) else bf b); split=>/=.
 - move=>k0; rewrite fnd_ins; case: eqP.
@@ -156,13 +151,11 @@ move=>/= x k [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> H1 H2]].
 apply/vrf_bind/vrf_frame/[gE tf, h1]=>//=.
 case=>//= _ _ _ [->->] _ _.
 move: H2; rewrite (sepitT1 (hash k)) /table; case=>h3[h4][{h2}-> H3 H4].
-rewrite joinCA.
-apply/vrf_bind/vrf_frame/[gE (bf (hash k))]=>//=.
+rewrite joinCA; apply/vrf_bind/vrf_frame/[gE (bf (hash k))]=>//=.
 case=>//= b' m2 _ H' _ _; rewrite joinCA.
 case: H1=>/= H11 H12.
 apply/vrf_bind/vrf_frame/[gE tf]=>//=.
-case=>//= [[]] m3 _ [E3 V3] _ _.
-step=>_.
+case=>//= [[]] m3 _ [E3 V3] _ _; step=>_.
 exists [ffun z => if z == hash k then b' else tf z],
        (fun b => if b == hash k then rem k (bf b) else bf b); split=>/=.
 - move=>k0; rewrite fnd_rem; case: eqP.

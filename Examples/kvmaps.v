@@ -53,12 +53,13 @@ Notation nil := (nil K V).
 
 (* Data is stored in a sorted associative linked list. *)
 
-Definition entry (p q : ptr) (k : K) (v : V) : heap := p :-> k \+ (p .+ 1 :-> v \+ p .+ 2 :-> q).
+Definition entry (p q : ptr) (k : K) (v : V) : heap :=
+  p :-> k \+ (p.+1 :-> v \+ p.+2 :-> q).
 
 Fixpoint shape_seg' (x y : ptr) (xs : seq (K * V)) : Pred heap :=
   if xs is (k,v) :: tl then
      [Pred h | exists q h',
-       h = x :-> k \+ (x .+ 1 :-> v \+ (x .+ 2 :-> q \+ h'))
+       h = x :-> k \+ (x.+1 :-> v \+ (x.+2 :-> q \+ h'))
      /\ h' \In shape_seg' q y tl]
   else [Pred h | x = y /\ h = Unit].
 
@@ -71,7 +72,9 @@ Definition shape' (x : ptr) (xs : seq (K * V)) : Pred heap :=
 Definition shape (x : ptr) (s : finMap K V) : Pred heap :=
   shape_seg x null s.
 
-Lemma shape_null (s : fmap) h : valid h -> h \In shape null s -> s = nil /\ h = Unit.
+Lemma shape_null (s : fmap) h :
+  valid h -> h \In shape null s ->
+  s = nil /\ h = Unit.
 Proof.
 move=>D; case: s; case=>/=.
 - by move=>? [_ ->] //; rewrite fmapE.
@@ -80,12 +83,12 @@ by rewrite H validPtUn in D.
 Qed.
 
 Lemma shape_cont (s : fmap) p h :
-        p != null -> h \In shape p s ->
-        exists k v q h',
-         [/\ s = ins k v (behd s),            (* k:->v is the head entry*)
-             all (ord k) (supp (behd s)),
-             h = p :-> k \+ (p .+ 1 :-> v \+ (p .+ 2 :-> q \+ h'))
-           & h' \In shape q (behd s)].
+  p != null -> h \In shape p s ->
+  exists k v q h',
+   [/\ s = ins k v (behd s),            (* k:->v is the head entry*)
+       all (ord k) (supp (behd s)),
+       h = p :-> k \+ (p.+1 :-> v \+ (p.+2 :-> q \+ h'))
+     & h' \In shape q (behd s)].
 Proof.
 move=>E; case: s=>xs srt /=.
 elim: xs srt=>/=.
@@ -101,7 +104,7 @@ Proof. by rewrite path_sortedE // =>->/=; case: s. Qed.
 
 Lemma shape_cons (s : fmap) p q h k v :
    all (ord k) (supp s) -> h \In shape q s ->
-   (p :-> k \+ (p .+ 1 :-> v \+ (p .+ 2 :-> q \+ h))) \In shape p (ins k v s).
+   (p :-> k \+ (p.+1 :-> v \+ (p.+2 :-> q \+ h))) \In shape p (ins k v s).
 Proof.
 move/all_path=>S H.
 suff: ins k v s = FinMap (seq_of := (k,v)::seq_of s) S by move=>->; exists q,h.
@@ -118,7 +121,7 @@ Proof.
 case: s=>xs; elim: xs h x=>/=.
 - move=>??? _ [->->]; rewrite unitL.
   by exists q, Unit; rewrite unitR.
-move=>[k' v'] /= xs IH h x S /andP [O Os] [x0][h'][-> H'].
+move=>[k' v'] /= xs IH _ x S /andP [O Os] [x0][h'][-> H'].
 rewrite /shape_seg /=; move/nsym/negP/negbTE: (O)=>->.
 case: ordP O=>//= _ _.
 exists x0, (h' \+ entry p q k v); rewrite -!joinA; split=>//.
@@ -156,13 +159,13 @@ Definition freeT : Type :=
   forall p, {fm}, STsep (shape p fm, [vfun _ : unit => emp]).
 
 Program Definition free : freeT :=
- Fix (fun (go : freeT) p =>
-      Do (if p == null then ret tt
-          else pnext <-- !(p .+ 2);
-               dealloc p;;
-               dealloc (p .+ 1);;
-               dealloc (p .+ 2);;
-               go pnext)).
+  Fix (fun (go : freeT) p =>
+       Do (if p == null then ret tt
+           else pnext <-- !(p.+2);
+                dealloc p;;
+                dealloc (p.+1);;
+                dealloc (p.+2);;
+                go pnext)).
 Next Obligation.
 move=>go p [fm][] i /= H; apply: vrfV=>D.
 case: eqP.
@@ -174,23 +177,25 @@ by apply: [gE (behd fm)].
 Qed.
 
 Definition lookupT k : Type :=
-  forall p, {fm}, STsep (shape p fm, [vfun y m => m \In shape p fm /\ y = fnd k fm]).
+  forall p, {fm}, STsep (shape p fm,
+                        [vfun y m => m \In shape p fm /\ y = fnd k fm]).
 
-Program Definition lookup x (k : K) : {fm}, STsep (shape x fm,
-                                                  [vfun y m => m \In shape x fm /\ y = fnd k fm]) :=
+Program Definition lookup x (k : K) :
+  {fm}, STsep (shape x fm,
+        [vfun y m => m \In shape x fm /\ y = fnd k fm]) :=
   Fix (fun (go : lookupT k) (cur : ptr) =>
        Do (if cur == null then ret None
            else
              k' <-- !cur;
              if k == k'
-               then v <-- !(cur .+ 1);
+               then v <-- !(cur.+1);
                     ret (Some v)
                else if ord k' k
-                 then next <-- !(cur .+ 2);
+                 then next <-- !(cur.+2);
                       go next
                  else ret None)) x.
 Next Obligation.
-move=>_ k go cur [fm][] i /= H; apply: vrfV=>Vh.
+move=>_ k go cur [fm][] h /= H; apply: vrfV=>Vh.
 case: eqP.
 - move=>Ec; step=>_; rewrite Ec in H.
   by case: (shape_null Vh H)=>->.
@@ -223,43 +228,43 @@ Definition removeT p k : Type :=
                        shape prevcur.2 fmr)],
                   [vfun _ : unit => shape p (rem k fm)]).
 
-Program Definition remove x (k : K) : {fm}, STsep (shape x fm,
-                                                   [vfun y => shape y (rem k fm)]) :=
+Program Definition remove x (k : K) :
+  {fm}, STsep (shape x fm,
+              [vfun y => shape y (rem k fm)]) :=
   Do (let: rm := Fix (fun (go : removeT x k) '(prev, cur) =>
                       Do (if cur == null then ret tt
                           else k' <-- !cur;
                                if k == k'
-                                 then next <-- !(cur .+ 2);
+                                 then next <-- !(cur.+2);
                                       dealloc cur;;
-                                      dealloc (cur .+ 1);;
-                                      dealloc (cur .+ 2);;
-                                      prev .+ 2 ::= (next : ptr);;
+                                      dealloc (cur.+1);;
+                                      dealloc (cur.+2);;
+                                      prev.+2 ::= (next : ptr);;
                                       ret tt
                                  else if ord k' k
-                                      then next <-- !(cur .+ 2);
+                                      then next <-- !(cur.+2);
                                            go (cur, next)
                                       else ret tt))
       in
       if x == null then ret null
         else k' <-- !x;
              if k == k'
-                then next <-- !(x .+ 2);
+                then next <-- !(x.+2);
                      dealloc x;;
-                     dealloc (x .+ 1);;
-                     dealloc (x .+ 2);;
+                     dealloc (x.+1);;
+                     dealloc (x.+2);;
                      ret next
                 else if ord k' k
-                     then next <-- !(x .+ 2);
+                     then next <-- !(x.+2);
                           rm (x, next);;
                           ret x
                      else ret x).
 Next Obligation.
-move=>x k0 go _ prev cur _ [fm][] _ /= [fml][fmr][k][v][Ef [Ol Or][El E]][hl][_][-> Hl [_][hr][->->Hr]].
-apply: vrfV=>Vh.
-case: eqP.
+move=>x k0 go _ prev cur _ [_][] _ /= [fml][fmr][k][v][-> [Ol Or][El E]][hl][_][-> Hl [_][hr][->->Hr]].
+apply: vrfV=>Vh; case: eqP.
 (* cur = null, nothing to process *)
 - move=>Ec; step=>_; rewrite {}Ec in Hr *.
-  rewrite Ef; case: (shape_null (validX Vh) Hr)=>/=->->.
+  case: (shape_null (validX Vh) Hr)=>/=->->.
   rewrite fcats0 unitR rem_ins (negbTE E) (rem_supp El).
   by exact: shape_seg_rcons.
 (* cur <> null *)
@@ -269,7 +274,7 @@ move/all_path: (Or); rewrite {1}Efr; case/(path_supp_ins_inv Or')/andP=>Ho' Or''
 step; case: eqP.
 (* k = k', element found *)
 - move=>Ek; do 4!step; rewrite !unitL /entry; do 2![step]=>_.
-  rewrite Ef Efr -fcat_srem; last by rewrite supp_ins inE negb_or E.
+  rewrite Efr -fcat_srem; last by rewrite supp_ins inE negb_or E.
   rewrite rem_ins {1}Ek eq_refl rem_supp; last by rewrite Ek; apply: notin_path.
   rewrite joinC; apply/shape_fcat/Hr'; last by apply: shape_seg_rcons.
   rewrite (allrel_in_l (xs':=k::supp fml) _); last by apply: supp_ins.
@@ -288,12 +293,12 @@ move/eqP=>Ek; case: ifP=>Ho0.
     exists (hl \+ entry prev cur k v), (entry cur next k' v' \+ hr').
     rewrite joinC !joinA; do!split=>//; last by exists (entry cur next k' v'), hr'.
     by rewrite -!joinA; apply: shape_seg_rcons.
-  case=>//= [[]] m Vm Hm; rewrite Ef Efr.
+  case=>//= [[]] m Vm Hm; rewrite Efr.
   rewrite fcat_inss // in Hm; first by rewrite -fcat_sins in Hm.
   by apply: notin_path.
 (* ord k k', abort *)
 move: (semiconnex Ek); rewrite {}Ho0 orbC /= =>Ho0.
-step=>_; rewrite rem_supp Ef.
+step=>_; rewrite rem_supp.
 - rewrite joinC; apply: shape_fcat; first 1 last.
   - by apply: shape_seg_rcons.
   - by rewrite Efr; apply: shape_cons=>//; apply: path_all.
@@ -319,8 +324,7 @@ step; case: eqP.
 (* k <> k' *)
 move/eqP=>Ek; case: ifP=>Ho0.
 (* ord k' k, start recursing *)
-- step.
-  apply/vrf_bind/[gE fm]=>/=; last by case=>//= [[]] ? _ ??; step.
+- step; apply: [stepE fm]=>/=; last by case=>//= [[]] ? _ ??; step.
   exists nil, (behd fm), k, v; do!split=>//.
   - by rewrite fcat_inss; [rewrite fcat0s|apply/notin_path/all_path].
   exists Unit, (entry x next k v \+ h'); do!split; first by rewrite /entry unitL !joinA.
@@ -344,47 +348,48 @@ Definition insertT p k v : Type :=
                        shape prevcur.2 fmr)],
                  [vfun _ : unit => shape p (ins k v fm)]).
 
-Program Definition insert x (k : K) (v : V) : {fm}, STsep (shape x fm,
-                                                          [vfun y => shape y (ins k v fm)]) :=
+Program Definition insert x (k : K) (v : V) :
+  {fm}, STsep (shape x fm,
+              [vfun y => shape y (ins k v fm)]) :=
   Do (let: ns := Fix (fun (go : insertT x k v) '(prev, cur) =>
                       Do (if cur == null
                             then new <-- allocb k 3;
-                                 new .+ 1 ::= v;;
-                                 new .+ 2 ::= null;;
-                                 prev .+ 2 ::= new;;
+                                 new.+1 ::= v;;
+                                 new.+2 ::= null;;
+                                 prev.+2 ::= new;;
                                  ret tt
                             else k' <-- !cur;
                                  if k == k'
-                                   then cur .+ 1 ::= v;;
+                                   then cur.+1 ::= v;;
                                         ret tt
                                    else if ord k' k
-                                        then next <-- !(cur .+ 2);
+                                        then next <-- !(cur.+2);
                                              go (cur, next)
                                         else new <-- allocb k 3;
-                                             new .+ 1 ::= v;;
-                                             new .+ 2 ::= cur;;
-                                             prev .+ 2 ::= new;;
+                                             new.+1 ::= v;;
+                                             new.+2 ::= cur;;
+                                             prev.+2 ::= new;;
                                              ret tt))
       in
       if x == null
         then new <-- allocb k 3;
-             new .+ 1 ::= v;;
-             new .+ 2 ::= null;;
+             new.+1 ::= v;;
+             new.+2 ::= null;;
              ret new
         else k' <-- !x;
              if k == k'
-               then x .+ 1 ::= v;;
+               then x.+1 ::= v;;
                     ret x
                else if ord k' k
-                    then next <-- !(x .+ 2);
+                    then next <-- !(x.+2);
                          ns (x, next);;
                          ret x
                     else new <-- allocb k 3;
-                         new .+ 1 ::= v;;
-                         new .+ 2 ::= x;;
+                         new.+1 ::= v;;
+                         new.+2 ::= x;;
                          ret new).
 Next Obligation.
-move=>x k0 v0 go _ prev cur _ [fm][] _ /= [fml][fmr][k][v][-> [Ol Or][El Ho0]][hl][_][-> Hl [_][hr][->-> Hr]].
+move=>x k0 v0 go _ prev cur _ [_][] _ /= [fml][fmr][k][v][-> [Ol Or][El Ho0]][hl][_][-> Hl [_][hr][->-> Hr]].
 apply: vrfV=>Vh.
 case: eqP.
 (* cur = null, insert as the last element *)
@@ -459,8 +464,7 @@ step; case: eqP.
 (* k <> k' *)
 move/eqP=>Ek; case: ifP=>Ho0.
 (* ord k' k, start recursing *)
-- step.
-  apply/vrf_bind/[gE fm]=>/=; last by case=>// [[]] /= ? _ ??; step.
+- step; apply: [stepE fm]=>/=; last by case=>// [[]] /= ? _ ??; step.
   exists nil, (behd fm), k, v; do!split=>//.
   - by rewrite fcat_inss; [rewrite fcat0s|apply/notin_path/all_path].
   exists Unit, (entry x next k v \+ h'); do!split; first by rewrite /entry unitL !joinA.

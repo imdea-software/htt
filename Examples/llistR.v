@@ -104,9 +104,8 @@ Program Definition insert p (x : A) :
       q ::= x;;
       ret q).
 Next Obligation.
-move=>p x [l []] i /= H.
-step=>q; rewrite unitR -joinA.
-by heval.
+move=>p x [l []] i /= H; step=>q.
+by rewrite unitR -joinA; heval.
 Qed.
 
 (* removing *)
@@ -120,7 +119,7 @@ Program Definition remove p :
            ret pnext).
 Next Obligation.
 move=>p [xs []] i /= H; apply: vrfV=>V; case: ifP H=>H1.
-- by rewrite (eqP H1); case/(lseq_null V)=>->->/=; heval.
+- by rewrite (eqP H1); case/(lseq_null V)=>->->; heval.
 case/(lseq_pos (negbT H1))=>x [q][h][->] <- /= H2.
 by heval; rewrite 2!unitL.
 Qed.

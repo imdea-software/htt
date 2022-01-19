@@ -111,16 +111,15 @@ move=>f v x loop s [] /= _ [g][s'][[-> _]]; case: s=>[|k t] /= H1 H2.
 rewrite (updi_split x k); step; apply: vrfV=>V; apply: [gE]=>//=.
 exists (finfun [eta g with k |-> f k]), (s' ++ [:: k]).
 rewrite /shape (updi_split x k) takeord dropord (ffunE _ _) /= eq_refl -catA.
-split=>//= y; rewrite ffunE /= mem_cat inE /=.
+split=>// y; rewrite ffunE /= mem_cat inE /=.
 by case: eqP=>[->|_] //; rewrite orbF; apply: H2.
 Qed.
 Next Obligation.
 move=>f [] _ ->; case: fintype.pickP=>[v|] H /=.
-- apply: vrf_bind=>/=; step=>x; rewrite unitR.
-  step=>_ V.
+- apply: vrf_bind=>/=; step=>x; rewrite unitR; step=>_ V.
   apply: [gE]=>//=; exists [ffun => f v], nil; do!split=>//=.
   congr updi; rewrite codomE cardE.
-  by elim: (enum I)=>//=y s=>->/=; rewrite ffunE.
+  by elim: (enum I)=>//= ?? ->/=; rewrite ffunE.
 step=>_; split=>//; rewrite codom_ffun.
 suff L: #|I| = 0 by case: (fgraph f)=>/=; rewrite L; case.
 by rewrite cardE; case: (enum I)=>[|x s] //; move: (H x).
@@ -165,8 +164,7 @@ Program Definition write (a : array) (k : I) (x : T) :
               [vfun _ => shape a [ffun z => [eta f with k |-> x] z]]) :=
   Do (a .+ (indx k) ::= x).
 Next Obligation.
-move=>a k x [f][] _ [-> _] /=.
-rewrite /shape !(updi_split a k).
+move=>a k x [f][] _ [-> _] /=; rewrite /shape !(updi_split a k).
 by step; rewrite takeord dropord ffunE eq_refl.
 Qed.
 

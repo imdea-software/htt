@@ -950,6 +950,8 @@ Qed.
 
 Arguments stepE [G A B s] g [i e e2 Q] _ _ _.
 
+Notation "[stepE]" := (stepE tt) (at level 0).
+
 Notation "[ 'stepE' x1 , .. , xn ]" :=
   (stepE (existT _ x1 .. (existT _ xn tt) ..)) (at level 0).
 

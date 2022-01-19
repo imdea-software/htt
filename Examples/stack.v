@@ -72,7 +72,7 @@ Program Definition pop s :
 Next Obligation.
 move=>s [xs][] _ /= [p][h0][V][<- H].
 step; case: eqP.
-- move=>Ep; apply: val_throwR=>_.
+- move=>Ep; step=>_.
   rewrite Ep in H V *; case: (lseq_null (validR V) H)=>->?/=.
   by split=>//; exists null, h0.
 move/eqP=>Ep.
