@@ -324,7 +324,7 @@ step; case: eqP.
 (* k <> k' *)
 move/eqP=>Ek; case: ifP=>Ho0.
 (* ord k' k, start recursing *)
-- step; apply: [stepE fm]=>/=; last by case=>//= [[]] ? _ ??; step.
+- step; apply: [stepE fm]=>/=; last by case=>//= [[]] ? _ ?; step.
   exists nil, (behd fm), k, v; do!split=>//.
   - by rewrite fcat_inss; [rewrite fcat0s|apply/notin_path/all_path].
   exists Unit, (entry x next k v \+ h'); do!split; first by rewrite /entry unitL !joinA.
@@ -464,7 +464,7 @@ step; case: eqP.
 (* k <> k' *)
 move/eqP=>Ek; case: ifP=>Ho0.
 (* ord k' k, start recursing *)
-- step; apply: [stepE fm]=>/=; last by case=>// [[]] /= ? _ ??; step.
+- step; apply: [stepE fm]=>/=; last by case=>// [[]] /= ? _ ?; step.
   exists nil, (behd fm), k, v; do!split=>//.
   - by rewrite fcat_inss; [rewrite fcat0s|apply/notin_path/all_path].
   exists Unit, (entry x next k v \+ h'); do!split; first by rewrite /entry unitL !joinA.

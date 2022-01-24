@@ -65,26 +65,25 @@ Canonical Structure search_right h r (f : forall k, form k r) k :=
 (* Reflective lemmas that apply module AC-theory of heaps *)
 (**********************************************************)
 
-Section EvalDoR.
-Variables (G A B : Type) (s : spec G A).
+Section GhostR.
 
-(* a automated form of gE (is it useful?) *)
-Lemma gR g i j (e : STspec s) (f : forall k, form k j) (r : post A) :
+(* a automated form of gE *)
+Lemma gR G A (s : spec G A) g i j (e : STspec G s)
+          (f : forall k, form k j) (Q : post A) :
         (valid i -> (s g).1 i) ->
         (forall x m, (s g).2 (Val x) m ->
-           valid (untag (f m)) -> r (Val x) (f m)) ->
+           valid (untag (f m)) -> Q (Val x) (f m)) ->
         (forall x m, (s g).2 (Exn x) m ->
-           valid (untag (f m)) -> r (Exn x) (f m)) ->
-        vrf (f i) e r.
+           valid (untag (f m)) -> Q (Exn x) (f m)) ->
+        vrf (f i) e Q.
 Proof.
 case: e=>e /= H H1 H2 H3; rewrite formE.
-apply: vrf_frame=>V; move: (H1 V)=>/H [P M].
-exists P; case=>[x|ex] m /M.
-- by move: (H2 x m); rewrite formE.
-by move: (H3 ex m); rewrite formE.
+apply: vrfV=>/validL/H1/H V.
+apply/vrf_frame/vrf_post/V.
+by case=>[x|ex] m Vm =>[/H2|/H3]; rewrite formE.
 Qed.
 
-End EvalDoR.
+End GhostR.
 
 (* We maintain three different kinds of lemmas *)
 (* in order to streamline the stepping *)
@@ -129,17 +128,17 @@ Variables (A B : Type).
 
 Lemma val_readR v x i (f : form (x :-> v) i) (r : post A) :
         (valid (untag f) -> r (Val v) f) ->
-        vrf f (read A x) r.
+        vrf f (read x) r.
 Proof. by rewrite formE; apply: vrf_read. Qed.
 
 Lemma try_readR e1 e2 v x i (f : form (x :-> v) i) (r : post B) :
         vrf f (e1 v) r ->
-        vrf f (try (read A x) e1 e2) r.
+        vrf f (try (@read A x) e1 e2) r.
 Proof. by move=>H; apply/vrf_try/val_readR. Qed.
 
 Lemma bnd_readR e v x i (f : form (x :-> v) i) (r : post B) :
         vrf f (e v) r ->
-        vrf f (bind (read A x) e) r.
+        vrf f (bind (@read A x) e) r.
 Proof. by move=>H; apply/vrf_bind/val_readR. Qed.
 
 End EvalReadR.
@@ -231,12 +230,12 @@ Definition val_throwR := vrf_throw.
 
 Lemma try_throwR e e1 e2 i (r : post B) :
         vrf i (e2 e) r ->
-        vrf i (try (throw A e) e1 e2) r.
+        vrf i (try (@throw A e) e1 e2) r.
 Proof. by move=>H; apply/vrf_try/val_throwR. Qed.
 
 Lemma bnd_throwR e e1 i (r : post B) :
         (valid i -> r (Exn e) i) ->
-        vrf i (bind (throw A e) e1) r.
+        vrf i (bind (@throw A e) e1) r.
 Proof. by move=>H; apply/vrf_bind/val_throwR. Qed.
 
 End EvalThrowR.

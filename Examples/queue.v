@@ -120,7 +120,7 @@ Program Definition deq (q : queue) :
                    then xs = v :: behead xs
                    else y = Exn EmptyQueue /\ xs = [::]) :=
   Do (fr <-- !front q;
-      if (fr : ptr) == null then throw _ EmptyQueue
+      if (fr : ptr) == null then throw EmptyQueue
       else
         x <-- !fr;
         next <-- !fr .+ 1;

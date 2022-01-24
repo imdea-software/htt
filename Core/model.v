@@ -16,9 +16,7 @@ Definition eqexn :=
   fun '(exn_from_nat m) '(exn_from_nat n) => m == n.
 
 Lemma eqexnP : Equality.axiom eqexn.
-Proof.
-by move=>[x][y]/=; case: eqP=>[->|*]; constructor=>//; case.
-Qed.
+Proof. by move=>[x][y]/=; case: eqP=>[->|*]; constructor=>//; case. Qed.
 
 Canonical Structure exn_eqMixin := EqMixin eqexnP.
 Canonical Structure exn_eqType := EqType exn exn_eqMixin.
@@ -36,6 +34,105 @@ Notation pre := (Pred heap).
 Notation post A := (ans A -> heap -> Prop).
 
 Definition spec G A := G -> pre * post A : Type.
+
+(*************************************************************)
+(* List of inference rules, with vrf predicate kept abstract *)
+(*************************************************************)
+
+Module Type VrfSig.
+
+Parameter ST : Type -> Type.
+
+Parameter ret : forall A, A -> ST A.
+Parameter throw : forall A, exn -> ST A.
+Parameter bind : forall A B, ST A -> (A -> ST B) -> ST B.
+Parameter try : forall A B, ST A -> (A -> ST B) -> (exn -> ST B) -> ST B.
+Parameter read : forall A, ptr -> ST A.
+Parameter write : forall A, ptr -> A -> ST unit.
+Parameter alloc : forall A, A -> ST ptr.
+Parameter allocb : forall A, A -> nat -> ST ptr.
+Parameter dealloc : ptr -> ST unit.
+
+Arguments throw [A] e.
+Arguments read [A] x.
+
+(* we need program to come first in the argument list
+   so that automation can match on it *)
+Parameter vrf' : forall A, ST A -> heapPCM -> post A -> Prop.
+
+(* recover the usual [pre]prog[post] order with a notation *)
+Notation vrf i e Q := (vrf' e i Q).
+
+Parameter vrfV : forall A e i (Q : post A),
+            (valid i -> vrf i e Q) -> vrf i e Q.
+Parameter vrf_post : forall A e i (Q1 Q2 : post A),
+            (forall y m, valid m -> Q1 y m -> Q2 y m) ->
+            vrf i e Q1 -> vrf i e Q2.
+Parameter vrf_frame : forall A e i j (Q : post A),
+            vrf i e (fun y m => valid (m \+ j) -> Q y (m \+ j)) ->
+            vrf (i \+ j) e Q.
+Parameter vrf_ret : forall A x i (Q : post A),
+            (valid i -> Q (Val x) i) -> vrf i (ret x) Q.
+Parameter vrf_throw : forall A e i (Q : post A),
+            (valid i -> Q (Exn e) i) -> vrf i (throw e) Q.
+Parameter vrf_bind : forall A B (e1 : ST A) (e2 : A -> ST B) i (Q : post B),
+            vrf i e1 (fun x m =>
+                        valid m ->
+                        match x with
+                        | Val x' => vrf m (e2 x') Q
+                        | Exn e => Q (Exn e) m
+                        end) ->
+            vrf i (bind e1 e2) Q.
+Parameter vrf_try : forall A B (e : ST A) (e1 : A -> ST B) (e2 : exn -> ST B) i (Q : post B),
+            vrf i e (fun x m =>
+                       valid m ->
+                       match x with
+                       | Val x' => vrf m (e1 x') Q
+                       | Exn ex => vrf m (e2 ex) Q
+                       end) ->
+            vrf i (try e e1 e2) Q.
+Parameter vrf_read : forall A x j (v : A) (Q : post A),
+            (valid (x :-> v \+ j) -> Q (Val v) (x :-> v \+ j)) ->
+            vrf (x :-> v \+ j) (read x) Q.
+Parameter vrf_write : forall A x (v : A) B (u : B) j (Q : post unit),
+            (valid (x :-> v \+ j) -> Q (Val tt) (x :-> v \+ j)) ->
+            vrf (x :-> u \+ j) (write x v) Q.
+Parameter vrf_alloc : forall A (v : A) i (Q : post ptr),
+            (forall x, valid (x :-> v \+ i) -> Q (Val x) (x :-> v \+ i)) ->
+            vrf i (alloc v) Q.
+Parameter vrf_allocb : forall A (v : A) n i (Q : post ptr),
+            (forall x, valid (updi x (nseq n v) \+ i) ->
+               Q (Val x) (updi x (nseq n v) \+ i)) ->
+            vrf i (allocb v n) Q.
+Parameter vrf_dealloc : forall x A (v : A) j (Q : post unit),
+            (x \notin dom j -> valid j -> Q (Val tt) j) ->
+            vrf (x :-> v \+ j) (dealloc x) Q.
+
+Definition has_spec G A (s : spec G A) (e : ST A) :=
+  forall g i, (s g).1 i -> vrf i e (s g).2.
+
+Structure STspec G A (s : spec G A) := STprog {
+  model :> ST A;
+  _ : model \In has_spec s}.
+
+Arguments STspec G [A] s.
+
+Notation "'Do' e" := (@STprog _ _ _ e _) (at level 80).
+
+Notation "x '<--' c1 ';' c2" := (bind c1 (fun x => c2))
+  (at level 81, right associativity).
+Notation "c1 ';;' c2" := (bind c1 (fun _ => c2))
+  (at level 81, right associativity).
+Notation "'!' x" := (read x) (at level 50).
+Notation "x '::=' e" := (write x e) (at level 60).
+
+Parameter Fix : forall G A (B : A -> Type) (s : forall x : A, spec G (B x)),
+  ((forall x : A, STspec G (s x)) -> forall x : A, STspec G (s x)) ->
+  forall x : A, STspec G (s x).
+
+End VrfSig.
+
+Module Vrf : VrfSig.
 
 (********************************)
 (* Definition of the Hoare type *)
@@ -69,12 +166,15 @@ End BasePrograms.
 Section STDef.
 Variable (A : Type).
 
-Structure ST := Prog {
+Structure ST' := Prog {
   pre_of : pre;
   prog_of : prog pre_of A;
   _ : safe_mono pre_of;
   _ : def_strict prog_of;
   _ : frameable prog_of}.
+
+(* module field must be a definition, not structure *)
+Definition ST := ST'.
 
 Lemma sfm_st e : safe_mono (pre_of e).
 Proof. by case: e. Qed.
@@ -192,7 +292,8 @@ exists h; split=>//; exists e, He.
 by rewrite (pf_irr (pre_sup_leq He Pi) Pi').
 Qed.
 
-Definition st_sup u := Prog (@pre_sup_sfmono u) (@prog_sup_dstrict u) (@prog_sup_frame u).
+Definition st_sup u : ST :=
+  Prog (@pre_sup_sfmono u) (@prog_sup_dstrict u) (@prog_sup_frame u).
 
 Lemma st_supP u e : e \In u -> e <== st_sup u.
 Proof.
@@ -227,14 +328,11 @@ Variables (G A : Type) (s : spec G A).
 
 (* strongest postcondition predicate transformer *)
 
-(* we need program to come first in the argument list
-   so that automation can match on it *)
 Definition vrf' (e : ST A) i (Q : post A) :=
   forall (V : valid i),
     exists (pf : i \In pre_of e), forall y m,
       prog_of e _ V pf y m -> Q y m.
 
-(* recover the usual [pre]prog[post] order with a notation *)
 Notation vrf i e Q := (vrf' e i Q).
 
 Definition has_spec (e : ST A) :=
@@ -317,8 +415,6 @@ Notation vrf i e Q := (vrf' e i Q).
 (* modeling the language primitives *)
 (************************************)
 
-Module Model.
-
 (* recursion *)
 Section Fix.
 Variables (G A : Type) (B : A -> Type) (s : forall x, spec G (B x)).
@@ -343,7 +439,7 @@ End Fix.
 
 Arguments Fix [G A B s] f x.
 
-Section Vrf.
+Section VrfLemmas.
 Variables (A : Type) (e : ST A).
 
 Lemma vrfV i (Q : post A) :
@@ -358,9 +454,6 @@ move=>H H1 Vi; case: (H1 Vi)=>pf {}H1.
 exists pf=>y m Hm.
 by apply/H/H1=>//; exact: (dstr_valid Hm).
 Qed.
-
-Corollary vrf_mono i : monotone (vrf' e i).
-Proof. by move=>/= Q1 Q2 H; apply: vrf_post=>y m _; apply: H. Qed.
 
 Lemma vrf_frame i j (Q : post A) :
         vrf i e (fun y m => valid (m \+ j) -> Q y (m \+ j)) ->
@@ -384,7 +477,7 @@ exists m, h2; split=>//.
 by apply: Hr.
 Qed.
 
-End Vrf.
+End VrfLemmas.
 
 Section Return.
 Variables (A : Type) (x : A).
@@ -406,7 +499,7 @@ Proof. by move=>i j [Vij []] _ _ [-> ->]; exists i. Qed.
 
 Definition ret := Prog ret_sfmono ret_dstrict ret_frame.
 
-Lemma vrf_ret (Q : post A) i :
+Lemma vrf_ret i (Q : post A) :
         (valid i -> Q (Val x) i) -> vrf i ret Q.
 Proof. by move=>H V; exists I=>_ _ [->->]; apply: H. Qed.
 
@@ -432,7 +525,7 @@ Proof. by move=>i j [Vij []] _ _ [-> ->]; exists i. Qed.
 
 Definition throw := Prog throw_sfmono throw_dstrict throw_frame.
 
-Lemma vrf_throw (Q : post A) i :
+Lemma vrf_throw i (Q : post A) :
         (valid i -> Q (Exn e) i) -> vrf i throw Q.
 Proof. by move=>H V; exists I=>_ _ [->->]; apply: H. Qed.
 
@@ -496,7 +589,7 @@ Qed.
 
 Definition bind := Prog bind_sfmono bind_dstrict bind_frame.
 
-Lemma vrf_bind (Q : post B) i :
+Lemma vrf_bind i (Q : post B) :
         vrf i e1 (fun x m =>
                     valid m ->
                     match x with
@@ -519,7 +612,6 @@ by case=>->->.
 Qed.
 
 End Bind.
-
 
 Section Try.
 Variables (A B : Type).
@@ -588,7 +680,7 @@ Qed.
 
 Definition try := Prog try_sfmono try_dstrict try_frame.
 
-Lemma vrf_try (Q : post B) i :
+Lemma vrf_try i (Q : post B) :
         vrf i e (fun x m =>
                    valid m ->
                    match x with
@@ -610,7 +702,7 @@ Qed.
 
 End Try.
 
-(* doesn't look useful *)
+(* don't export, just for fun *)
 Lemma bnd_is_try A B (e1 : ST A) (e2 : A -> ST B) i r :
         vrf i (try e1 e2 (throw B)) r ->
         vrf i (bind e1 e2) r.
@@ -658,7 +750,7 @@ Qed.
 
 Definition read := Prog read_sfmono read_dstrict read_frame.
 
-Lemma vrf_read (Q : post A) (v : A) j :
+Lemma vrf_read j (v : A) (Q : post A) :
        (valid (x :-> v \+ j) -> Q (Val v) (x :-> v \+ j)) ->
        vrf (x :-> v \+ j) read Q.
 Proof.
@@ -672,7 +764,6 @@ by apply: H.
 Qed.
 
 End Read.
-
 
 Section Write.
 Variable (A : Type) (x : ptr) (v : A).
@@ -710,7 +801,7 @@ Qed.
 
 Definition write := Prog write_sfmono write_dstrict write_frame.
 
-Lemma vrf_write (Q : post unit) j B (u : B) :
+Lemma vrf_write B (u : B) j (Q : post unit) :
         (valid (x :-> v \+ j) -> Q (Val tt) (x :-> v \+ j)) ->
         vrf (x :-> u \+ j) write Q.
 Proof.
@@ -723,7 +814,6 @@ by rewrite (@validPtUnE _ _ _ _ (idyn u)).
 Qed.
 
 End Write.
-
 
 Section Allocation.
 Variables (A : Type) (v : A).
@@ -760,9 +850,9 @@ Qed.
 
 Definition alloc := Prog alloc_sfmono alloc_dstrict alloc_frame.
 
-Lemma vrf_alloc (Q : post ptr) i :
-  (forall x, valid (x :-> v \+ i) -> Q (Val x) (x :-> v \+ i)) ->
-  vrf i alloc Q.
+Lemma vrf_alloc i (Q : post ptr) :
+        (forall x, valid (x :-> v \+ i) -> Q (Val x) (x :-> v \+ i)) ->
+        vrf i alloc Q.
 Proof.
 move=>H Vi /=.
 exists I=>_ _ [x][-> -> Hx Hx2].
@@ -770,7 +860,6 @@ by apply: H; rewrite validPtUn Hx Vi.
 Qed.
 
 End Allocation.
-
 
 Section BlockAllocation.
 Variables (A : Type) (v : A) (n : nat).
@@ -797,7 +886,7 @@ Qed.
 
 Definition allocb := Prog allocb_sfmono allocb_dstrict allocb_frame.
 
-Lemma vrf_allocb (Q : post ptr) i :
+Lemma vrf_allocb i (Q : post ptr) :
         (forall x, valid (updi x (nseq n v) \+ i) ->
            Q (Val x) (updi x (nseq n v) \+ i)) ->
         vrf i allocb Q.
@@ -808,7 +897,6 @@ by apply: H.
 Qed.
 
 End BlockAllocation.
-
 
 Section Deallocation.
 Variable x : ptr.
@@ -845,7 +933,7 @@ Qed.
 Definition dealloc :=
   Prog dealloc_sfmono dealloc_dstrict dealloc_frame.
 
-Lemma vrf_dealloc (Q : post unit) B (v : B) j:
+Lemma vrf_dealloc A (v : A) j (Q : post unit) :
         (x \notin dom j -> valid j -> Q (Val tt) j) ->
         vrf (x :-> v \+ j) dealloc Q.
 Proof.
@@ -859,39 +947,16 @@ Qed.
 
 End Deallocation.
 
-End Model.
+End Vrf.
 
-(* TODO replace with a interface + instance a-la FCSL *)
-Definition Fix := Model.Fix.
-#[global]Opaque Fix.
-Definition ret := Model.ret.
-Definition throw := Model.throw.
-Definition bind := Model.bind.
-Definition try := Model.try.
-Definition read := Model.read.
-Definition write := Model.write.
-Definition alloc := Model.alloc.
-Definition allocb := Model.allocb.
-Definition dealloc := Model.dealloc.
+Export Vrf.
 
-Definition vrfV := Model.vrfV.
-Definition vrf_post := Model.vrf_post.
-Definition vrf_frame := Model.vrf_frame.
-Definition vrf_ret := Model.vrf_ret.
-Definition vrf_throw := Model.vrf_throw.
-Definition vrf_bind := Model.vrf_bind.
-Definition vrf_try := Model.vrf_try.
-Definition vrf_read := Model.vrf_read.
-Definition vrf_write := Model.vrf_write.
-Definition vrf_alloc := Model.vrf_alloc.
-Definition vrf_allocb := Model.vrf_allocb.
-Definition vrf_dealloc := Model.vrf_dealloc.
+Corollary vrf_mono A (e : ST A) i : monotone (vrf' e i).
+Proof. by move=>/= Q1 Q2 H; apply: vrf_post=>y m _; apply: H. Qed.
 
-(****************************************************)
-(* Notation to move from binary posts to unary ones *)
-(****************************************************)
-
-Notation "'Do' e" := (@STprog _ _ _ e _) (at level 80).
+(******************************************)
+(* Notation for logical variable postexts *)
+(******************************************)
 
 Definition logbase A (p : pre) (q : post A) : spec unit A :=
   fun => (p, q).
@@ -900,25 +965,17 @@ Definition logvar {B A} (G : A -> Type) (s : forall x : A, spec (G x) B) :
              spec {x : A & G x} B :=
   fun '(existT x g) => s x g.
 
-Notation "'STsep' ( p , q ) " := (STspec (logbase p q)) (at level 0).
+Notation "'STsep' ( p , q ) " := (STspec unit (logbase p q)) (at level 0).
 
 Notation "{ x .. y }, 'STsep' ( p , q ) " :=
-  (STspec (logvar (fun x => .. (logvar (fun y => logbase p q)) .. )))
+  (STspec _ (logvar (fun x => .. (logvar (fun y => logbase p q)) .. )))
    (at level 0, x binder, y binder, right associativity).
 
-Notation "x '<--' c1 ';' c2" := (bind c1 (fun x => c2))
-  (at level 78, right associativity).
-Notation "c1 ';;' c2" := (bind c1 (fun _ => c2))
-  (at level 78, right associativity).
-Notation "'!' x" := (read _ x) (at level 50).
-Notation "e1 '::=' e2" := (write e1 e2) (at level 60).
+(************************************************************)
+(* Lemmas for pulling out and instantiating ghost variables *)
+(************************************************************)
 
-(***********************************************)
-(* Specialized lemmas for instantiating ghosts *)
-(* and doing sequential composition            *)
-(***********************************************)
-
-Lemma gE G A (s : spec G A) g i (e : STspec s) (Q : post A) :
+Lemma gE G A (s : spec G A) g i (e : STspec G s) (Q : post A) :
         (s g).1 i ->
         (forall y m, valid m -> (s g).2 y m -> Q y m) ->
         vrf i e Q.
@@ -927,7 +984,7 @@ case: e=>e H /H X Y; apply: vrfV=>Vi /=.
 by apply/vrf_post/X.
 Qed.
 
-Arguments gE [G A s] g [i e Q] _ _ _.
+Arguments gE [G A s] g [i e Q] _ _.
 
 Notation "[gE]" := (gE tt) (at level 0).
 
@@ -935,20 +992,21 @@ Notation "[ 'gE' x1 , .. , xn ]" :=
   (gE (existT _ x1 .. (existT _ xn tt) ..))
   (at level 0).
 
-Lemma stepE G A B (s : spec G A) g i (e : STspec s) (e2 : A -> ST B) (Q : post B) :
+(* vrf_bind + gE *)
+Lemma stepE G A B (s : spec G A) g i (e : STspec G s) (e2 : A -> ST B) (Q : post B) :
         (s g).1 i ->
         (forall y m, valid m -> (s g).2 y m -> match y with
                                                | Val x => vrf m (e2 x) Q
                                                | Exn e => Q (Exn e) m
                                                end) ->
-        vrf i (x <-- e; e2 x) Q.
+        vrf i (bind e e2) Q.
 Proof.
 move=>H1 H2.
 apply/vrf_bind/(gE _ H1)=>y m Vm P _.
 by apply: H2.
 Qed.
 
-Arguments stepE [G A B s] g [i e e2 Q] _ _ _.
+Arguments stepE [G A B s] g [i e e2 Q] _ _.
 
 Notation "[stepE]" := (stepE tt) (at level 0).
 

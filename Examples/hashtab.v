@@ -35,12 +35,11 @@ Definition new_loopinv x := forall k,
 Program Definition new : STsep (emp, [vfun y => shape y (nil K V)]) :=
   Do (t <-- Array.new _ (KVmap.default buckets);
       Fix (fun (loop : new_loopinv t) k =>
-           Do (match decP (b := k < n) idP with
-               | left pf => b <-- KVmap.new buckets;
-                            Array.write t (Ordinal pf) b;;
-                            loop k.+1
-               | _ => ret t
-               end)) 0).
+           Do (if decP (b := k < n) idP is left pf then
+                 b <-- KVmap.new buckets;
+                 Array.write t (Ordinal pf) b;;
+                 loop k.+1
+               else ret t)) 0).
 Next Obligation.
 move=>/= arr loop k [] _ /= [Eleq][tab][h1][h2][-> H1]; case: decP; last first.
 - case: ltnP Eleq (eqn_leq k n)=>// _ -> /= /eqP Ek _ H.
@@ -78,11 +77,11 @@ Definition free_loopinv x := forall k,
 Program Definition free x : {s}, STsep (shape x s,
                                         [vfun _ : unit => emp]) :=
   Do (Fix (fun (loop : free_loopinv x) k =>
-          Do (match decP (b := k < n) idP with
-               | left pf => b <-- Array.read x (Ordinal pf);
-                            KVmap.free b;;
-                            loop k.+1
-               | _ => Array.free x end)) 0).
+          Do (if decP (b := k < n) idP is left pf then
+                b <-- Array.read x (Ordinal pf);
+                KVmap.free b;;
+                loop k.+1
+               else Array.free x)) 0).
 Next Obligation.
 move=>/= x loop k [] _ /= [Eleq][tf][bf][h1][h2][-> [H1 H2]]; case: decP; last first.
 - case: ltnP Eleq (eqn_leq k n)=>// _ -> /= /eqP Ek _ H.

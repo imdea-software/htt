@@ -61,7 +61,7 @@ Program Definition pop s :
                  match y with Val v => xs = v :: behead xs
                             | Exn e => e = EmptyStack /\ xs = [::] end) :=
   Do (hd <-- !s;
-      if (hd : ptr) == null then throw T EmptyStack
+      if (hd : ptr) == null then throw EmptyStack
       else
         x <-- !hd;
         next <-- !(hd .+ 1);
