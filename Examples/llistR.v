@@ -144,13 +144,13 @@ case: eqP H.
 - move=>->; case/(lseq_null V)=>->->/=.
   by step; rewrite addn0.
 move/eqP=>Hp; case/lseq_pos=>// x0 [r][h'][->] <- /= H1.
-step; rewrite joinA joinC.
-apply/vrf_frame/[gE (behead xs)]=>//=.
-case=>// y h2 _ [/eqP -> Hl] V2; split; first by rewrite -addnA add1n.
-by exists r, h2; split=>//; rewrite joinC joinA.
+step.
+apply: [gR (behead xs)] @ h'=>// _ h2 [/eqP -> Hl] /= _.
+split; first by rewrite -addnA add1n.
+by exists r, h2.
 Qed.
 Next Obligation.
-move=>p [xs []] i /= H; apply: vrfV=>V.
+move=>p [xs []] i /= H.
 by apply: [gE xs].
 Qed.
 
@@ -181,10 +181,10 @@ case: ifP H1=>[/eqP ->{r}|/negbT N] H1.
 - do 2![step]=>V.
   case/(lseq_null (validX V)): H1 E=>/=->->->/=.
   by rewrite unitR -joinA; exists p2, i2.
-rewrite !joinA !(pull i2) !(pull i) joinA.
-apply/vrf_frame/[gE (behead xs1), xs2]; first by split=>//; exists i, i2.
-by case=>//= [[]] m *; rewrite E !(pullk q.+ 1) !(pullk q); exists r, m.
-(* TODO: is there a better way to specify the frame than by explicit rewrites? *)
+rewrite -!joinA.
+apply: [gR (behead xs1), xs2] @ (i \+ i2)=>//=.
+- by split=>//; exists i, i2.
+by case=>m ??; rewrite E /=; exists r, m.
 Qed.
 Next Obligation.
 move=>p1 p2 [xs1][xs2][/= _ [i1][i2][-> H1 H2]].
@@ -249,12 +249,11 @@ case: ifP=>[X|/negbT X].
   by case: (lseq_null V P)=>->->; heval.
 
 (* 2. p != null ==> The list is non-empty. *)
-case/(lseq_pos X): P=>t [nxt][h'][->]Z/=P; rewrite -{}Z in V *.
+case/(lseq_pos X): P=>t [nxt][h'][-> <- /= P].
+heval.
 
 (* Decompose the list predicate *)
-rewrite joinA joinC in V *; heval.
-apply/vrf_frame/[gE (behead xs)]=>//=_ h2 _ Q V'.
-by rewrite joinC; exists nxt, h2; rewrite joinA.
+by apply/[gR (behead xs)] @ h'=>//= _ h2 Q V'; exists nxt, h2.
 Qed.
 
 End LList.

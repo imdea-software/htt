@@ -204,10 +204,9 @@ rewrite {Vh}Ei in H *; step; case: eqP.
 - move=>Ek; do 2!step; move=>_; split=>//.
   by rewrite Ef fnd_ins Ek eq_refl.
 move/eqP=>Ek; case: ifP=>Ho'.
-- step; rewrite !joinA joinC.
-  apply/vrf_frame/[gE (behd fm)]=>//=.
-  case=>// v0 h0' V0' [??] _ ; rewrite Ef; split.
-  - by rewrite joinC -!joinA; apply: shape_cons.
+- step.
+  apply/[gR (behd fm)] @ h'=>//= v0 h0' [??] _.
+  rewrite Ef; split; first by apply: shape_cons.
   by rewrite fnd_ins (negbTE Ek).
 move: (semiconnex Ek); rewrite {}Ho' orbC /= =>Ho'.
 step=>_; split=>//.

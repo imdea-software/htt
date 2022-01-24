@@ -65,8 +65,6 @@ Canonical Structure search_right h r (f : forall k, form k r) k :=
 (* Reflective lemmas that apply module AC-theory of heaps *)
 (**********************************************************)
 
-Section GhostR.
-
 (* a automated form of gE *)
 Lemma gR G A (s : spec G A) g i j (e : STspec G s)
           (f : forall k, form k j) (Q : post A) :
@@ -83,7 +81,34 @@ apply/vrf_frame/vrf_post/V.
 by case=>[x|ex] m Vm =>[/H2|/H3]; rewrite formE.
 Qed.
 
-End GhostR.
+Arguments gR [G A s] g i [j e f Q] _ _ _.
+
+Notation "[gR] @ i" := (gR tt i) (at level 0).
+
+Notation "[ 'gR' x1 , .. , xn ] @ i" :=
+  (gR (existT _ x1 .. (existT _ xn tt) ..) i)
+  (at level 0).
+
+(* vrf_bind + gR *)
+Lemma stepR G A B (s : spec G A) g i j (e : STspec G s) (e2 : A -> ST B)
+             (f : forall k, form k j) (Q : post B) :
+        (valid i -> (s g).1 i) ->
+        (forall x m, (s g).2 (Val x) m ->
+           valid (untag (f m)) -> vrf (f m) (e2 x) Q) ->
+        (forall x m, (s g).2 (Exn x) m ->
+           valid (untag (f m)) -> Q (Exn x) (f m)) ->
+        vrf (f i) (bind e e2) Q.
+Proof.
+move=>Hi H1 H2.
+by apply/vrf_bind/(gR _ _ Hi)=>[x|ex] m H V _; [apply: H1|apply: H2].
+Qed.
+
+Arguments stepR [G A B s] g i [j e e2 f Q] _ _ _.
+
+Notation "[stepR] @ i" := (stepR tt i) (at level 0).
+
+Notation "[ 'stepR' x1 , .. , xn ] @ i" :=
+  (stepR (existT _ x1 .. (existT _ xn tt) ..) i) (at level 0).
 
 (* We maintain three different kinds of lemmas *)
 (* in order to streamline the stepping *)
