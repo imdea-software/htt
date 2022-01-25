@@ -65,7 +65,7 @@ Canonical Structure search_right h r (f : forall k, form k r) k :=
 (* Reflective lemmas that apply module AC-theory of heaps *)
 (**********************************************************)
 
-(* a automated form of gE *)
+(* an automated form of gE *)
 Lemma gR G A (s : spec G A) g i j (e : STspec G s)
           (f : forall k, form k j) (Q : post A) :
         (valid i -> (s g).1 i) ->

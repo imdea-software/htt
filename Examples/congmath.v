@@ -531,7 +531,7 @@ Lemma join_use_metric (D : data) (a' b' : symb) :
 Proof.
 rewrite /join_use;  move E: (use D a')=>old_use.
 elim: old_use D E=>[|[[c c1] c2] old_use IH] D E H1 H2 H3 /=; first by rewrite addn0.
-move: (has_split_uniq H2 (uniq_reps D))=>[s1 [s2 [L1 [L2 L3]]]].
+move: (mem_split_uniq H2 (uniq_reps D))=>[s1 [s2 [L1 [L2 L3]]]].
 have L4 : undup (map (rep D) (enum predT)) = reps D by [].
 case: (fnd _ _)=>[[[d d1] d2]|]; last first.
 - rewrite IH //=; last by rewrite ffunE eq_refl E.
@@ -643,69 +643,69 @@ Definition similar1 D a' b' a b :=
 (* invariants tying use lists with the lookup table *)
 Definition use_lookup_inv D :=
   forall a c c1 c2, a \in reps D -> (c, c1, c2) \in use D a ->
-    exists d, exists d1, exists d2,
+    exists d d1 d2,
       fnd (rep D c1, rep D c2) (lookup D) = Some (d, d1, d2) /\
       rep D c1 = rep D d1 /\ rep D c2 = rep D d2 /\ similar D c d.
 
 Definition lookup_use_inv D :=
   forall a b d d1 d2,
     a \in reps D -> b \in reps D -> fnd (a, b) (lookup D) = Some (d, d1, d2) ->
-    [/\ exists c, exists c1, exists c2,
+    [/\ exists c c1 c2,
          (c, c1, c2) \in use D a /\ rep D c1 = a /\ rep D c2 = b /\ similar D c d &
-        exists c, exists c1, exists c2,
+        exists c c1 c2,
          (c, c1, c2) \in use D b /\ rep D c1 = a /\ rep D c2 = b /\ similar D c d].
 
 (* intermediary invariants after removing an equation from the pending list *)
 Definition use_lookup_inv1 D a' b' :=
   forall a c c1 c2, a \in reps D -> (c, c1, c2) \in use D a ->
-    exists d, exists d1, exists d2,
+    exists d d1 d2,
       fnd (rep D c1, rep D c2) (lookup D) = Some (d, d1, d2) /\
       rep D c1 = rep D d1 /\ rep D c2 = rep D d2 /\ similar1 D a' b' c d.
 
 Definition lookup_use_inv1 D a' b' :=
   forall a b d d1 d2,
     a \in reps D -> b \in reps D -> fnd (a, b) (lookup D) = Some (d, d1, d2) ->
-    [/\ exists c, exists c1, exists c2,
+    [/\ exists c c1 c2,
          (c, c1, c2) \in use D a /\ rep D c1 = a /\ rep D c2 = b /\ similar1 D a' b' c d &
-        exists c, exists c1, exists c2,
+        exists c c1 c2,
          (c, c1, c2) \in use D b /\ rep D c1 = a /\ rep D c2 = b /\ similar1 D a' b' c d].
 
 (* intermediary invariants after join_class and during join_use *)
 Definition use_lookup_inv2 D a' b' :=
   (forall c c1 c2, (c, c1, c2) \in use D a' ->
     [\/ rep D c1 = b' /\
-          exists d, exists d1, exists d2,
+          exists d d1 d2,
             fnd (a', rep D c2) (lookup D) = Some (d, d1, d2) /\
             rep D d1 = b' /\ rep D d2 = rep D c2 /\ similar D c d,
         rep D c2 = b' /\
-          exists d, exists d1, exists d2,
+          exists d d1 d2,
             fnd (rep D c1, a') (lookup D) = Some (d, d1, d2) /\
             rep D d1 = rep D c1 /\ rep D d2 = b' /\ similar D c d |
         rep D c1 = b' /\ rep D c2 = b' /\
-          exists d, exists d1, exists d2,
+          exists d d1 d2,
             fnd (a', a') (lookup D) = Some (d, d1, d2) /\
             rep D d1 = b' /\ rep D d2 = b' /\ similar D c d]) /\
   forall a c c1 c2, a \in reps D -> (c, c1, c2) \in use D a ->
     [\/ rep D c1 = a /\ rep D c2 = b' /\
-          (exists d, exists d1, exists d2,
+          (exists d d1 d2,
             (d, d1, d2) \in use D a' /\
             rep D d1 = a /\ rep D d2 = b' /\ similar D c d) /\
-          exists d, exists d1, exists d2,
+          exists d d1 d2,
             fnd (a, a') (lookup D) = Some (d, d1, d2) /\
             rep D d1 = a /\ rep D d2 = b' /\ similar D c d,
         rep D c1 = a /\
-          exists d, exists d1, exists d2,
+          exists d d1 d2,
             fnd (a, rep D c2) (lookup D) = Some (d, d1, d2) /\
             rep D d1 = a /\ rep D d2 = rep D c2 /\ similar D c d,
         rep D c1 = b' /\ rep D c2 = a /\
-          (exists d, exists d1, exists d2,
+          (exists d d1 d2,
             (d, d1, d2) \in use D a' /\
             rep D d1 = b' /\ rep D d2 = a /\ similar D c d) /\
-          exists d, exists d1, exists d2,
+          exists d d1 d2,
             fnd (a', a) (lookup D) = Some (d, d1, d2) /\
             rep D d1 = b' /\ rep D d2 = a /\ similar D c d |
         rep D c2 = a /\
-          exists d, exists d1, exists d2,
+          exists d d1 d2,
             fnd (rep D c1, a) (lookup D) = Some (d, d1, d2) /\
             rep D d1 = rep D c1 /\ rep D d2 = a /\ similar D c d].
 
@@ -713,17 +713,17 @@ Definition lookup_use_inv2 D a' b' :=
   forall d d1 d2,
     [/\ forall b, b \in reps D -> fnd (a', b) (lookup D) = Some (d, d1, d2) ->
         rep D d1 = b' /\
-        exists c, exists c1, exists c2,
+        exists c c1 c2,
           (c, c1, c2) \in use D b /\ rep D c1 = b' /\ rep D c2 = b /\ similar D c d,
         forall a, a \in reps D -> fnd (a, a') (lookup D) = Some (d, d1, d2) ->
         rep D d2 = b' /\
-        exists c, exists c1, exists c2,
+        exists c c1 c2,
           (c, c1, c2) \in use D a /\ rep D c1 = a /\ rep D c2 = b' /\ similar D c d &
         forall a b, a \in reps D -> b \in reps D ->
         fnd (a, b) (lookup D) = Some (d, d1, d2) ->
-        [/\ exists c, exists c1, exists c2,
+        [/\ exists c c1 c2,
               (c, c1, c2) \in use D a /\ rep D c1 = a  /\ rep D c2 = b /\ similar D c d &
-            exists c, exists c1, exists c2,
+            exists c c1 c2,
               (c, c1, c2) \in use D b /\ rep D c1 = a  /\ rep D c2 = b /\ similar D c d]].
 
 (* the invariant of the propagate routine *)
@@ -1270,10 +1270,10 @@ move=>T.
 case H: (a == a') H6 L1; [by rewrite (eqP H)=>-> | move=>{H} H6 L1].
 case H: (b == a') H7 L1; [by rewrite (eqP H)=>-> | move=>{H} H7 L1].
 have [S1 S2]:
-     [/\ exists e, exists e1, exists e2,
+     [/\ exists e e1 e2,
            (e, e1, e2) \in (c, c1, c2) :: use D a /\
            rep D e1 = a /\ rep D e2 = b /\ similar D' e d &
-         exists e, exists e1, exists e2,
+         exists e e1 e2,
            (e, e1, e2) \in (c, c1, c2) :: use D b /\
          rep D e1 = a /\ rep D e2 = b /\ similar D' e d].
 - case: eqP T=>[[->->][<- _ _]| _ H8].
