@@ -1,7 +1,7 @@
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq fintype tuple finfun finset.
 From fcsl Require Import axioms prelude pred ordtype finmap.
 From fcsl Require Import pcm unionmap heap.
-From HTT Require Import domain heap_extra model heapauto.
+From HTT Require Import domain model heapauto.
 From HTT Require Import array kvmaps.
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -10,7 +10,7 @@ Obligation Tactic := auto.
 
 Module HashTab.
 Section HashTab.
-Import FinIter.
+
 Variables (K : ordType) (V : Type) (buckets : KVmap.Sig K V)
           (n : nat) (hash : K -> 'I_n).
 Definition hashtab := {array 'I_n -> KVmap.tp buckets}.
@@ -48,8 +48,8 @@ move=>/= arr loop k [] _ /= [Eleq][tab][h1][h2][-> H1]; case: decP; last first.
   apply/tableP2: H=>//= x.
   by rewrite Ek !in_set ltn_ord.
 move=>Ho H2; rewrite -[h1 \+ h2]unitL.
-apply/[stepR] @ Unit=>//= b m Hm _.
-apply/[stepR tab] @ h1=>{H1}//= [[]] m2 [E2 V2] _.
+apply/[stepR] @ Unit=>//= b m Hm.
+apply/[stepR tab] @ h1=>{H1}//= [[]] m2 [E2 V2].
 apply/[gE]=>//=; split=>//; rewrite joinCA.
 exists [ffun z => if z == Ordinal Ho then b else tab z], m2, (m \+ h2); split=>//.
 rewrite (sepitS (Ordinal Ho)) in_set leqnn {1}/table ffunE eq_refl.
@@ -60,7 +60,7 @@ by move=>x _; rewrite in_set ffunE; case: eqP=>//->; rewrite ltnn.
 Qed.
 Next Obligation.
 move=>/= [] ? ->.
-apply: [stepE]=>//=; case=>//= y m _ [H Vm].
+apply: [stepE]=>//=; case=>//= y m [H Vm].
 apply: [gE]=>//=; split=>//.
 exists [ffun => KVmap.default buckets], m, Unit.
 do!split=>//=; first by rewrite unitR.
@@ -87,10 +87,10 @@ move=>/= x loop k [] _ /= [Eleq][tf][bf][h1][h2][-> [H1 H2]]; case: decP; last f
   apply: [gE]=>//=; exists tf; move: H.
   rewrite (eq_sepit (s2 := set0)); first by rewrite sepit0=>->; rewrite unitR.
   by move=>y; rewrite Ek in_set in_set0 leqNgt ltn_ord.
-move=>pf H; apply/[stepR tf, h1] @ h1=>//= _ _ [->->] _.
+move=>pf H; apply/[stepR tf, h1] @ h1=>//= _ _ [->->].
 move: H; rewrite (sepitS (Ordinal pf)) in_set leqnn /table.
 case=>h3[h4][{h2}-> H3 H4].
-apply/[stepR (bf (Ordinal pf))] @ h3=>//= [[]] _ -> _; rewrite unitL.
+apply/[stepR (bf (Ordinal pf))] @ h3=>//= [[]] _ ->; rewrite unitL.
 apply: [gE]=>//=; split=>//; exists tf, bf, h1, h4; split=>//.
 apply/tableP2/H4=>//.
 move=>z; rewrite !in_set; case: eqP=>/=.
@@ -112,10 +112,10 @@ Program Definition insert x k v : {s}, STsep (shape x s,
       ret x).
 Next Obligation.
 move=>/= x k v [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> [/= H1 _] H2]].
-apply/[stepR tf, h1] @ h1=>//= _ _ [->->] _.
+apply/[stepR tf, h1] @ h1=>//= _ _ [->->].
 move: H2; rewrite (sepitT1 (hash k)) /table; case=>h3[h4][{h2}-> H3 H4].
-apply/[stepR (bf (hash k))] @ h3=>//= b' m2 H' _.
-apply/[stepR tf] @ h1=>{H1}//= [[]] m3 [E3 V3] _.
+apply/[stepR (bf (hash k))] @ h3=>//= b' m2 H'.
+apply/[stepR tf] @ h1=>{H1}//= [[]] m3 [E3 V3].
 step=>_.
 exists [ffun z => if z == hash k then b' else tf z],
        (fun b => if b == hash k then ins k v (bf b) else bf b); split=>/=.
@@ -141,10 +141,10 @@ Program Definition remove x k :
       ret x).
 Next Obligation.
 move=>/= x k [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> [/= H1 _] H2]].
-apply/[stepR tf, h1] @ h1=>//= _ _ [->->] _.
+apply/[stepR tf, h1] @ h1=>//= _ _ [->->].
 move: H2; rewrite (sepitT1 (hash k)) /table; case=>h3[h4][{h2}-> H3 H4].
-apply/[stepR (bf (hash k))] @ h3=>//= b' m2 H' _.
-apply/[stepR tf] @ h1=>{H1}//= [[]] m3 [E3 V3] _.
+apply/[stepR (bf (hash k))] @ h3=>//= b' m2 H'.
+apply/[stepR tf] @ h1=>{H1}//= [[]] m3 [E3 V3].
 step=>_.
 exists [ffun z => if z == hash k then b' else tf z],
        (fun b => if b == hash k then rem k (bf b) else bf b); split=>/=.
@@ -167,7 +167,7 @@ Program Definition lookup x k :
       KVmap.lookup b k).
 Next Obligation.
 move=>/= x k [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> H1 H2]].
-apply/[stepR tf, h1] @ h1=>//= _ _ [->->] _.
+apply/[stepR tf, h1] @ h1=>//= _ _ [->->].
 move: H2; rewrite (sepitT1 (hash k)) /table; case=>h3[h4][{h2}-> H3 H4].
 apply/[gR (bf (hash k))] @ h3=>//= r m2 [H2 Hr] _; split; last by rewrite Hf.
 exists tf, bf; split=>//=; exists h1, (m2 \+ h4); split=>//.

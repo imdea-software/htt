@@ -1,7 +1,7 @@
 From mathcomp Require Import ssreflect ssrbool ssrfun ssrnat eqtype seq.
 From fcsl Require Import axioms pred prelude.
 From fcsl Require Import pcm unionmap heap.
-From HTT Require Import domain heap_extra.
+From HTT Require Import domain.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -986,7 +986,7 @@ Notation "[gE]" := (gE tt) (at level 0).
 
 Notation "[ 'gE' x1 , .. , xn ]" :=
   (gE (existT _ x1 .. (existT _ xn tt) ..))
-(at level 0, format "[ 'gE'  x1 ,  .. ,  xn ]").
+  (at level 0, format "[ 'gE'  x1 ,  .. ,  xn ]").
 
 (* vrf_bind + gE *)
 Lemma stepE G A B (s : spec G A) g i (e : STspec G s) (e2 : A -> ST B) (Q : post B) :
@@ -1008,7 +1008,7 @@ Notation "[stepE]" := (stepE tt) (at level 0).
 
 Notation "[ 'stepE' x1 , .. , xn ]" :=
   (stepE (existT _ x1 .. (existT _ xn tt) ..))
-(at level 0, format "[ 'stepE'  x1 ,  .. ,  xn ]").
+  (at level 0, format "[ 'stepE'  x1 ,  .. ,  xn ]").
 
 
 (* some notation for writing posts that signify no exceptions are raised *)

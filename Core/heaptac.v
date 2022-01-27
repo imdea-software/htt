@@ -23,7 +23,7 @@ Unset Printing Implicit Defensive.
 
 Section Cancellation.
 Implicit Type (h : heap).
-
+(*
 Lemma injUh A h1 h2 x (v1 v2 : A) :
         valid (h1 \+ (x :-> v1)) ->
         h1 \+ (x :-> v1) = h2 \+ (x :-> v2) ->
@@ -48,7 +48,7 @@ Qed.
 
 Lemma exit4 h : valid h -> h = h -> valid (Unit : heap) /\ Unit = Unit :> heap.
 Proof. by []. Qed.
-
+*)
 Lemma cexit1 h1 h2 h : h1 = h2 -> h1 \+ h = h \+ h2.
 Proof. by move=>->; rewrite joinC. Qed.
 
@@ -67,7 +67,7 @@ Proof. by move=>->. Qed.
 
 End Cancellation.
 
-
+(*
 Ltac cancelator t H :=
   match goal with
   (* we exit when we hit the terminator on the left *)
@@ -133,9 +133,9 @@ Ltac heap_cancel :=
        move: H {t}; rewrite /G {G})
   | |- _ => idtac
   end.
+*)
 
-
-(* Then cancelation in conclusions *)
+(* Cancelation in conclusions *)
 
 Ltac congruencer t :=
   match goal with

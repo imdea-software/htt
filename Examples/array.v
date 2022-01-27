@@ -1,7 +1,7 @@
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq fintype tuple finfun finset.
 From fcsl Require Import axioms prelude pred.
 From fcsl Require Import pcm unionmap heap.
-From HTT Require Import domain heap_extra model heapauto.
+From HTT Require Import domain model heapauto.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -116,7 +116,7 @@ by case: eqP=>[->|_] //; rewrite orbF; apply: H2.
 Qed.
 Next Obligation.
 move=>f [] _ ->; case: fintype.pickP=>[v|] H /=.
-- apply: vrf_bind=>/=; step=>x; rewrite unitR; step=>_ V.
+- apply: vrf_bind=>/=; step=>x; rewrite unitR; step=>V.
   apply: [gE]=>//=; exists [ffun => f v], nil; do!split=>//=.
   congr updi; rewrite codomE cardE.
   by elim: (enum I)=>//= ?? ->/=; rewrite ffunE.
@@ -176,7 +176,7 @@ End Array.
 (* array elements, such as hashtables *)
 
 Section Table.
-Import FinIter.
+
 Variables (I : finType) (T S : Type) (x : {array I -> T})
           (Ps : T -> S -> Pred heap).
 Definition table := fun (t : I -> T) (b : I -> S) (i:I) => Ps (t i) (b i).

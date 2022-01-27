@@ -2,7 +2,7 @@
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq.
 From fcsl Require Import axioms pred.
 From fcsl Require Import pcm unionmap heap automap.
-From HTT Require Import domain heap_extra model heapauto.
+From HTT Require Import domain model heapauto.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -44,7 +44,8 @@ Qed.
 Lemma lseg_neq (xs : seq A) p q h :
         p != q -> h \In lseg p q xs ->
         exists x r h',
-         [/\ xs = x :: behead xs, p :-> x \+ (p .+ 1 :-> r \+ h') = h &
+         [/\ xs = x :: behead xs,
+             p :-> x \+ (p .+ 1 :-> r \+ h') = h &
              h' \In lseg r q (behead xs)].
 Proof.
 case: xs=>[|x xs] /= H []; last by move=>y [h'][->] H1; hhauto.
@@ -67,9 +68,25 @@ case: xs=>[|x xs] /=; first by case=>->->; left.
 by case=>r [h'][->] H; right; hhauto.
 Qed.
 
+Lemma lseg_cat (xs ys : seq A) p q h :
+        h \In lseg p q (xs++ys) <->
+          exists j, h \In lseg p j xs # lseg j q ys.
+Proof.
+elim: xs h p=>/=.
+- move=>h p; split; first by move=>H; exists p, Unit, h; rewrite unitL.
+  by case=>j[_][h2][{h}-> [->->]]; rewrite unitL.
+move=>x xs IH h p; split.
+- case=>r[_][{h}-> /IH][j][h1][h2][-> H1 H2].
+  exists j, (p :-> x \+ p.+ 1 :-> r \+ h1), h2; rewrite !joinA; split=>//.
+  by exists r, h1; rewrite joinA.
+case=>j[_][h2][{h}-> [r][h1][-> H1 H2]].
+exists r, (h1 \+ h2); rewrite !joinA; split=>//.
+by apply/IH; exists j, h1, h2.
+Qed.
+
 End LSeg.
 
-(* Special case when p = null *)
+(* Special case when q = null *)
 Definition lseq {A} p (xs : seq A) := lseg p null xs.
 
 Section LList.
@@ -85,7 +102,8 @@ Lemma lseq_pos (xs : seq A) p h :
               p :-> x \+ (p .+ 1 :-> r \+ h') = h & h' \In lseq r (behead xs)].
 Proof. by apply: lseg_neq. Qed.
 
-Lemma lseq_func (l1 l2 : seq A) p h : valid h -> h \In lseq p l1 -> h \In lseq p l2 -> l1 = l2.
+Lemma lseq_func (l1 l2 : seq A) p h :
+        valid h -> h \In lseq p l1 -> h \In lseq p l2 -> l1 = l2.
 Proof.
 elim: l1 l2 p h => [|x1 xt IH] /= l2 p h V.
 - by case=>->->; case/lseq_null.
@@ -97,7 +115,10 @@ Qed.
 
 (* main methods *)
 
+Definition EmptyList : exn := exn_from_nat 100.
+
 (* prepending *)
+
 Program Definition insert p (x : A) :
   {l}, STsep (lseq p l, [vfun p' => lseq p' (x::l)]) :=
   Do (q <-- allocb p 2;
@@ -106,6 +127,28 @@ Program Definition insert p (x : A) :
 Next Obligation.
 move=>p x [l []] i /= H; step=>q.
 by rewrite unitR -joinA; heval.
+Qed.
+
+(* head *)
+
+Program Definition head p :
+  {l}, STsep (lseq p l,
+              fun (y : ans A) h => h \In lseq p l /\
+                if y is Val v then l = v :: behead l
+                  else y = Exn EmptyList /\ l = [::]) :=
+  Do (if p == null then throw EmptyList
+        else v <-- !p;
+             ret v).
+Next Obligation. by []. Qed.
+Next Obligation.
+move=>p [l [] i] /= H.
+case: ifP H.
+- move/eqP=>-> H.
+  step=>V; do!split=>//.
+  by case/lseq_null: H.
+move/negbT=>H'; case/(lseq_pos H')=>v [r][h1][E <- H1].
+do 2![step]=>_; split=>//.
+by rewrite E /=; exists r, h1.
 Qed.
 
 (* removing *)
@@ -147,7 +190,7 @@ step.
 apply: [gR (behead xs)] @ h'=>//= _ h2 [/eqP -> Hl] /= _.
 by rewrite -addnA add1n; eauto.
 Qed.
-Next Obligation. 
+Next Obligation.
 by move=>p [xs []] i H; apply: [gE xs].
 Qed.
 
@@ -179,9 +222,9 @@ case: ifP H1=>[/eqP ->{r}|/negbT N] H1.
   case/(lseq_null (validX V)): H1 E=>/=->->->/=.
   by rewrite unitR -joinA; exists p2, i2.
 rewrite -!joinA.
-apply: [gR (behead xs1), xs2] @ (i \+ i2)=>//=. 
+apply: [gR (behead xs1), xs2] @ (i \+ i2)=>//=.
 - by split=>//; exists i, i2.
-by case=>m ??; rewrite E /=; exists r, m.
+by move=>_ m ??; rewrite E /=; exists r, m.
 Qed.
 Next Obligation.
 move=>p1 p2 [xs1][xs2][/= _ [i1][i2][-> H1 H2]].
@@ -250,7 +293,7 @@ case/(lseq_pos X): P=>t [nxt][h'][-> <- /= P].
 heval.
 
 (* Decompose the list predicate *)
-by apply/[gR (behead xs)] @ h'=>//= _ h2 Q V'; eauto. 
+by apply/[gR (behead xs)] @ h'=>//= _ h2 Q V'; eauto.
 Qed.
 
 End LList.

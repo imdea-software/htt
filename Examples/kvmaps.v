@@ -6,7 +6,7 @@ From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype seq path.
 From fcsl Require Import axioms pred ordtype finmap.
 From fcsl Require Import pcm unionmap heap automap.
-From HTT Require Import interlude domain heap_extra model heapauto.
+From HTT Require Import interlude domain model heapauto.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -64,7 +64,7 @@ Fixpoint shape_seg' (x y : ptr) (xs : seq (K * V)) : Pred heap :=
   else [Pred h | x = y /\ h = Unit].
 
 Definition shape_seg (x y : ptr) (s : finMap K V) : Pred heap :=
-  shape_seg' x y (seq_of s).
+  shape_seg' x y (finmap.seq_of s).
 
 Definition shape' (x : ptr) (xs : seq (K * V)) : Pred heap :=
   shape_seg' x null xs.
@@ -107,7 +107,7 @@ Lemma shape_cons (s : fmap) p q h k v :
    (p :-> k \+ (p.+1 :-> v \+ (p.+2 :-> q \+ h))) \In shape p (ins k v s).
 Proof.
 move/all_path=>S H.
-suff: ins k v s = FinMap (seq_of := (k,v)::seq_of s) S by move=>->; exists q,h.
+suff: ins k v s = @FinMap _ _ ((k,v)::finmap.seq_of s) S by move=>->; exists q,h.
 rewrite fmapE /=; case: s {H}S=>/= xs ??.
 by rewrite last_ins'.
 Qed.
@@ -323,7 +323,7 @@ step; case: eqP.
 (* k <> k' *)
 move/eqP=>Ek; case: ifP=>Ho0.
 (* ord k' k, start recursing *)
-- step; apply: [stepE fm]=>/=; last by case=>//= [[]] ? _ ?; step.
+- step; apply: [stepE fm]=>/=; last by case=>//= [[]] ??; step.
   exists nil, (behd fm), k, v; do!split=>//.
   - by rewrite fcat_inss; [rewrite fcat0s|apply/notin_path/all_path].
   exists Unit, (entry x next k v \+ h'); do!split; first by rewrite /entry unitL !joinA.
@@ -463,7 +463,7 @@ step; case: eqP.
 (* k <> k' *)
 move/eqP=>Ek; case: ifP=>Ho0.
 (* ord k' k, start recursing *)
-- step; apply: [stepE fm]=>/=; last by case=>// [[]] /= ? _ ?; step.
+- step; apply: [stepE fm]=>/=; last by case=>// [[]] /= ??; step.
   exists nil, (behd fm), k, v; do!split=>//.
   - by rewrite fcat_inss; [rewrite fcat0s|apply/notin_path/all_path].
   exists Unit, (entry x next k v \+ h'); do!split; first by rewrite /entry unitL !joinA.
