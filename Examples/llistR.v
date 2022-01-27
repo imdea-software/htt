@@ -139,19 +139,16 @@ Program Definition len p :
                                  go (pnext, l + 1)))
       in len (p, 0)).
 Next Obligation.
-move=>_ ?? p l /= _ [xs []] i /= H; apply: vrfV=>V.
-case: eqP H.
-- move=>->; case/(lseq_null V)=>->->/=.
-  by step; rewrite addn0.
-move/eqP=>Hp; case/lseq_pos=>// x0 [r][h'][->] <- /= H1.
+move=>_ go ? p l /= _ [xs []] i /= H; apply: vrfV=>V.
+case: eqP H=>[->|/eqP Hp].
+- by case/(lseq_null V)=>->->/=; step; rewrite addn0.
+case/lseq_pos=>// x0 [r][h'][->] <- /= H1.
 step.
-apply: [gR (behead xs)] @ h'=>// _ h2 [/eqP -> Hl] /= _.
-split; first by rewrite -addnA add1n.
-by exists r, h2.
+apply: [gR (behead xs)] @ h'=>//= _ h2 [/eqP -> Hl] /= _.
+by rewrite -addnA add1n; eauto.
 Qed.
-Next Obligation.
-move=>p [xs []] i /= H.
-by apply: [gE xs].
+Next Obligation. 
+by move=>p [xs []] i H; apply: [gE xs].
 Qed.
 
 (* concatenation *)
@@ -182,7 +179,7 @@ case: ifP H1=>[/eqP ->{r}|/negbT N] H1.
   case/(lseq_null (validX V)): H1 E=>/=->->->/=.
   by rewrite unitR -joinA; exists p2, i2.
 rewrite -!joinA.
-apply: [gR (behead xs1), xs2] @ (i \+ i2)=>//=.
+apply: [gR (behead xs1), xs2] @ (i \+ i2)=>//=. 
 - by split=>//; exists i, i2.
 by case=>m ??; rewrite E /=; exists r, m.
 Qed.
@@ -190,7 +187,7 @@ Next Obligation.
 move=>p1 p2 [xs1][xs2][/= _ [i1][i2][-> H1 H2]].
 case: ifP H1=>[/eqP ->|/negbT N] H1.
 - by step=>V; case/(lseq_null (validL V)): H1=>->->; rewrite unitL.
-by apply: [stepE xs1, xs2]=>[|[] // [] m _ /= Hm]; heval.
+by apply: [stepE xs1, xs2]=>[|[] //= [] m Hm]; heval.
 Qed.
 
 

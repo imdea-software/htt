@@ -58,7 +58,7 @@ Arguments read [A] x.
 
 (* we need program to come first in the argument list
    so that automation can match on it *)
-Parameter vrf' : forall A, ST A -> heapPCM -> post A -> Prop.
+Parameter vrf' : forall A, ST A -> heap -> post A -> Prop.
 
 (* recover the usual [pre]prog[post] order with a notation *)
 Notation vrf i e Q := (vrf' e i Q).
@@ -77,15 +77,13 @@ Parameter vrf_throw : forall A e i (Q : post A),
             (valid i -> Q (Exn e) i) -> vrf i (throw e) Q.
 Parameter vrf_bind : forall A B (e1 : ST A) (e2 : A -> ST B) i (Q : post B),
             vrf i e1 (fun x m =>
-                        valid m ->
                         match x with
                         | Val x' => vrf m (e2 x') Q
-                        | Exn e => Q (Exn e) m
+                        | Exn e => valid m -> Q (Exn e) m
                         end) ->
             vrf i (bind e1 e2) Q.
 Parameter vrf_try : forall A B (e : ST A) (e1 : A -> ST B) (e2 : exn -> ST B) i (Q : post B),
             vrf i e (fun x m =>
-                       valid m ->
                        match x with
                        | Val x' => vrf m (e1 x') Q
                        | Exn ex => vrf m (e2 ex) Q
@@ -132,11 +130,12 @@ Parameter Fix : forall G A (B : A -> Type) (s : forall x : A, spec G (B x)),
 
 End VrfSig.
 
-Module Vrf : VrfSig.
 
 (********************************)
 (* Definition of the Hoare type *)
 (********************************)
+
+Module Vrf : VrfSig.
 
 Section BasePrograms.
 Variables (P : pre) (A : Type).
@@ -591,23 +590,19 @@ Definition bind := Prog bind_sfmono bind_dstrict bind_frame.
 
 Lemma vrf_bind i (Q : post B) :
         vrf i e1 (fun x m =>
-                    valid m ->
                     match x with
                     | Val x' => vrf m (e2 x') Q
-                    | Exn e => Q (Exn e) m
+                    | Exn e => valid m -> Q (Exn e) m
                     end) ->
         vrf i bind Q.
 Proof.
 move=>H Vi; case: (H Vi)=>Hi {}H /=.
 have Hi' : i \In bind_pre.
-- exists Vi, Hi=>x m Pm; set Vm := dstr_valid Pm.
-  by case: (H _ _ Pm Vm Vm).
-exists Hi'=>y j /= [x][m][Pm]C.
+- by exists Vi, Hi=>x m Pm; set Vm := dstr_valid Pm; case: (H _ _ Pm Vm).
+exists Hi'=>y j /= [x][m][Pm] C.
 rewrite (pf_irr Hi (bind_pre_proj Hi')) in H.
 case: x Pm C=>[x|e] Pm; set Vm := dstr_valid Pm; move: (H _ _ Pm Vm)=>{}H.
-- case=>Pm2 Pj;
-  case: (H Vm)=>Pm2'; apply.
-  by rewrite (pf_irr Pm2' Pm2).
+- by case=>Pm2 Pj; case: H=>Pm2'; apply; rewrite (pf_irr Pm2' Pm2).
 by case=>->->.
 Qed.
 
@@ -682,7 +677,6 @@ Definition try := Prog try_sfmono try_dstrict try_frame.
 
 Lemma vrf_try i (Q : post B) :
         vrf i e (fun x m =>
-                   valid m ->
                    match x with
                    | Val x' => vrf m (e1 x') Q
                    | Exn ex => vrf m (e2 ex) Q
@@ -692,11 +686,11 @@ Proof.
 move=>H Vi; case: (H Vi)=>pf {}H /=.
 have J : i \In try_pre.
 - exists Vi, pf; split=>x m Pm; set Vm := dstr_valid Pm;
-  by case: (H _ _ Pm Vm).
+  by case: (H _ _ Pm).
 exists J=>y j /= [x][m][Pm]F.
 rewrite (pf_irr pf (try_pre_proj J)) in H.
 case: x Pm F=>[x|ex] Pm [Hm Hj]; set Vm := dstr_valid Pm;
-case: (H _ _ Pm Vm Vm)=>pf''; apply;
+case: (H _ _ Pm Vm)=>pf''; apply;
 by rewrite (pf_irr pf'' Hm).
 Qed.
 
@@ -951,8 +945,10 @@ End Vrf.
 
 Export Vrf.
 
+
 Corollary vrf_mono A (e : ST A) i : monotone (vrf' e i).
 Proof. by move=>/= Q1 Q2 H; apply: vrf_post=>y m _; apply: H. Qed.
+
 
 (******************************************)
 (* Notation for logical variable postexts *)
@@ -990,19 +986,19 @@ Notation "[gE]" := (gE tt) (at level 0).
 
 Notation "[ 'gE' x1 , .. , xn ]" :=
   (gE (existT _ x1 .. (existT _ xn tt) ..))
-  (at level 0).
+(at level 0, format "[ 'gE'  x1 ,  .. ,  xn ]").
 
 (* vrf_bind + gE *)
 Lemma stepE G A B (s : spec G A) g i (e : STspec G s) (e2 : A -> ST B) (Q : post B) :
         (s g).1 i ->
-        (forall y m, valid m -> (s g).2 y m -> match y with
-                                               | Val x => vrf m (e2 x) Q
-                                               | Exn e => Q (Exn e) m
-                                               end) ->
+        (forall y m, (s g).2 y m -> match y with
+                                    | Val x => vrf m (e2 x) Q
+                                    | Exn e => valid m -> Q (Exn e) m
+                                    end) ->
         vrf i (bind e e2) Q.
 Proof.
 move=>H1 H2.
-apply/vrf_bind/(gE _ H1)=>y m Vm P _.
+apply/vrf_bind/(gE _ H1)=>y m Vm P.
 by apply: H2.
 Qed.
 
@@ -1011,7 +1007,9 @@ Arguments stepE [G A B s] g [i e e2 Q] _ _.
 Notation "[stepE]" := (stepE tt) (at level 0).
 
 Notation "[ 'stepE' x1 , .. , xn ]" :=
-  (stepE (existT _ x1 .. (existT _ xn tt) ..)) (at level 0).
+  (stepE (existT _ x1 .. (existT _ xn tt) ..))
+(at level 0, format "[ 'stepE'  x1 ,  .. ,  xn ]").
+
 
 (* some notation for writing posts that signify no exceptions are raised *)
 

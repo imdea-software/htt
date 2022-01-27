@@ -93,14 +93,15 @@ Notation "[ 'gR' x1 , .. , xn ] @ i" :=
 Lemma stepR G A B (s : spec G A) g i j (e : STspec G s) (e2 : A -> ST B)
              (f : forall k, form k j) (Q : post B) :
         (valid i -> (s g).1 i) ->
-        (forall x m, (s g).2 (Val x) m ->
-           valid (untag (f m)) -> vrf (f m) (e2 x) Q) ->
+        (forall x m, (s g).2 (Val x) m -> vrf (f m) (e2 x) Q) ->
         (forall x m, (s g).2 (Exn x) m ->
            valid (untag (f m)) -> Q (Exn x) (f m)) ->
         vrf (f i) (bind e e2) Q.
 Proof.
 move=>Hi H1 H2.
-by apply/vrf_bind/(gR _ _ Hi)=>[x|ex] m H V _; [apply: H1|apply: H2].
+apply/vrf_bind/(gR _ _ Hi)=>[x m H V|ex m H V _].
+- by apply: H1 H.
+by apply: H2.
 Qed.
 
 Arguments stepR [G A B s] g i [j e e2 f Q] _ _ _.
