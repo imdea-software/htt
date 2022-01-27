@@ -11,6 +11,7 @@ Examples/llist.v
 Examples/array.v
 Examples/queue.v
 Examples/stack.v
+Examples/dlist.v
 Examples/kvmaps.v
 Examples/hashtab.v
 Examples/congmath.v
