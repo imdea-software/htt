@@ -250,7 +250,7 @@ case/(lseq_pos X): P=>t [nxt][h'][-> <- /= P].
 heval.
 
 (* Decompose the list predicate *)
-by apply/[gR (behead xs)] @ h'=>//= _ h2 Q V'; exists nxt, h2.
+by apply/[gR (behead xs)] @ h'=>//= _ h2 Q V'; eauto. 
 Qed.
 
 End LList.
