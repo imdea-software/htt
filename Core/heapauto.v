@@ -1,7 +1,7 @@
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype seq ssrfun.
 From fcsl Require Import axioms pred prelude.
 From fcsl Require Import pcm unionmap heap.
-From HTT Require Import heaptac model.
+From HTT Require Import model.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Import Prenex Implicits.
@@ -14,6 +14,12 @@ Import Prenex Implicits.
 (* rule uniquely. The implemented automation picks out this rule, and     *)
 (* applies it, while using AC-theory of heaps to rearrange the goal, if   *)
 (* necessary for the rule to apply.                                       *)
+(*                                                                        *)
+(* Second, a tactic for canceling common terms in disjoint unions         *)
+(* Currently, it doesn't deal with weak pointers. I.e. only if it sees    *)
+(* terms like x :-> v1 and x :-> v2, it will reduce to v1 = v2            *)
+(* only if v1, v2 are of the same type. A more general tactic would emit  *)
+(* obligation dyn v1 = dyn v2, but I don't bother with this now.          *)
 (*                                                                        *)
 (**************************************************************************)
 
@@ -363,6 +369,88 @@ Canonical Structure try_throw_form A B e e1 e2 i r :=
   TryForm (@try_throwR A B e e1 e2 i r).
 
 Ltac step := (apply: hstep=>/=).
+
+(* This is really brittle, but I didn't get around yet to substitute it *)
+(* with Mtac or overloaded lemmas. So for now, let's stick with the hack *)
+(* in order to support the legacy proofs *)
+
+(* First cancelation in hypotheses *)
+
+Section Cancellation.
+Implicit Type (h : heap).
+
+Lemma cexit1 h1 h2 h : h1 = h2 -> h1 \+ h = h \+ h2.
+Proof. by move=>->; rewrite joinC. Qed.
+
+Lemma cexit2 h1 h : h1 = Unit -> h1 \+ h = h.
+Proof. by move=>->; rewrite unitL. Qed.
+
+Lemma cexit3 h1 h : Unit = h1 -> h = h \+ h1.
+Proof. by move=><-; rewrite unitR. Qed.
+
+Lemma congUh A h1 h2 x (v1 v2 : A) :
+        h1 = h2 -> v1 = v2 -> h1 \+ (x :-> v1) = h2 \+ (x :-> v2).
+Proof. by move=>-> ->. Qed.
+
+Lemma congeqUh h1 h2 h : h1 = h2 -> h1 \+ h = h2 \+ h.
+Proof. by move=>->. Qed.
+
+End Cancellation.
+
+(* Cancellation in conclusions *)
+
+Ltac congruencer t :=
+  match goal with
+  | |- ?h1 \+ t = ?h2 =>
+     let j := fresh "j" in
+     set j := {1}(h1 \+ t);
+     rewrite -1?joinA /j {j};
+     (apply: cexit1 || apply: cexit2)
+  | |- t = ?h2 =>
+     rewrite -1?joinA;
+     (apply: cexit3 || apply: refl_equal)
+  | |- (?h1 \+ (?x :-> ?v) = ?h2) =>
+    let j := fresh "j" in
+    set j := {1}(h1 \+ (x :-> v));
+    (* if x appears in the second union, first bring it to the back *)
+    rewrite 1?(joinC (x :-> _)) -?(joinAC _ _ (x :-> _)) /j {j};
+    (* then one of the following must apply *)
+    (* if x is in the second union then cancel *)
+    ((apply: congUh; [congruencer t | idtac]) ||
+    (* if not, rotate x in the first union *)
+     (rewrite (joinC h1) ?joinA; congruencer t))
+  (* if the heap is not a points-to relation, also try to cancel *)
+  | |- (?h1 \+ ?h = ?h2) =>
+    let j := fresh "j" in
+    set j := {1}(h1 \+ h);
+    (* if h appears in the second union, first bring it to the back *)
+    rewrite 1?(joinC h) -?(joinAC _ _ h) /j {j};
+    (* then one of the following must apply *)
+    (* if h is in the second union then cancel *)
+    (apply: congeqUh ||
+    (* if not, rotate h in the first union *)
+    rewrite (joinC h1) ?joinA);
+    (* and proceed *)
+    congruencer t
+  | |- _ => idtac
+  end.
+
+Ltac heap_congr :=
+  match goal with
+  | |- ?h1 = ?h2 =>
+    let t1 := fresh "t1" in
+    let t2 := fresh "t2" in
+    let t := fresh "t" in
+      set t1 := {1}h1; set t2 := {1}h2;
+      (* introduce terminators *)
+      rewrite -(unitL t1) -(unitL t2) [Unit]lock;
+      set t := locked Unit; rewrite /t1 /t2 {t1 t2};
+      (* flatten the goal *)
+      rewrite ?joinA;
+      (* call the congruence routine and remove the terminator *)
+      congruencer t=>{t}
+  | |- _ => idtac
+  end.
 
 (* we keep some tactics to kill final goals, which *)
 (* are usually full of existentials *)

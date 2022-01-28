@@ -4,7 +4,6 @@
 Core/interlude.v
 Core/domain.v
 Core/model.v
-Core/heaptac.v
 Core/heapauto.v
 Examples/exploit.v
 Examples/llist.v
