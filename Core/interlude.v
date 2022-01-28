@@ -1,13 +1,6 @@
-From Coq Require Import ssreflect ssrbool ssrfun Eqdep.
+From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat seq eqtype path.
-From fcsl Require Import axioms ordtype.
-From fcsl Require Import options.
-
-Lemma filter_predC1 {A : eqType} (x : A) (s : seq A) :
-        x \notin s -> filter (predC1 x) s = s.
-Proof.
-by move=>H; apply/all_filterP/allP=>y /=; case: eqP=>// ->; apply/contraL.
-Qed.
+From fcsl Require Import options axioms.
 
 Lemma mem_split {T : eqType} (x : T) (s : seq T) :
         x \in s -> exists s1 s2, s = s1 ++ [:: x] ++ s2.
@@ -48,12 +41,15 @@ move=>H Ha; apply/allrelP=>x y Hx Hy.
 by move/allrelP: Ha; apply=>//; apply: H.
 Qed.
 
-Lemma allrel_ord {S : ordType} (xs ys : seq S) z :
-  all (ord^~ z) xs -> all (ord z) ys -> allrel ord xs ys.
+Lemma allrel_trans {S : eqType} (xs ys : seq S) z r :
+  transitive r ->
+  all (r^~ z) xs -> all (r z) ys -> allrel r xs ys.
 Proof.
-move=>/allP Ha /allP Hp; apply/allrelP=>x y + Hy.
-by move/Ha/trans; apply; apply: Hp.
+move=>Ht /allP Ha /allP Hp; apply/allrelP=>x y + Hy.
+by move/Ha/Ht; apply; apply: Hp.
 Qed.
 
-Lemma path_all {S : ordType} (xs : seq S) x : path ord x xs -> all (ord x) xs.
-Proof. by rewrite path_sortedE; [case/andP | exact: trans]. Qed.
+Lemma path_all {S : Type} (xs : seq S) x r :
+  transitive r ->
+  path r x xs -> all (r x) xs.
+Proof. by move=>Ht; rewrite path_sortedE; [case/andP | exact: Ht]. Qed.

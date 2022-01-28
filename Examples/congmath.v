@@ -4,7 +4,7 @@
 
 From Coq Require Import Recdef.
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq bigop fintype finfun choice.
-From fcsl Require Import ordtype finmap pred.
+From fcsl Require Import prelude ordtype finmap pred.
 From HTT Require Import interlude.
 Set Implicit Arguments.
 Unset Strict Implicit.

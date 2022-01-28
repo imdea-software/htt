@@ -278,7 +278,7 @@ step; case: eqP.
   rewrite joinC; apply/shape_fcat/Hr'; last by apply: shape_seg_rcons.
   rewrite (allrel_in_l (xs':=k::supp fml) _); last by apply: supp_ins.
   rewrite allrel_consl path_all //=.
-  by apply/(allrel_ord (z:=k))/path_all.
+  by apply/(allrel_trans (z:=k))/path_all=>//; exact: trans.
 (* k <> k' *)
 move/eqP=>Ek; case: ifP=>Ho0.
 (* ord k' k, recursive call *)
@@ -303,7 +303,7 @@ step=>_; rewrite rem_supp.
   - by rewrite Efr; apply: shape_cons=>//; apply: path_all.
   rewrite (allrel_in_l (xs':=k::supp fml) _); last by apply: supp_ins.
   rewrite allrel_consl Or /=.
-  by apply/(allrel_ord (z:=k)).
+  by apply/(allrel_trans (z:=k))=>//; exact: trans.
 rewrite Efr supp_fcat !inE negb_or; apply/andP; split;
   rewrite supp_ins !inE negb_or; apply/andP; split=>//.
 by apply/notin_path/path_le/Or'.
@@ -402,7 +402,7 @@ case: eqP.
 (* cur <> null *)
 move/eqP=>Ec; case: (shape_cont Ec Hr)=>k'[v'][next][hr'][Efr Or' Ehr Hr'].
 rewrite {hr Hr Vh Ec}Ehr joinA joinC.
-move/all_path: (Or); rewrite {1}Efr; case/(path_supp_ins_inv (all_path Or'))/andP=>Ho' /path_all Or''.
+move/all_path: (Or); rewrite {1}Efr; case/(path_supp_ins_inv (all_path Or'))/andP=>Ho' /(path_all (@trans _)) Or''.
 step; case: eqP.
 (* k = k', exact key found, update *)
 - move=>Ek; do 2![step]=>_.
@@ -414,7 +414,7 @@ step; case: eqP.
   rewrite (allrel_in_r (ys':=k0::supp (behd fmr)) _ _); last by apply: supp_ins.
   rewrite allrel_consl allrel_consr /= Ho0 Or'' /=; apply/andP; split.
   - by apply/sub_all/Ol=>? /trans; apply.
-  by apply: (allrel_ord (z:=k)).
+  by apply: (allrel_trans (z:=k))=>//; exact: trans.
 (* k <> k' *)
 move/eqP=>Ek; case: ifP=>Ho'0.
 (* ord k' k, recursive call *)
@@ -444,7 +444,7 @@ rewrite (allrel_in_r (ys':=k0::k'::supp (behd fmr)) _ _); last first.
 rewrite allrel_consl !allrel_consr /= Ho0 Ho' Or'' /=; apply/and3P; split.
 - by apply/sub_all/Ol=>? /trans; apply.
 - by apply/sub_all/Ol=>? /trans; apply.
-by apply: (allrel_ord (z:=k)).
+by apply: (allrel_trans (z:=k))=>//; exact: trans.
 Qed.
 Next Obligation.
 move=>/= x k0 v0 [fm][]h /= H; apply: vrfV=>Vh.
