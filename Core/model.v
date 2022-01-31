@@ -284,9 +284,8 @@ Lemma prog_sup_frame u : frameable (prog_sup u).
 Proof.
 move=>i j Pi Vij Pij y m [e][He]Pe.
 have Pi' := Pi e He; have Pij' := Pij e He.
-have P := fr_st Pi' Vij Pij' y m.
 move: Pe; rewrite (pf_irr (pre_sup_leq He Pij) Pij').
-case/P=>h [{m P}-> Vhj Ph].
+case/(fr_st Pi' Vij Pij')=>h [{m}-> Vhj Ph].
 exists h; split=>//; exists e, He.
 by rewrite (pf_irr (pre_sup_leq He Pi) Pi').
 Qed.
@@ -434,9 +433,14 @@ Qed.
 
 Definition Fix : tp := tarski_lfp f'.
 
+(* fixed point constructor which requires explicit proof of monotonicity *)
+Definition Fix' (pf : monotone (f : lat -> lat)) : tp :=
+  tarski_lfp (f : lat -> lat).
+
 End Fix.
 
 Arguments Fix [G A B s] f x.
+Arguments Fix' [G A B s] f pf x.
 
 Section VrfLemmas.
 Variables (A : Type) (e : ST A).
@@ -940,6 +944,113 @@ by move: Hx; rewrite domPtUnE validPtUn; case/and3P.
 Qed.
 
 End Deallocation.
+
+(* Monotonicity of the constructors *)
+
+Section Monotonicity.
+
+Variables (A B : Type).
+
+Lemma do_mono G (e1 e2 : ST A) (s : spec G A)
+        (pf1 : has_spec s e1) (pf2 : has_spec s e2) :
+        e1 <== e2 -> @STprog _ _ _ e1 pf1 <== @STprog _ _ _ e2 pf2.
+Proof. by []. Qed.
+
+Lemma bind_mono (e1 e2 : ST A) (k1 k2 : A -> ST B) :
+        e1 <== e2 -> k1 <== k2 -> (bind e1 k1 : ST B) <== bind e2 k2.
+Proof.
+move=>[H1 H2] pf2.
+have pf: bind_pre e2 k2 <== bind_pre e1 k1.
+- move=>h [Vh][Pi] H.
+  exists Vh, (H1 _ Pi)=>x m /H2/H H'.
+  by case: (pf2 x)=>+ _; apply.
+exists pf=>i Vi /[dup][[Vi'][Pi']P'] Pi x h.
+case; case=>[a|e][h0][Ph][Ph'] H.
+- exists (Val a), h0.
+  move: (H2 i Vi (bind_pre_proj Pi))=>H'.
+  rewrite (pf_irr (H1 i (bind_pre_proj Pi)) (bind_pre_proj (pf i Pi))) in H'.
+  have Ph0 := (H' _ _ Ph); exists Ph0.
+  move: (P' a h0); rewrite (pf_irr Vi' Vi) (pf_irr Pi' (bind_pre_proj Pi))=>H''.
+  exists (H'' Ph0); case: (pf2 a)=>Pr; apply.
+  by rewrite (pf_irr (dstr_valid Ph0) (dstr_valid Ph)) (pf_irr (Pr h0 (H'' Ph0)) Ph').
+rewrite Ph' H; exists (Exn e), h0.
+move: (H2 i Vi (bind_pre_proj Pi))=>H'.
+rewrite (pf_irr (H1 i (bind_pre_proj Pi)) (bind_pre_proj (pf i Pi))) in H'.
+by exists (H' _ _ Ph).
+Qed.
+
+Lemma try_mono (e1 e2 : ST A) (k1 k2 : A -> ST B) (h1 h2 : exn -> ST B) :
+        e1 <== e2 -> k1 <== k2 -> h1 <== h2 ->
+        (try e1 k1 h1 : ST B) <== try e2 k2 h2.
+Proof.
+move=>[H1 H2] pf2 pf3.
+have pf: try_pre e2 k2 h2 <== try_pre e1 k1 h1.
+- move=>h [Vh][Pi] [Hk Hn].
+  exists Vh, (H1 _ Pi); split.
+  - move=>x m /H2/Hk H'.
+    by case: (pf2 x)=>+ _; apply.
+  move=>ex m /H2/Hn H'.
+  by case: (pf3 ex)=>+ _; apply.
+exists pf =>i Vi /[dup][[Vi'][Pi'][Pk0 Ph0]] Pi x h.
+case; case=>[a|e][h0][Ph][Ph'] H.
+- exists (Val a), h0.
+  move: (H2 i Vi (try_pre_proj Pi))=>H'.
+  rewrite (pf_irr (H1 i (try_pre_proj Pi)) (try_pre_proj (pf i Pi))) in H'.
+  have Ph1 := (H' _ _ Ph); exists Ph1.
+  move: (Pk0 a h0); rewrite (pf_irr Vi' Vi) (pf_irr Pi' (try_pre_proj Pi))=>H''.
+  exists (H'' Ph1); case: (pf2 a)=>Pr; apply.
+  by rewrite (pf_irr (dstr_valid Ph1) (dstr_valid Ph)) (pf_irr (Pr h0 (H'' Ph1)) Ph').
+exists (Exn e), h0.
+move: (H2 i Vi (try_pre_proj Pi))=>H'.
+rewrite (pf_irr (H1 i (try_pre_proj Pi)) (try_pre_proj (pf i Pi))) in H'.
+have Ph1 := (H' _ _ Ph); exists Ph1.
+move: (Ph0 e h0); rewrite (pf_irr Vi' Vi) (pf_irr Pi' (try_pre_proj Pi))=>H''.
+exists (H'' Ph1); case: (pf3 e)=>Pr; apply.
+by rewrite (pf_irr (dstr_valid Ph1) (dstr_valid Ph)) (pf_irr (Pr h0 (H'' Ph1)) Ph').
+Qed.
+
+(* the rest of the  constructors are trivial *)
+Lemma ret_mono (v1 v2 : A) :
+        v1 = v2 -> (ret v1 : ST A) <== ret v2.
+Proof. by move=>->. Qed.
+
+Lemma throw_mono (e1 e2 : exn) :
+        e1 = e2 -> (throw A e1 : ST A) <== throw A e2.
+Proof. by move=>->. Qed.
+
+Lemma read_mono (p1 p2 : ptr) :
+        p1 = p2 -> (read A p1 : ST A) <== read A p2.
+Proof. by move=>->. Qed.
+
+Lemma write_mono (p1 p2 : ptr) (x1 x2 : A) :
+        p1 = p2 -> x1 = x2 -> (write p1 x1 : ST unit) <== write p2 x2.
+Proof. by move=>->->. Qed.
+
+Lemma alloc_mono (x1 x2 : A) :
+        x1 = x2 -> (alloc x1 : ST ptr) <== alloc x2.
+Proof. by move=>->. Qed.
+
+Lemma allocb_mono (x1 x2 : A) (n1 n2 : nat) :
+        x1 = x2 -> n1 = n2 -> (allocb x1 n1 : ST ptr) <== allocb x2 n2.
+Proof. by move=>->->. Qed.
+
+Lemma dealloc_mono (p1 p2 : ptr) :
+        p1 = p2 -> (dealloc p1 : ST unit) <== dealloc p2.
+Proof. by move=>->. Qed.
+
+Variables (G : Type) (C : A -> Type) (s : forall x, spec G (C x)).
+Notation lat := (dfunLattice (fun x => [lattice of STspec (s x)])).
+
+Lemma fix_mono (f1 f2 : lat -> lat) : f1 <== f2 -> (Fix f1 : lat) <== Fix f2.
+Proof.
+move=>Hf; apply: tarski_lfp_mono.
+- move=>x1 x2 Hx; apply: supM=>z [x][H ->]; apply: supP; exists x.
+  by split=>//; apply: poset_trans H Hx.
+move=>y; apply: supM=>_ [x][H1 ->].
+by apply: poset_trans (Hf x) _; apply: supP; exists x.
+Qed.
+
+End Monotonicity.
 
 End Vrf.
 
