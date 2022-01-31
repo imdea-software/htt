@@ -1,8 +1,8 @@
 From mathcomp Require Import ssreflect ssrbool ssrfun eqtype seq.
 From fcsl Require Import axioms pred.
 From fcsl Require Import pcm unionmap heap.
-From HTT Require Import domain heap_extra model heapauto.
-From HTT Require Import llistR.
+From HTT Require Import domain model heapauto.
+From HTT Require Import llist.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -61,7 +61,7 @@ Program Definition pop s :
                  match y with Val v => xs = v :: behead xs
                             | Exn e => e = EmptyStack /\ xs = [::] end) :=
   Do (hd <-- !s;
-      if (hd : ptr) == null then throw T EmptyStack
+      if (hd : ptr) == null then throw EmptyStack
       else
         x <-- !hd;
         next <-- !(hd .+ 1);

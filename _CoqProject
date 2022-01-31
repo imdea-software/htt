@@ -2,16 +2,15 @@
 -arg "-w -notation-overridden,-local-declaration,-redundant-canonical-projection,-projection-no-head-constant"
 
 Core/interlude.v
-Core/heap_extra.v
 Core/domain.v
 Core/model.v
-Core/heaptac.v
 Core/heapauto.v
 Examples/exploit.v
-Examples/llistR.v
+Examples/llist.v
 Examples/array.v
 Examples/queue.v
 Examples/stack.v
+Examples/dlist.v
 Examples/kvmaps.v
 Examples/hashtab.v
 Examples/congmath.v

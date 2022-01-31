@@ -1,13 +1,13 @@
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype seq ssrfun.
 From fcsl Require Import axioms pred prelude.
 From fcsl Require Import pcm unionmap heap.
-From HTT Require Import heaptac model.
+From HTT Require Import model.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Import Prenex Implicits.
 
 (**************************************************************************)
-(* This file implements two different automations related to Hoare logic. *)
+(* This file implements automations related to Hoare logic.               *)
 (*                                                                        *)
 (* First automation concerns selection of Hoare-style rule for symbolic   *)
 (* evaluation. The first command of the program determines the applicable *)
@@ -15,9 +15,12 @@ Import Prenex Implicits.
 (* applies it, while using AC-theory of heaps to rearrange the goal, if   *)
 (* necessary for the rule to apply.                                       *)
 (*                                                                        *)
-(* Second automation concerns pulling ghost variables out of a Hoare      *)
-(* type. The non-automated lemmas do this pulling one variable at a       *)
-(* time. The automation pulls all the variable at once.                   *)
+(* Second, a tactic for canceling common terms in disjoint unions         *)
+(* Currently, it doesn't deal with weak pointers. I.e. only if it sees    *)
+(* terms like x :-> v1 and x :-> v2, it will reduce to v1 = v2            *)
+(* only if v1, v2 are of the same type. A more general tactic would emit  *)
+(* obligation dyn v1 = dyn v2, but I don't bother with this now.          *)
+(*                                                                        *)
 (**************************************************************************)
 
 (****************************************************************)
@@ -65,26 +68,52 @@ Canonical Structure search_right h r (f : forall k, form k r) k :=
 (* Reflective lemmas that apply module AC-theory of heaps *)
 (**********************************************************)
 
-Section EvalDoR.
-Variables (G A B : Type) (s : spec G A).
-
-(* a automated form of gE (is it useful?) *)
-Lemma gR g i j (e : STspec s) (f : forall k, form k j) (r : post A) :
+(* an automated form of vrf_frame + gE *)
+Lemma gR G A (s : spec G A) g i j (e : STspec G s)
+          (f : forall k, form k j) (Q : post A) :
         (valid i -> (s g).1 i) ->
         (forall x m, (s g).2 (Val x) m ->
-           valid (untag (f m)) -> r (Val x) (f m)) ->
+           valid (untag (f m)) -> Q (Val x) (f m)) ->
         (forall x m, (s g).2 (Exn x) m ->
-           valid (untag (f m)) -> r (Exn x) (f m)) ->
-        vrf (f i) e r.
+           valid (untag (f m)) -> Q (Exn x) (f m)) ->
+        vrf (f i) e Q.
 Proof.
 case: e=>e /= H H1 H2 H3; rewrite formE.
-apply: vrf_frame=>V; move: (H1 V)=>/H [P M].
-exists P; case=>[x|ex] m /M.
-- by move: (H2 x m); rewrite formE.
-by move: (H3 ex m); rewrite formE.
+apply: vrfV=>/validL/H1/H V.
+apply/vrf_frame/vrf_post/V.
+by case=>[x|ex] m Vm =>[/H2|/H3]; rewrite formE.
 Qed.
 
-End EvalDoR.
+Arguments gR [G A s] g i [j e f Q] _ _ _.
+
+Notation "[gR] @ i" := (gR tt i) (at level 0).
+
+Notation "[ 'gR' x1 , .. , xn ] @ i" :=
+  (gR (existT _ x1 .. (existT _ xn tt) ..) i)
+  (at level 0, format "[ 'gR'  x1 ,  .. ,  xn ] @  i").
+
+(* vrf_bind + gR *)
+Lemma stepR G A B (s : spec G A) g i j (e : STspec G s) (e2 : A -> ST B)
+             (f : forall k, form k j) (Q : post B) :
+        (valid i -> (s g).1 i) ->
+        (forall x m, (s g).2 (Val x) m -> vrf (f m) (e2 x) Q) ->
+        (forall x m, (s g).2 (Exn x) m ->
+           valid (untag (f m)) -> Q (Exn x) (f m)) ->
+        vrf (f i) (bind e e2) Q.
+Proof.
+move=>Hi H1 H2.
+apply/vrf_bind/(gR _ _ Hi)=>[x m H V|ex m H V _].
+- by apply: H1 H.
+by apply: H2.
+Qed.
+
+Arguments stepR [G A B s] g i [j e e2 f Q] _ _ _.
+
+Notation "[stepR] @ i" := (stepR tt i) (at level 0).
+
+Notation "[ 'stepR' x1 , .. , xn ] @ i" :=
+  (stepR (existT _ x1 .. (existT _ xn tt) ..) i)
+  (at level 0, format "[ 'stepR'  x1 ,  .. ,  xn ] @  i").
 
 (* We maintain three different kinds of lemmas *)
 (* in order to streamline the stepping *)
@@ -129,17 +158,17 @@ Variables (A B : Type).
 
 Lemma val_readR v x i (f : form (x :-> v) i) (r : post A) :
         (valid (untag f) -> r (Val v) f) ->
-        vrf f (read A x) r.
+        vrf f (read x) r.
 Proof. by rewrite formE; apply: vrf_read. Qed.
 
 Lemma try_readR e1 e2 v x i (f : form (x :-> v) i) (r : post B) :
         vrf f (e1 v) r ->
-        vrf f (try (read A x) e1 e2) r.
+        vrf f (try (@read A x) e1 e2) r.
 Proof. by move=>H; apply/vrf_try/val_readR. Qed.
 
 Lemma bnd_readR e v x i (f : form (x :-> v) i) (r : post B) :
         vrf f (e v) r ->
-        vrf f (bind (read A x) e) r.
+        vrf f (bind (@read A x) e) r.
 Proof. by move=>H; apply/vrf_bind/val_readR. Qed.
 
 End EvalReadR.
@@ -231,12 +260,12 @@ Definition val_throwR := vrf_throw.
 
 Lemma try_throwR e e1 e2 i (r : post B) :
         vrf i (e2 e) r ->
-        vrf i (try (throw A e) e1 e2) r.
+        vrf i (try (@throw A e) e1 e2) r.
 Proof. by move=>H; apply/vrf_try/val_throwR. Qed.
 
 Lemma bnd_throwR e e1 i (r : post B) :
         (valid i -> r (Exn e) i) ->
-        vrf i (bind (throw A e) e1) r.
+        vrf i (bind (@throw A e) e1) r.
 Proof. by move=>H; apply/vrf_bind/val_throwR. Qed.
 
 End EvalThrowR.
@@ -341,66 +370,87 @@ Canonical Structure try_throw_form A B e e1 e2 i r :=
 
 Ltac step := (apply: hstep=>/=).
 
-(* Second automation *)
-(*
-(**************************************************************************)
-(* A simple canonical structure program to automate applying ghE and gh.  *)
-(*                                                                        *)
-(* The gh_form pivots on a spec, and computes as output the following.    *)
-(* - rT is a product of types of all encounted ghost vars.                *)
-(* - p and q are pre and post parametrized by rT that should be output by *)
-(*   the main lemma.                                                      *)
-(*                                                                        *)
-(* In the future, rT should be a list of types, rather than a product,    *)
-(* but that leads to arity polimorphism, and dependent programming, which *)
-(* I want to avoid for now.                                               *)
-(**************************************************************************)
+(* This is really brittle, but I didn't get around yet to substitute it *)
+(* with Mtac or overloaded lemmas. So for now, let's stick with the hack *)
+(* in order to support the legacy proofs *)
 
-Section Automation.
-Structure tagged_spec A := gh_step {gh_untag :> spec A}.
-Canonical Structure gh_base A (s : spec A) := gh_step s.
+(* First cancelation in hypotheses *)
 
-Definition gh_axiom A rT p q (pivot : tagged_spec A) :=
-  gh_untag pivot = logvar (fun x : rT => binarify (p x) (q x)).
+Section Cancellation.
+Implicit Type (h : heap).
 
-Structure gh_form A rT (p : rT -> pre) (q : rT -> post A) := GhForm {
-   gh_pivot :> tagged_spec A;
-   _ : gh_axiom p q gh_pivot}.
+Lemma cexit1 h1 h2 h : h1 = h2 -> h1 \+ h = h \+ h2.
+Proof. by move=>->; rewrite joinC. Qed.
 
-(* the main lemma that automates the applications of ghE and gh *)
+Lemma cexit2 h1 h : h1 = Unit -> h1 \+ h = h.
+Proof. by move=>->; rewrite unitL. Qed.
 
-Lemma ghR A e rT p q (f : @gh_form A rT p q) :
-        (forall i x, p x i -> valid i -> vrf i e (q x)) ->
-        conseq e f.
-Proof. by case: f=>p' ->; apply: gh. Qed.
+Lemma cexit3 h1 h : Unit = h1 -> h = h \+ h1.
+Proof. by move=><-; rewrite unitR. Qed.
 
-(* base case; check if we reached binarify *)
+Lemma congUh A h1 h2 x (v1 v2 : A) :
+        h1 = h2 -> v1 = v2 -> h1 \+ (x :-> v1) = h2 \+ (x :-> v2).
+Proof. by move=>-> ->. Qed.
 
-Lemma gh_base_pf A rT (p : rT -> pre) (q : rT -> post A) :
-        gh_axiom p q (gh_base (logvar (fun x => binarify (p x) (q x)))).
-Proof. by []. Qed.
+Lemma congeqUh h1 h2 h : h1 = h2 -> h1 \+ h = h2 \+ h.
+Proof. by move=>->. Qed.
 
-Canonical gh_base_struct A rT p q := GhForm (@gh_base_pf A rT p q).
+End Cancellation.
 
-(* inductive case; merge adjacent logvars and continue *)
+(* Cancellation in conclusions *)
 
-Lemma gh_step_pf A B rT p q (f : forall x : A, @gh_form B rT (p x) (q x)) :
-        gh_axiom (fun xy => p xy.1 xy.2) (fun xy => q xy.1 xy.2)
-                 (gh_step (logvar (fun x => f x))).
-Proof.
-congr (_, _).
-- apply: fext=>i; apply: pext; split.
-  - by case=>x; case: (f x)=>[_ ->] /= [y H]; exists (x, y).
-  by case; case=>x y; exists x; case: (f x)=>[_ ->]; exists y.
-apply: fext=>y; apply: fext=>i; apply: fext=>m; apply: pext; split.
-- by move=>H [x z] /= H1; case: (f x) (H x)=>[_ ->]; apply.
-by move=>H x; case: (f x)=>[_ ->] z; apply: (H (x, z)).
-Qed.
+Ltac congruencer t :=
+  match goal with
+  | |- ?h1 \+ t = ?h2 =>
+     let j := fresh "j" in
+     set j := {1}(h1 \+ t);
+     rewrite -1?joinA /j {j};
+     (apply: cexit1 || apply: cexit2)
+  | |- t = ?h2 =>
+     rewrite -1?joinA;
+     (apply: cexit3 || apply: refl_equal)
+  | |- (?h1 \+ (?x :-> ?v) = ?h2) =>
+    let j := fresh "j" in
+    set j := {1}(h1 \+ (x :-> v));
+    (* if x appears in the second union, first bring it to the back *)
+    rewrite 1?(joinC (x :-> _)) -?(joinAC _ _ (x :-> _)) /j {j};
+    (* then one of the following must apply *)
+    (* if x is in the second union then cancel *)
+    ((apply: congUh; [congruencer t | idtac]) ||
+    (* if not, rotate x in the first union *)
+     (rewrite (joinC h1) ?joinA; congruencer t))
+  (* if the heap is not a points-to relation, also try to cancel *)
+  | |- (?h1 \+ ?h = ?h2) =>
+    let j := fresh "j" in
+    set j := {1}(h1 \+ h);
+    (* if h appears in the second union, first bring it to the back *)
+    rewrite 1?(joinC h) -?(joinAC _ _ h) /j {j};
+    (* then one of the following must apply *)
+    (* if h is in the second union then cancel *)
+    (apply: congeqUh ||
+    (* if not, rotate h in the first union *)
+    rewrite (joinC h1) ?joinA);
+    (* and proceed *)
+    congruencer t
+  | |- _ => idtac
+  end.
 
-Canonical gh_step_struct A B rT p q f := GhForm (@gh_step_pf A B rT p q f).
-
-End Automation.
-*)
+Ltac heap_congr :=
+  match goal with
+  | |- ?h1 = ?h2 =>
+    let t1 := fresh "t1" in
+    let t2 := fresh "t2" in
+    let t := fresh "t" in
+      set t1 := {1}h1; set t2 := {1}h2;
+      (* introduce terminators *)
+      rewrite -(unitL t1) -(unitL t2) [Unit]lock;
+      set t := locked Unit; rewrite /t1 /t2 {t1 t2};
+      (* flatten the goal *)
+      rewrite ?joinA;
+      (* call the congruence routine and remove the terminator *)
+      congruencer t=>{t}
+  | |- _ => idtac
+  end.
 
 (* we keep some tactics to kill final goals, which *)
 (* are usually full of existentials *)

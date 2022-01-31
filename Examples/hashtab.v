@@ -1,7 +1,7 @@
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq fintype tuple finfun finset.
 From fcsl Require Import axioms prelude pred ordtype finmap.
 From fcsl Require Import pcm unionmap heap.
-From HTT Require Import domain heap_extra model heapauto.
+From HTT Require Import domain model heapauto.
 From HTT Require Import array kvmaps.
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -10,7 +10,7 @@ Obligation Tactic := auto.
 
 Module HashTab.
 Section HashTab.
-Import FinIter.
+
 Variables (K : ordType) (V : Type) (buckets : KVmap.Sig K V)
           (n : nat) (hash : K -> 'I_n).
 Definition hashtab := {array 'I_n -> KVmap.tp buckets}.
@@ -35,12 +35,11 @@ Definition new_loopinv x := forall k,
 Program Definition new : STsep (emp, [vfun y => shape y (nil K V)]) :=
   Do (t <-- Array.new _ (KVmap.default buckets);
       Fix (fun (loop : new_loopinv t) k =>
-           Do (match decP (b := k < n) idP with
-               | left pf => b <-- KVmap.new buckets;
-                            Array.write t (Ordinal pf) b;;
-                            loop k.+1
-               | _ => ret t
-               end)) 0).
+           Do (if decP (b := k < n) idP is left pf then
+                 b <-- KVmap.new buckets;
+                 Array.write t (Ordinal pf) b;;
+                 loop k.+1
+               else ret t)) 0).
 Next Obligation.
 move=>/= arr loop k [] _ /= [Eleq][tab][h1][h2][-> H1]; case: decP; last first.
 - case: ltnP Eleq (eqn_leq k n)=>// _ -> /= /eqP Ek _ H.
@@ -48,12 +47,11 @@ move=>/= arr loop k [] _ /= [Eleq][tab][h1][h2][-> H1]; case: decP; last first.
   exists tab, (fun _:'I_n => nil K V); split=>//; exists h1, h2; do!split=>//.
   apply/tableP2: H=>//= x.
   by rewrite Ek !in_set ltn_ord.
-move=>Ho; rewrite -[h1 \+ h2]unitL=>H2.
-apply/vrf_bind/vrf_frame/[gE]=>//; case=>//= b m _ Hm Vs _.
-rewrite joinCA; apply/vrf_bind/vrf_frame/[gE tab]=>//=.
-case=>//= [[]] m2 _ {H1}[E2 V2] _ _.
-apply/[gE]=>//=; split=>//.
-exists [ffun z => if z == Ordinal Ho then b else tab z], m2, (m \+ h2); do!split=>//.
+move=>Ho H2; rewrite -[h1 \+ h2]unitL.
+apply/[stepR] @ Unit=>//= b m Hm.
+apply/[stepR tab] @ h1=>{H1}//= [[]] m2 [E2 V2].
+apply/[gE]=>//=; split=>//; rewrite joinCA.
+exists [ffun z => if z == Ordinal Ho then b else tab z], m2, (m \+ h2); split=>//.
 rewrite (sepitS (Ordinal Ho)) in_set leqnn {1}/table ffunE eq_refl.
 exists m, h2; do!split=>//.
 apply: tableP2 H2=>//.
@@ -62,7 +60,7 @@ by move=>x _; rewrite in_set ffunE; case: eqP=>//->; rewrite ltnn.
 Qed.
 Next Obligation.
 move=>/= [] ? ->.
-apply: [stepE]=>//=; case=>//= y m _ [H Vm].
+apply: [stepE]=>//=; case=>//= y m [H Vm].
 apply: [gE]=>//=; split=>//.
 exists [ffun => KVmap.default buckets], m, Unit.
 do!split=>//=; first by rewrite unitR.
@@ -78,29 +76,26 @@ Definition free_loopinv x := forall k,
 Program Definition free x : {s}, STsep (shape x s,
                                         [vfun _ : unit => emp]) :=
   Do (Fix (fun (loop : free_loopinv x) k =>
-          Do (match decP (b := k < n) idP with
-               | left pf => b <-- Array.read x (Ordinal pf);
-                            KVmap.free b;;
-                            loop k.+1
-               | _ => Array.free x end)) 0).
+          Do (if decP (b := k < n) idP is left pf then
+                b <-- Array.read x (Ordinal pf);
+                KVmap.free b;;
+                loop k.+1
+               else Array.free x)) 0).
 Next Obligation.
 move=>/= x loop k [] _ /= [Eleq][tf][bf][h1][h2][-> [H1 H2]]; case: decP; last first.
 - case: ltnP Eleq (eqn_leq k n)=>// _ -> /= /eqP Ek _ H.
   apply: [gE]=>//=; exists tf; move: H.
   rewrite (eq_sepit (s2 := set0)); first by rewrite sepit0=>->; rewrite unitR.
   by move=>y; rewrite Ek in_set in_set0 leqNgt ltn_ord.
-move=>pf H; apply/vrf_bind/vrf_frame/[gE tf, h1]=>//=.
-case=>//= _ _ _ [->->] _ _.
+move=>pf H; apply/[stepR tf, h1] @ h1=>//= _ _ [->->].
 move: H; rewrite (sepitS (Ordinal pf)) in_set leqnn /table.
-case=>h3[h4][{h2}-> H3 H4]; rewrite joinCA.
-apply/vrf_bind/vrf_frame/[gE (bf (Ordinal pf))]=>//=.
-case=>//= [[]] _ _ -> _ _; rewrite unitL.
-apply: [gE]=>//=; split=>//.
-exists tf, bf, h1, h4; do!split=>//.
+case=>h3[h4][{h2}-> H3 H4].
+apply/[stepR (bf (Ordinal pf))] @ h3=>//= [[]] _ ->; rewrite unitL.
+apply: [gE]=>//=; split=>//; exists tf, bf, h1, h4; split=>//.
 apply/tableP2/H4=>//.
 move=>z; rewrite !in_set; case: eqP=>/=.
 - by move=>->/=; rewrite ltnn.
-by move/eqP; rewrite -val_eqE /= (leq_eqVlt k); case: ltngtP.
+by move/eqP; rewrite -val_eqE /=; case: ltngtP.
 Qed.
 Next Obligation.
 move=>/= x [fm][] h /= [tf][bf][_ _ H].
@@ -116,15 +111,12 @@ Program Definition insert x k v : {s}, STsep (shape x s,
       Array.write x hk b';;
       ret x).
 Next Obligation.
-move=>/= x k v [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> H1 H2]].
-apply/vrf_bind/vrf_frame/[gE tf, h1]=>//=.
-case=>//= _ _ _ [->->] _ _.
+move=>/= x k v [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> [/= H1 _] H2]].
+apply/[stepR tf, h1] @ h1=>//= _ _ [->->].
 move: H2; rewrite (sepitT1 (hash k)) /table; case=>h3[h4][{h2}-> H3 H4].
-rewrite joinCA; apply/vrf_bind/vrf_frame/[gE (bf (hash k))]=>//=.
-case=>//= b' m2 _ H' _ _; rewrite joinCA.
-case: H1=>/= H11 H12.
-apply/vrf_bind/vrf_frame/[gE tf]=>//=.
-case=>//= [[]] m3 _ [E3 V3] _ _; step=>_.
+apply/[stepR (bf (hash k))] @ h3=>//= b' m2 H'.
+apply/[stepR tf] @ h1=>{H1}//= [[]] m3 [E3 V3].
+step=>_.
 exists [ffun z => if z == hash k then b' else tf z],
        (fun b => if b == hash k then ins k v (bf b) else bf b); split=>/=.
 - move=>k0; rewrite fnd_ins; case: eqP.
@@ -139,23 +131,21 @@ exists m2, h4; do!split=>//.
 by apply/tableP/H4=>/= x0; rewrite !in_set andbT ?ffunE; move/negbTE=>->.
 Qed.
 
-Program Definition remove x k : {s}, STsep (shape x s,
-                                            [vfun y => shape y (rem k s)]) :=
+Program Definition remove x k :
+  {s}, STsep (shape x s,
+             [vfun y => shape y (rem k s)]) :=
   Do (let hk := hash k in
       b  <-- Array.read x hk;
       b' <-- KVmap.remove b k;
       Array.write x hk b';;
       ret x).
 Next Obligation.
-move=>/= x k [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> H1 H2]].
-apply/vrf_bind/vrf_frame/[gE tf, h1]=>//=.
-case=>//= _ _ _ [->->] _ _.
+move=>/= x k [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> [/= H1 _] H2]].
+apply/[stepR tf, h1] @ h1=>//= _ _ [->->].
 move: H2; rewrite (sepitT1 (hash k)) /table; case=>h3[h4][{h2}-> H3 H4].
-rewrite joinCA; apply/vrf_bind/vrf_frame/[gE (bf (hash k))]=>//=.
-case=>//= b' m2 _ H' _ _; rewrite joinCA.
-case: H1=>/= H11 H12.
-apply/vrf_bind/vrf_frame/[gE tf]=>//=.
-case=>//= [[]] m3 _ [E3 V3] _ _; step=>_.
+apply/[stepR (bf (hash k))] @ h3=>//= b' m2 H'.
+apply/[stepR tf] @ h1=>{H1}//= [[]] m3 [E3 V3].
+step=>_.
 exists [ffun z => if z == hash k then b' else tf z],
        (fun b => if b == hash k then rem k (bf b) else bf b); split=>/=.
 - move=>k0; rewrite fnd_rem; case: eqP.
@@ -170,20 +160,17 @@ exists m2, h4; do!split=>//.
 by apply/tableP/H4=>/= x0; rewrite !in_set andbT ?ffunE; move/negbTE=>->.
 Qed.
 
-Program Definition lookup x k : {s}, STsep (shape x s,
-                                           [vfun y m => m \In shape x s /\ y = fnd k s]) :=
+Program Definition lookup x k :
+  {s}, STsep (shape x s,
+             [vfun y m => m \In shape x s /\ y = fnd k s]) :=
   Do (b <-- Array.read x (hash k);
       KVmap.lookup b k).
 Next Obligation.
 move=>/= x k [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> H1 H2]].
-apply/vrf_bind/vrf_frame/[gE tf, h1]=>//=.
-case=>//= _ _ _ [->->] _ _.
+apply/[stepR tf, h1] @ h1=>//= _ _ [->->].
 move: H2; rewrite (sepitT1 (hash k)) /table; case=>h3[h4][{h2}-> H3 H4].
-rewrite joinCA.
-apply/vrf_frame/[gE (bf (hash k))]=>//=.
-case=>//= r m2 _ [H2 Hr] _; split; last by rewrite Hf.
-rewrite joinCA.
-exists tf, bf; do!split=>//=; exists h1, (m2 \+ h4); do!split=>//.
+apply/[gR (bf (hash k))] @ h3=>//= r m2 [H2 Hr] _; split; last by rewrite Hf.
+exists tf, bf; split=>//=; exists h1, (m2 \+ h4); split=>//.
 by rewrite (sepitT1 (hash k)) /table; exists m2, h4.
 Qed.
 

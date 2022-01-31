@@ -6,7 +6,7 @@ From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype seq path.
 From fcsl Require Import axioms pred ordtype finmap.
 From fcsl Require Import pcm unionmap heap automap.
-From HTT Require Import interlude domain heap_extra model heapauto.
+From HTT Require Import interlude domain model heapauto.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -107,7 +107,7 @@ Lemma shape_cons (s : fmap) p q h k v :
    (p :-> k \+ (p.+1 :-> v \+ (p.+2 :-> q \+ h))) \In shape p (ins k v s).
 Proof.
 move/all_path=>S H.
-suff: ins k v s = FinMap (seq_of := (k,v)::seq_of s) S by move=>->; exists q,h.
+suff: ins k v s = @FinMap _ _ ((k,v)::seq_of s) S by move=>->; exists q,h.
 rewrite fmapE /=; case: s {H}S=>/= xs ??.
 by rewrite last_ins'.
 Qed.
@@ -204,10 +204,9 @@ rewrite {Vh}Ei in H *; step; case: eqP.
 - move=>Ek; do 2!step; move=>_; split=>//.
   by rewrite Ef fnd_ins Ek eq_refl.
 move/eqP=>Ek; case: ifP=>Ho'.
-- step; rewrite !joinA joinC.
-  apply/vrf_frame/[gE (behd fm)]=>//=.
-  case=>// v0 h0' V0' [??] _ ; rewrite Ef; split.
-  - by rewrite joinC -!joinA; apply: shape_cons.
+- step.
+  apply/[gR (behd fm)] @ h'=>//= v0 h0' [??] _.
+  rewrite Ef; split; first by apply: shape_cons.
   by rewrite fnd_ins (negbTE Ek).
 move: (semiconnex Ek); rewrite {}Ho' orbC /= =>Ho'.
 step=>_; split=>//.
@@ -279,7 +278,7 @@ step; case: eqP.
   rewrite joinC; apply/shape_fcat/Hr'; last by apply: shape_seg_rcons.
   rewrite (allrel_in_l (xs':=k::supp fml) _); last by apply: supp_ins.
   rewrite allrel_consl path_all //=.
-  by apply/(allrel_ord (z:=k))/path_all.
+  by apply/(allrel_trans (z:=k))/path_all=>//; exact: trans.
 (* k <> k' *)
 move/eqP=>Ek; case: ifP=>Ho0.
 (* ord k' k, recursive call *)
@@ -304,7 +303,7 @@ step=>_; rewrite rem_supp.
   - by rewrite Efr; apply: shape_cons=>//; apply: path_all.
   rewrite (allrel_in_l (xs':=k::supp fml) _); last by apply: supp_ins.
   rewrite allrel_consl Or /=.
-  by apply/(allrel_ord (z:=k)).
+  by apply/(allrel_trans (z:=k))=>//; exact: trans.
 rewrite Efr supp_fcat !inE negb_or; apply/andP; split;
   rewrite supp_ins !inE negb_or; apply/andP; split=>//.
 by apply/notin_path/path_le/Or'.
@@ -324,7 +323,7 @@ step; case: eqP.
 (* k <> k' *)
 move/eqP=>Ek; case: ifP=>Ho0.
 (* ord k' k, start recursing *)
-- step; apply: [stepE fm]=>/=; last by case=>//= [[]] ? _ ??; step.
+- step; apply: [stepE fm]=>/=; last by case=>//= [[]] ??; step.
   exists nil, (behd fm), k, v; do!split=>//.
   - by rewrite fcat_inss; [rewrite fcat0s|apply/notin_path/all_path].
   exists Unit, (entry x next k v \+ h'); do!split; first by rewrite /entry unitL !joinA.
@@ -403,7 +402,7 @@ case: eqP.
 (* cur <> null *)
 move/eqP=>Ec; case: (shape_cont Ec Hr)=>k'[v'][next][hr'][Efr Or' Ehr Hr'].
 rewrite {hr Hr Vh Ec}Ehr joinA joinC.
-move/all_path: (Or); rewrite {1}Efr; case/(path_supp_ins_inv (all_path Or'))/andP=>Ho' /path_all Or''.
+move/all_path: (Or); rewrite {1}Efr; case/(path_supp_ins_inv (all_path Or'))/andP=>Ho' /(path_all (@trans _)) Or''.
 step; case: eqP.
 (* k = k', exact key found, update *)
 - move=>Ek; do 2![step]=>_.
@@ -415,7 +414,7 @@ step; case: eqP.
   rewrite (allrel_in_r (ys':=k0::supp (behd fmr)) _ _); last by apply: supp_ins.
   rewrite allrel_consl allrel_consr /= Ho0 Or'' /=; apply/andP; split.
   - by apply/sub_all/Ol=>? /trans; apply.
-  by apply: (allrel_ord (z:=k)).
+  by apply: (allrel_trans (z:=k))=>//; exact: trans.
 (* k <> k' *)
 move/eqP=>Ek; case: ifP=>Ho'0.
 (* ord k' k, recursive call *)
@@ -445,7 +444,7 @@ rewrite (allrel_in_r (ys':=k0::k'::supp (behd fmr)) _ _); last first.
 rewrite allrel_consl !allrel_consr /= Ho0 Ho' Or'' /=; apply/and3P; split.
 - by apply/sub_all/Ol=>? /trans; apply.
 - by apply/sub_all/Ol=>? /trans; apply.
-by apply: (allrel_ord (z:=k)).
+by apply: (allrel_trans (z:=k))=>//; exact: trans.
 Qed.
 Next Obligation.
 move=>/= x k0 v0 [fm][]h /= H; apply: vrfV=>Vh.
@@ -464,7 +463,7 @@ step; case: eqP.
 (* k <> k' *)
 move/eqP=>Ek; case: ifP=>Ho0.
 (* ord k' k, start recursing *)
-- step; apply: [stepE fm]=>/=; last by case=>// [[]] /= ? _ ??; step.
+- step; apply: [stepE fm]=>/=; last by case=>// [[]] /= ??; step.
   exists nil, (behd fm), k, v; do!split=>//.
   - by rewrite fcat_inss; [rewrite fcat0s|apply/notin_path/all_path].
   exists Unit, (entry x next k v \+ h'); do!split; first by rewrite /entry unitL !joinA.

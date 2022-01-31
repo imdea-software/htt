@@ -30,17 +30,17 @@ Section ClassDef.
 
 Record class_of T := Class {mixin : mixin_of T}.
 
-Structure type : Type := Pack {sort : Type; _ : class_of sort; _ : Type}.
+Structure type : Type := Pack {sort : Type; _ : class_of sort}.
 Local Coercion sort : type >-> Sortclass.
 
 Variables (T : Type) (cT : type).
-Definition class := let: Pack _ c _ as cT' := cT return class_of cT' in c.
-Definition clone c of phant_id class c := @Pack T c T.
+Definition class := let: Pack _ c as cT' := cT return class_of cT' in c.
+Definition clone c of phant_id class c := @Pack T c.
 
 (* produce a poset type out of the mixin *)
 (* equalize m0 and m by means of a phantom *)
 Definition pack (m0 : mixin_of T) :=
-  fun m & phant_id m0 m => Pack (@Class T m) T.
+  fun m & phant_id m0 m => Pack (@Class T m).
 
 Definition leq := mx_leq (mixin class).
 Definition bot := mx_bot (mixin class).
@@ -366,25 +366,25 @@ Section ClassDef.
 
 Record class_of (T : Type) := Class {
   base : Poset.class_of T;
-  mixin : mixin_of (Poset.Pack base T)}.
+  mixin : mixin_of (Poset.Pack base)}.
 
 Local Coercion base : class_of >-> Poset.class_of.
 
-Structure type : Type := Pack {sort : Type; _ : class_of sort; _ : Type}.
+Structure type : Type := Pack {sort : Type; _ : class_of sort}.
 Local Coercion sort : type >-> Sortclass.
 
 Variables (T : Type) (cT : type).
-Definition class := let: Pack _ c _ as cT' := cT return class_of cT' in c.
-Definition clone c of phant_id class c := @Pack T c T.
+Definition class := let: Pack _ c as cT' := cT return class_of cT' in c.
+Definition clone c of phant_id class c := @Pack T c.
 
 (* produce a lattice type out of the mixin *)
 (* equalize m0 and m by means of a phantom *)
-Definition pack b0 (m0 : mixin_of (Poset.Pack b0 T)) :=
-  fun m & phant_id m0 m => Pack (@Class T b0 m) T.
+Definition pack b0 (m0 : mixin_of (Poset.Pack b0)) :=
+  fun m & phant_id m0 m => Pack (@Class T b0 m).
 
 Definition sup (s : Pred cT) : cT := mx_sup (mixin class) s.
 
-Definition poset := Poset.Pack class cT.
+Definition poset := Poset.Pack class.
 
 End ClassDef.
 
@@ -403,7 +403,7 @@ Notation "[ 'lattice' 'of' T 'for' cT ]" := (@clone T cT _ id)
 Notation "[ 'lattice' 'of' T ]" := (@clone T _ _ id)
   (at level 0, format "[ 'lattice'  'of'  T ]") : form_scope.
 
-Arguments Lattice.sup [cT].
+Arguments Lattice.sup [cT] s.
 Prenex Implicits Lattice.sup.
 Notation sup := Lattice.sup.
 
@@ -492,6 +492,20 @@ Qed.
 
 Lemma tarski_gfp_greatest f : forall x : T, f x = x -> x <== tarski_gfp f.
 Proof. by move=>x H; apply: supP; rewrite InE /= H. Qed.
+
+Lemma tarski_lfp_mono (f1 f2 : T -> T) :
+        monotone f2 -> f1 <== f2 -> tarski_lfp f1 <== tarski_lfp f2.
+Proof.
+move=>M H; apply/infP/(poset_trans (H (tarski_lfp f2))).
+by rewrite tarski_lfp_fixed.
+Qed.
+
+Lemma tarski_gfp_mono (f1 f2 : T -> T) :
+        monotone f1 -> f1 <== f2 -> tarski_gfp f1 <== tarski_gfp f2.
+Proof.
+move=>M H; apply/supP/poset_trans/(H (tarski_gfp f1)).
+by rewrite tarski_gfp_fixed.
+Qed.
 
 (* closure contains s *)
 Lemma sup_clos_sub (s : Pred T) : s <=p sup_closure s.
@@ -932,7 +946,7 @@ Section ClassDef.
 
 Record class_of (T : Type) := Class {
   base : Poset.class_of T;
-  mixin : mixin_of (Poset.Pack base T)}.
+  mixin : mixin_of (Poset.Pack base)}.
 
 Local Coercion base : class_of >-> Poset.class_of.
 
@@ -943,10 +957,10 @@ Variables (T : Type) (cT : type).
 Definition class := let: Pack _ c _ as cT' := cT return class_of cT' in c.
 Definition clone c of phant_id class c := @Pack T c T.
 
-Definition pack b0 (m0 : mixin_of (Poset.Pack b0 T)) :=
+Definition pack b0 (m0 : mixin_of (Poset.Pack b0)) :=
   fun m & phant_id m0 m => Pack (@Class T b0 m) T.
 
-Definition poset := Poset.Pack class cT.
+Definition poset := Poset.Pack class.
 Definition lim (s : chain poset) : cT := mx_lim (mixin class) s.
 
 End ClassDef.
