@@ -602,10 +602,10 @@ Lemma vrf_bind i (Q : post B) :
 Proof.
 move=>H Vi; case: (H Vi)=>Hi {}H /=.
 have Hi' : i \In bind_pre.
-- by exists Vi, Hi=>x m Pm; set Vm := dstr_valid Pm; case: (H _ _ Pm Vm).
+- by exists Vi, Hi=>x m Pm; case: (H _ _ Pm (dstr_valid Pm)).
 exists Hi'=>y j /= [x][m][Pm] C.
 rewrite (pf_irr Hi (bind_pre_proj Hi')) in H.
-case: x Pm C=>[x|e] Pm; set Vm := dstr_valid Pm; move: (H _ _ Pm Vm)=>{}H.
+case: x Pm C=>[x|e] Pm; move: (H _ _ Pm (dstr_valid Pm))=>{}H.
 - by case=>Pm2 Pj; case: H=>Pm2'; apply; rewrite (pf_irr Pm2' Pm2).
 by case=>->->.
 Qed.
@@ -689,12 +689,11 @@ Lemma vrf_try i (Q : post B) :
 Proof.
 move=>H Vi; case: (H Vi)=>pf {}H /=.
 have J : i \In try_pre.
-- exists Vi, pf; split=>x m Pm; set Vm := dstr_valid Pm;
-  by case: (H _ _ Pm).
+- by exists Vi, pf; split=>x m Pm; case: (H _ _ Pm (dstr_valid Pm)).
 exists J=>y j /= [x][m][Pm]F.
 rewrite (pf_irr pf (try_pre_proj J)) in H.
-case: x Pm F=>[x|ex] Pm [Hm Hj]; set Vm := dstr_valid Pm;
-case: (H _ _ Pm Vm)=>pf''; apply;
+case: x Pm F=>[x|ex] Pm [Hm Hj];
+case: (H _ _ Pm (dstr_valid Pm))=>pf''; apply;
 by rewrite (pf_irr pf'' Hm).
 Qed.
 
