@@ -16,69 +16,88 @@ Section Stack.
 Variable T : Type.
 Notation stack := (stack T).
 
-Definition shape s (xs : seq T) := [Pred h | exists p h', valid (s :-> p \+ h') /\
-                                    s :-> p \+ h' = h /\ h' \In lseq p xs].
+Opaque insert head remove.
 
-Lemma shape_inv : forall s xs1 xs2 h, h \In shape s xs1 -> h \In shape s xs2 -> xs1 = xs2.
+(* a stack is just a pointer to a singly-linked list *)
+Definition shape s (xs : seq T) :=
+  [Pred h | exists p h', [ /\ valid (s :-> p \+ h'),
+                              h = s :-> p \+ h' &
+                              h' \In lseq p xs]].
+
+(* a heap cannot match two different specs *)
+Lemma shape_inv : forall s xs1 xs2 h,
+        h \In shape s xs1 -> h \In shape s xs2 -> xs1 = xs2.
 Proof.
-move=>s xs1 xs2 _ [p][h][D][<-] S [p2][h2][D2][].
-case/(cancelO _ D2)=>-> _; rewrite !unitL=>->.
+move=>s xs1 xs2 _ [p][h1][D -> S][p2][h2][D2].
+case/(cancelO _ D)=><- _; rewrite !unitL=><-.
 by apply: lseq_func=>//; move/validR: D.
 Qed.
 
+(* well-formed stack is a valid heap *)
+
+Lemma shapeD s xs : forall h, h \In shape s xs -> valid h.
+Proof. by move=>h [p][h'][D ->]. Qed.
+
+(* main methods *)
+
+(* new stack is a pointer to an empty heap/list *)
+
 Program Definition new : STsep (emp, [vfun y => shape y [::]]) :=
   Do (alloc null).
-Next Obligation. by move=>/= [] i ?; step=>??; exists null, i. Qed.
+Next Obligation. by move=>/= [] i ?; step=>??; vauto. Qed.
+
+(* freeing a stack, possible only when it's empty *)
 
 Program Definition free s : STsep (shape s [::],
                                    [vfun _ h => h = Unit]) :=
   Do (dealloc s).
 Next Obligation.
-move=>s [] _ /= [?][?][V][<-][E E0]; step=>_.
-by rewrite E0 unitR.
+by move=>s [] ? /= [?][?][V -> [_ ->]]; step=>_; rewrite unitR.
 Qed.
+
+(* pushing to the stack is inserting into the list and updating the pointer *)
 
 Program Definition push s x : {xs}, STsep (shape s xs,
                                           [vfun _ => shape s (x :: xs)]) :=
-  Do (hd <-- !s;
-      nd <-- allocb x 2;
-      nd .+ 1 ::= (hd : ptr);;
-      s ::= nd).
+  Do (l <-- !s;
+      l' <-- insert l x;
+      s ::= l').
 Next Obligation.
-move=>s x [xs][] _ /= [p][h0][V][<- H].
-do 2![step]=>p2; do 2!step.
-rewrite unitR=>V2.
-rewrite joinC joinA in V2 *.
-exists p2, (h0 \+ p2 :-> x \+ p2 .+ 1 :-> p).
-rewrite !joinA; do!split=>//.
-exists p, h0; split=>//.
-by rewrite -joinA joinC joinA.
+(* pull out ghost + precondition, get the list *)
+move=>s x [xs][] _ /= [l][h][V -> H]; step.
+(* run the insert procedure with the ghost, deconstruct the new list *)
+apply: [stepR xs]@h=>//= x0 _ [r][h'][-> H'].
+(* store the new list *)
+by step=>V'; hhauto.
 Qed.
+
+(* popping from the stack is: *)
+(* 1. trying to get the head *)
+(* 2. removing it from the list and updating the pointer on success *)
 
 Program Definition pop s :
   {xs}, STsep (shape s xs,
                fun y h => shape s (behead xs) h /\
                  match y with Val v => xs = v :: behead xs
                             | Exn e => e = EmptyStack /\ xs = [::] end) :=
-  Do (hd <-- !s;
-      if (hd : ptr) == null then throw EmptyStack
-      else
-        x <-- !hd;
-        next <-- !(hd .+ 1);
-        dealloc hd;;
-        dealloc hd .+ 1;;
-        s ::= (next : ptr);;
-        ret x).
+  Do (l <-- !s;
+      try (head l)
+        (fun x =>
+          l' <-- @remove T l;
+          s ::= l';;
+          ret x)
+        (fun _ => throw EmptyStack)).
 Next Obligation.
-move=>s [xs][] _ /= [p][h0][V][<- H].
-step; case: eqP.
-- move=>Ep; step=>_.
-  rewrite Ep in H V *; case: (lseq_null (validR V) H)=>->?/=.
-  by split=>//; exists null, h0.
-move/eqP=>Ep.
-case: (lseq_pos Ep H)=>/= x[r][h1][E1]E0 H1; rewrite -{}E0 in H *.
-do 6!step; rewrite !unitL=>V1.
-by split=>//; exists r, h1.
+(* pull out ghost vars and precondition *)
+move=>s [xs][] _ /= [p][h0][V -> H].
+(* get the list and invoke head on it, deal with exception first *)
+step; apply/[tryR xs]@h0=>//= [x|ex] m [Hm]; last first.
+- (* throw the stack exception *)
+  case=>{ex}_ E /=; step=>Vm; split=>//.
+  by rewrite E /= in Hm *; vauto.
+(* invoke remove and run the rest of the program *)
+move=>E; apply: [stepR xs]@m=>//= p' m' H'.
+by do 2![step]=>V'; split=>//; vauto.
 Qed.
 
 End Stack.
