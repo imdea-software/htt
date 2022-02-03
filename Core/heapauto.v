@@ -115,6 +115,28 @@ Notation "[ 'stepR' x1 , .. , xn ] @ i" :=
   (stepR (existT _ x1 .. (existT _ xn tt) ..) i)
   (at level 0, format "[ 'stepR'  x1 ,  .. ,  xn ] @  i").
 
+(* vrf_try + gR *)
+Lemma tryR G A B (s : spec G A) g i j (e : STspec G s) (e1 : A -> ST B) (e2 : exn -> ST B)
+             (f : forall k, form k j) (Q : post B) :
+        (valid i -> (s g).1 i) ->
+        (forall x m, (s g).2 (Val x) m -> vrf (f m) (e1 x) Q) ->
+        (forall x m, (s g).2 (Exn x) m -> vrf (f m) (e2 x) Q) ->
+        vrf (f i) (try e e1 e2) Q.
+Proof.
+move=>Hi H1 H2.
+apply/vrf_try/(gR _ _ Hi)=>[x|ex] m H V.
+- by apply: H1 H.
+by apply: H2.
+Qed.
+
+Arguments tryR [G A B s] g i [j e e1 e2 f Q] _ _ _.
+
+Notation "[tryR] @ i" := (tryR tt i) (at level 0).
+
+Notation "[ 'tryR' x1 , .. , xn ] @ i" :=
+  (tryR (existT _ x1 .. (existT _ xn tt) ..) i)
+  (at level 0, format "[ 'tryR'  x1 ,  .. ,  xn ] @  i").
+
 (* We maintain three different kinds of lemmas *)
 (* in order to streamline the stepping *)
 (* The only important ones are the val lemmas, the bnd and try *)
