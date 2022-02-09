@@ -25,8 +25,6 @@ Notation nil := (nil K V).
 (* TODO is there another way to prevent unfolding these? *)
 Opaque Array.write Array.new Array.free Array.read.
 
-Check Array.new.
-
 (* hash table is specified by a single finMap *)
 (* which is morally a "flattening" of all buckets *)
 Definition shape x (s : finMap K V) :=

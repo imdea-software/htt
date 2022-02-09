@@ -1,8 +1,9 @@
 
-From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq.
+From Coq Require Import ssreflect ssrbool ssrfun.
+From mathcomp Require Import ssrnat eqtype seq.
 From fcsl Require Import axioms pred.
 From fcsl Require Import pcm unionmap heap automap.
-From HTT Require Import domain model heapauto.
+From HTT Require Import model heapauto.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.

@@ -2,8 +2,8 @@
 (* Congruence closure *)
 (**********************)
 
-From Coq Require Import Recdef.
-From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq bigop fintype finfun choice.
+From Coq Require Import Recdef ssreflect ssrbool ssrfun.
+From mathcomp Require Import eqtype choice ssrnat seq bigop fintype finfun.
 From fcsl Require Import prelude ordtype finmap pred.
 From HTT Require Import interlude.
 Set Implicit Arguments.
