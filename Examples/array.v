@@ -1,7 +1,8 @@
-From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq fintype tuple finfun finset.
+From Coq Require Import ssreflect ssrbool ssrfun.
+From mathcomp Require Import ssrnat eqtype seq path fintype tuple finfun finset.
 From fcsl Require Import axioms prelude pred.
 From fcsl Require Import pcm unionmap heap.
-From HTT Require Import domain model heapauto.
+From HTT Require Import model heapauto.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -16,6 +17,8 @@ Prenex Implicits indx.
 (* Arrays indexed by a finite type *)
 (***********************************)
 
+(* an array is a pointer to a contiguous memory region holding its values *)
+
 Record array (I : finType) (T : Type) : Type := Array {orig :> ptr}.
 Arguments Array [I T].
 
@@ -29,6 +32,8 @@ Section Array.
 Variable (I : finType) (T : Type).
 Notation array := {array I -> T}.
 
+(* an array is specified by a finite function *)
+
 Definition shape (a : array) (f : {ffun I -> T}) :=
   [Pred h | h = updi a (fgraph f) /\ valid h].
 
@@ -37,8 +42,8 @@ Definition shape (a : array) (f : {ffun I -> T}) :=
 Lemma enum_split k :
         enum I = take (indx k) (enum I) ++ k :: drop (indx k).+1 (enum I).
 Proof.
-rewrite -{2}(@nth_index I k k (enum I)) ?mem_enum //.
-by rewrite -drop_nth ?index_mem ?mem_enum // cat_take_drop.
+case: path.splitP; first by rewrite mem_enum.
+by move=>p1 p2; rewrite -cats1 -catA.
 Qed.
 
 Lemma updi_split (a : array) k (f : {ffun I -> T}) :
@@ -77,94 +82,142 @@ Qed.
 
 (* main methods *)
 
-Program Definition new (x : T) : STsep (emp, [vfun y => shape y [ffun => x]]) :=
+(* a new empty array preallocates all cells for all possible index values *)
+(* initializing all of them to `x` *)
+
+Program Definition new (x : T) :
+  STsep (emp, [vfun y => shape y [ffun => x]]) :=
   Do (x <-- allocb x #|I|;
       ret (Array x)).
 Next Obligation.
+(* pull out ghost vars, run the program *)
 move=>x [] _ /= ->; step=>y; step.
-rewrite unitR=>H; split=>//; congr updi.
-rewrite ?fgraph_codom /= codomE cardE.
+(* simplify *)
+rewrite unitR=>H; split=>//; congr updi; rewrite codomE cardE.
 by elim: (enum I)=>[|t ts] //= ->; rewrite (ffunE _ _).
 Qed.
 
+Opaque new.
+
+(* a new array corresponding to a domain of a finite function f *)
+
+(* the loop invariant: *)
+(* a partially filled array corresponds to some finite function g acting as a prefix of f *)
 Definition newf_loop a (f : {ffun I -> T}) : Type :=
-  forall s : seq I, STsep (fun i => exists g s', [/\ i \In shape a g,
-                                      s' ++ s = enum I &
-                                      forall x, x \in s' -> g x = f x],
+  forall s : seq I, STsep (fun i => exists g s',
+                                      [/\ i \In shape a g,
+                                          s' ++ s = enum I &
+                                          forall x, x \in s' -> g x = f x],
                            [vfun y => shape y f]).
 
 Program Definition newf (f : {ffun I -> T}) :
   STsep (emp, [vfun y => shape y f]) :=
+  (* `return` helps to avoid extra obligations *)
+  (* test I for emptiness *)
   Do (if [pick x in I] is Some v return _ then
+        (* preallocate a new array *)
         x <-- new (f v);
-        let f := Fix (fun (loop : newf_loop x f) s =>
-                   Do (if s is k::t return _ then
-                          x .+ (indx k) ::= f k;;
-                          loop t
-                       else ret (Array x)))
-        in f (enum I)
+        (* fill it with values of f on I *)
+        let go := Fix (fun (loop : newf_loop x f) s =>
+                    Do (if s is k::t return _ then
+                           x .+ (indx k) ::= f k;;
+                           loop t
+                        else ret (Array x)))
+        in go (enum I)
       else ret (Array null)).
+(* first the loop *)
 Next Obligation.
+(* pull out preconditions (note that there are no ghost vars), split *)
 move=>f v x loop s [] /= _ [g][s'][[-> _]]; case: s=>[|k t] /= H1 H2.
-- rewrite cats0 in H1; step=>H; split=>//.
+- (* we've reached the end, return the array *)
+  rewrite cats0 in H1; step=>H; split=>//.
+  (* g spans the whole f *)
   by rewrite (_ : g = f) // -ffunP=>y; apply: H2; rewrite H1 mem_enum.
+(* run the loop iteration, split the heap and save its validity *)
 rewrite (updi_split x k); step; apply: vrfV=>V; apply: [gE]=>//=.
+(* add the new index+value to g *)
 exists (finfun [eta g with k |-> f k]), (s' ++ [:: k]).
+(* massage the heap, simplify *)
 rewrite /shape (updi_split x k) takeord dropord (ffunE _ _) /= eq_refl -catA.
 split=>// y; rewrite ffunE /= mem_cat inE /=.
+(* the new g is still a prefix of f *)
 by case: eqP=>[->|_] //; rewrite orbF; apply: H2.
 Qed.
+(* now the outer program *)
 Next Obligation.
+(* pull out params, check if I is empty *)
 move=>f [] _ ->; case: fintype.pickP=>[v|] H /=.
-- apply: vrf_bind=>/=; step=>x; rewrite unitR; step=>V.
-  apply: [gE]=>//=; exists [ffun => f v], nil; do!split=>//=.
-  congr updi; rewrite codomE cardE.
-  by elim: (enum I)=>//= ?? ->/=; rewrite ffunE.
+- (* run the `new` subroutine, simplify *)
+  apply: [stepE]=>//=; case=>//= a _ [-> V].
+  (* invoke the loop, construct g from the first value of f *)
+  by apply: [gE]=>//=; exists [ffun => f v], nil.
+(* I is empty, so should be the resulting heap *)
 step=>_; split=>//; rewrite codom_ffun.
 suff L: #|I| = 0 by case: (fgraph f)=>/=; rewrite L; case.
 by rewrite cardE; case: (enum I)=>[|x s] //; move: (H x).
 Qed.
 
-Definition loop_inv (a : array) : Type :=
-  forall k, STsep (fun i => exists xs:seq T, [/\ i = updi (a .+ k) xs, valid i &
-                              size xs + k = #|I|],
+(* freeing an array by deallocating all of its cells *)
+
+(* the loop invariant: *)
+(* a partially freed array still contains valid #|I| - k cells *)
+(* corresponding to some suffix xs of the original array's spec *)
+Definition free_loop (a : array) : Type :=
+  forall k, STsep (fun i => exists xs: seq T,
+                            [/\ i = updi (a .+ k) xs,
+                                valid i &
+                                size xs + k = #|I|],
                    [vfun _ : unit => emp]).
 
 Program Definition free (a : array) :
-    STsep (fun i => exists f, i \In shape a f, [vfun _ => emp]) :=
-  Do (let: f := Fix (fun (f : loop_inv a) k =>
-                  Do (if k == #|I| then ret tt
-                      else
-                        dealloc a.+k;;
-                        f k.+1))
-      in f 0).
+  STsep (fun i => exists f, i \In shape a f, [vfun _ => emp]) :=
+  Do (let: go := Fix (fun (loop : free_loop a) k =>
+                   Do (if k == #|I| then ret tt
+                       else dealloc a.+k;;
+                            loop k.+1))
+      in go 0).
+(* first the loop *)
 Next Obligation.
-move=>a f k [] i /= [[|v xs]][->] /= _; first by rewrite add0n=>/eqP ->; step.
+(* pull out params, if the remaining suffix xs is empty, we're done *)
+move=>a loop k [] i /= [[|v xs]][->] /= _; first by rewrite add0n=>/eqP ->; step.
+(* the suffix is non-empty so k < #|I| *)
 case: eqP=>[->|_ H]; first by move/eqP; rewrite -{2}(add0n #|I|) eqn_add2r.
+(* run the program, simplify *)
 step; apply: vrfV=>V; apply: [gE]=>//=.
 by exists xs; rewrite V ptrA addn1 -addSnnS unitL.
 Qed.
+(* now the outer program *)
 Next Obligation.
+(* pull out params, invoke the loop *)
 move=>a [] /= _ [f][-> V]; apply: [gE]=>//=.
+(* the suffix xs is the whole codomain of f *)
 exists (tval (fgraph f))=>/=.
 by rewrite ptr0 V {3}codomE size_map -cardE addn0.
 Qed.
+
+(* reading from an array, shouldn't modify the heap *)
 
 Program Definition read (a : array) (k : I) :
    {f h}, STsep (fun i => i = h /\ i \In shape a f,
                  [vfun y m => m = h /\ y = f k]) :=
   Do (!a .+ (indx k)).
 Next Obligation.
+(* pull out ghost vars *)
 move=>a k [f][_][] _ [->][/= -> _].
+(* split the heap and run the program *)
 by rewrite (updi_split a k); step.
 Qed.
+
+(* writing to an array, updates the spec function with a new value *)
 
 Program Definition write (a : array) (k : I) (x : T) :
   {f}, STsep (shape a f,
               [vfun _ => shape a [ffun z => [eta f with k |-> x] z]]) :=
   Do (a .+ (indx k) ::= x).
 Next Obligation.
+(* pull out ghost vars, split the heap *)
 move=>a k x [f][] _ [-> _] /=; rewrite /shape !(updi_split a k).
+(* run the program, simplify *)
 by step; rewrite takeord dropord ffunE eq_refl.
 Qed.
 
@@ -179,7 +232,9 @@ Section Table.
 
 Variables (I : finType) (T S : Type) (x : {array I -> T})
           (Ps : T -> S -> Pred heap).
-Definition table := fun (t : I -> T) (b : I -> S) (i:I) => Ps (t i) (b i).
+
+Definition table (t : I -> T) (b : I -> S) (i : I) : Pred heap :=
+  Ps (t i) (b i).
 
 Lemma tableP (s : {set I}) t1 t2 b1 b2 h :
         (forall x, x \in s -> t1 x = t2 x) ->
