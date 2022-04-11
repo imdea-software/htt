@@ -1078,9 +1078,9 @@ Notation "{ x .. y }, 'STsep' ( p , q ) " :=
   (STspec _ (logvar (fun x => .. (logvar (fun y => logbase p q)) .. )))
    (at level 0, x binder, y binder, right associativity).
 
-(********************************************)
-(* Lemmas for instantiating ghost variables *)
-(********************************************)
+(************************************************************)
+(* Lemmas for pulling out and instantiating ghost variables *)
+(************************************************************)
 
 Lemma gE G A (s : spec G A) g i (e : STspec G s) (Q : post A) :
         (s g).1 i ->

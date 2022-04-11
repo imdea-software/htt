@@ -1,7 +1,7 @@
 
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq.
 From fcsl Require Import axioms pred.
-From fcsl Require Import pcm unionmap heap automap.
+From fcsl Require Import pcm unionmap heap auto autopcm automap.
 From HTT Require Import model heapauto.
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -221,7 +221,8 @@ move=>_ go _ p l /= _ [xs][] i /= H; case: eqP H=>[->|/eqP Ep] H.
 case/lseq_pos: H=>// x0 [r][h'][-> {i}-> /= H1]; step.
 (* feed a new ghost var and a subheap to run on to the recursive call *)
 apply: [gR (behead xs)]@h'=>//= _ h2 [/eqP -> Hl] /= _.
-by rewrite -addnA add1n; eauto.
+rewrite -addnA add1n; split=>//; exists r, h2; split=>//.
+by rewrite [RHS](pullX h2).
 Qed.
 Next Obligation.
 (* pull out the ghost var and immediately feed it to the loop *)
