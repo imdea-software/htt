@@ -219,10 +219,8 @@ move=>_ go _ p l /= _ [xs][] i /= H; case: eqP H=>[->|/eqP Ep] H.
   by step=>V; case/(lseq_null V): H=>->->/=; rewrite addn0.
 (* deconstruct non-empty list, run one step *)
 case/lseq_pos: H=>// x0 [r][h'][-> {i}-> /= H1]; step.
-(* feed a new ghost var and a subheap to run on to the recursive call *)
 apply: [gR (behead xs)]@h'=>//= _ h2 [/eqP -> Hl] /= _.
-rewrite -addnA add1n; split=>//; exists r, h2; split=>//.
-by rewrite [RHS](pullX h2).
+rewrite -addnA add1n; eauto.
 Qed.
 Next Obligation.
 (* pull out the ghost var and immediately feed it to the loop *)
@@ -265,10 +263,9 @@ case: ifP H1=>[/eqP ->{r}|/negbT N] H1.
   case/(lseq_null (validX V)): H1 E=>/=->->->/=.
   (* the rest is just the second list *)
   by rewrite unitR -joinA; eauto.
-(* bring i and i2 together for the recursive call *)
-rewrite -!joinA.
-(* feed new ghosts and subheap to it *)
-apply: [gR (behead xs1), xs2]@(i \+ i2)=>//= _.
+(* feed new ghosts and subheap to the recursive call *)
+(* we use a generalized ghost autolemma here *)
+apply: [gX (behead xs1), xs2]@(i \+ i2)=>//= _.
 - (* the tail is not null so the precondition is satisfied *)
   by split=>//; vauto.
 (* assemble the concatenation from head and tail *)
