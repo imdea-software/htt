@@ -1,7 +1,7 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype seq.
 From fcsl Require Import axioms pred.
-From fcsl Require Import pcm unionmap heap.
+From fcsl Require Import pcm unionmap heap auto autopcm.
 From HTT Require Import model heapauto.
 From HTT Require Import llist.
 Set Implicit Arguments.
@@ -67,7 +67,7 @@ Next Obligation.
 (* pull out ghost + precondition, get the list *)
 move=>s x [xs][] _ /= [l][h][V -> H]; step.
 (* run the insert procedure with the ghost, deconstruct the new list *)
-apply: [stepR xs]@h=>//= x0 _ [r][h'][-> H'].
+apply: [stepX xs]@h=>//= x0 _ [r][h'][-> H'].
 (* store the new list *)
 by step=>V'; hhauto.
 Qed.
@@ -97,7 +97,7 @@ step; apply/[tryR xs]@h0=>//= [x|ex] m [Hm]; last first.
   case=>{ex}_ E /=; step=>Vm; split=>//.
   by rewrite E /= in Hm *; vauto.
 (* invoke remove and run the rest of the program *)
-move=>E; apply: [stepR xs]@m=>//= p' m' H'.
+move=>E; apply: [stepX xs]@m=>//= p' m' H'.
 by do 2![step]=>V'; split=>//; vauto.
 Qed.
 

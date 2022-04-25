@@ -219,7 +219,7 @@ move=>_ go _ p l /= _ [xs][] i /= H; case: eqP H=>[->|/eqP Ep] H.
   by step=>V; case/(lseq_null V): H=>->->/=; rewrite addn0.
 (* deconstruct non-empty list, run one step *)
 case/lseq_pos: H=>// x0 [r][h'][-> {i}-> /= H1]; step.
-apply: [gR (behead xs)]@h'=>//= _ h2 [/eqP -> Hl] /= _.
+apply: [gX (behead xs)]@h'=>//= _ h2 [/eqP -> Hl] /= _.
 rewrite -addnA add1n; eauto.
 Qed.
 Next Obligation.
@@ -345,7 +345,7 @@ move=>f lmap p [xs][] h /= H; case: ifP H=>[/eqP ->|/negbT N] H.
 (* deconstruct non-empty list, run the rest *)
 case/(lseq_pos N): H=>t [nxt][h'][-> {h}-> /= H]; heval.
 (* feed the tail as a ghost var + subheap to recursive call *)
-by apply/[gR (behead xs)]@h'=>//= _ h2 Q V'; eauto.
+apply/[gX (behead xs)]@h'=>//= _ h2 Q V'; eauto.
 Qed.
 
 End LList.

@@ -94,7 +94,7 @@ Canonical Structure left_tagU i := head_tagU i.
 (* - r : output tail *)
 
 Definition uform_axiom k r (h : tagged_heapU) :=
-  untagU h = joinOR k r.
+  untagU h = k \+ r.
 
 Structure uform (k : heap) r :=
   Uform {heap_ofU :> tagged_heapU;
@@ -102,24 +102,20 @@ Structure uform (k : heap) r :=
 
 Arguments Uform : clear implicits.
 
-(*
-Lemma uformE r k (f : uform k r) : untagU f = k \+ r.
-Proof. by case: f=>[[j]] /=; rewrite /uform_axiom /= => ->. Qed.
-*)
-Lemma head_pfU k : uform_axiom k None (head_tagU k).
-Proof. by []. Qed.
+Lemma head_pfU k : uform_axiom k Unit (head_tagU k).
+Proof. by rewrite /uform_axiom unitR. Qed.
 
-Canonical Structure heap_headU k := Uform k None (head_tagU k) (head_pfU k).
+Canonical Structure heap_headU k := Uform k Unit (head_tagU k) (head_pfU k).
 
 Lemma left_pfU h k r (f : uform k r) :
-        uform_axiom k (Some (joinOL r h)) (left_tagU (untagU f \+ h)).
+        uform_axiom k (r \+ h) (left_tagU (untagU f \+ h)).
 Proof.
 case: f=>f; rewrite /uform_axiom /= =>->.
-by case: r=>//= a; rewrite joinA.
+by rewrite joinA.
 Qed.
 
 Canonical Structure search_leftU h k r (f : uform k r) :=
-  Uform k (Some (joinOL r h)) (left_tagU (untagU f \+ h)) (left_pfU h f).
+  Uform k (r \+ h) (left_tagU (untagU f \+ h)) (left_pfU h f).
 
 End Uncons.
 
@@ -143,19 +139,10 @@ Structure sp_heap (h : heap) := SPTag {untag_sp : heap}.
 
 Local Coercion untag_sp : sp_heap >-> Heap.heap.
 
-
 Canonical equate (h : heap) := SPTag h h.
-
-(*Canonical find_form k r (f : form k r) := SPTag f f.*)
 
 Definition paxiom (j k : ctx heapPCM) tsm g (r : option heap) (pivot : sp_heap g) :=
   all (wf j) tsm -> r -> sub_ctx j k /\ Some (untag_sp pivot) = interp k tsm \+ r.
-(*
-  all (wf j) tsm -> sub_ctx j k /\
-  untag (f m0) = m0 \+ r.
-
-  unpack pivot = odflt Unit (interp k tsm) \+ m0 \+ r2.
-  *)
 
 Structure pform j k tsm (g : heap) r :=
   PForm {pivot : sp_heap g; _ : @paxiom j k tsm g r pivot}.
@@ -212,7 +199,7 @@ Export SubPart.Exports.
 Lemma gX G A (s : spec G A) g (m : heapPCM) m0 j tms k wh r2
              (e : STspec G s)
              (fm : Syntactify.form (empx _) j tms)
-             (fu : uform m0 (Some (Syntactify.untag fm)))
+             (fu : uform m0 (Syntactify.untag fm))
              (f : forall q, form q r2)
              (fg : SubPart.pform j k tms wh (Some (untag (heap_of (f m0)))))
              (Q : post A) :
@@ -232,77 +219,13 @@ apply/vrf_frame/vrf_post/V.
 by case=>[x|ex] n Vn=>[/H2|/H3]; rewrite formE.
 Qed.
 
-(*
-Lemma gX G A (s : spec G A) g (m : heapPCM) m0 j tms k wh r2 rs
-             (e : STspec G s)
-             (fm : Syntactify.form (empx _) j tms)
-             (fu : uform m0 (Some (Syntactify.untag fm)))
-             (fg : PullX.rform j k tms wh (Some rs))
-             (f : forall q, form q r2)
-             (Q : post A) :
-        untagU fu = m ->
-        PullX.unpack (PullX.pivot fg) = PullX.unpack (PullX.pivot fg) ->
-        odflt Unit ((pprint k \o rev) rs) = untag (heap_of (f m0)) ->
-        (valid m -> (s g).1 m) ->
-        (forall x n, (s g).2 (Val x) n ->
-           valid (untag (f n)) -> Q (Val x) (f n)) ->
-        (forall x n, (s g).2 (Exn x) n ->
-           valid (untag (f n)) -> Q (Exn x) (f n)) ->
-        vrf (fg : heapPCM) e Q.
-Proof.
-case: e=>e /= H; case: fu=>m' -> /=.
-rewrite formE => Hm _ Hr H1 H2 H3.
-rewrite (pullX (Syntactify.untag fm)) Hr joinCA joinA.
-rewrite -Hm in H1.
-apply: vrfV=>/validL/H1/H V.
-apply/vrf_frame/vrf_post/V.
-by case=>[x|ex] n Vn=>[/H2|/H3]; rewrite formE.
-Qed.
-*)
+Arguments gX [G A s] g m {m0 j tms k wh r2 e fm fu f fg Q} _ _ _ _.
 
-(*
-Lemma gX G A (s : spec G A) g (m : heapPCM) m0 j tms k wh rs r2 (e : STspec G s) (Q : post A)
-             (fm : Syntactify.form (empx _) j tms)
-             (fu : uform m0 (Syntactify.untag fm))
-             (fg : PullX.rform j k tms wh (Some rs))
-             (f : forall q, form q r2) :
-        untagU fu = m ->
-        (fg : heapPCM) = Syntactify.untag fm \+ f m0 ->
-        (valid m -> (s g).1 m) ->
-        (forall x n, (s g).2 (Val x) n ->
-           valid (untag (f n)) -> Q (Val x) (f n)) ->
-        (forall x n, (s g).2 (Exn x) n ->
-           valid (untag (f n)) -> Q (Exn x) (f n)) ->
-        vrf (fg : heapPCM) e Q.
-Proof.
-case: e=>e /= H; case: fu=>m' /= -> Hu Hg H1 H2 H3.
-rewrite Hg formE joinCA joinA; rewrite -Hu in H1.
-apply: vrfV=>/validL/H1/H V.
-apply/vrf_frame/vrf_post/V.
-by case=>[x|ex] n Vn=>[/H2|/H3]; rewrite formE.
-Qed.
+Notation "[gX] @ i" := (gX tt i erefl) (at level 0).
 
-*)
-
-(*
-Lemma gR G A (s : spec G A) g (m : heapPCM) j tsm k wh rs (e : STspec G s) (Q : post A)
-         (fm : Syntactify.form (empx _) j tsm)
-         (fg : PullX.rform j k tsm wh (Some rs)) :
-        let r := odflt Unit ((pprint k \o rev) rs) in
-        Syntactify.untag fm = m ->
-        (valid m -> (s g).1 m) ->
-        (forall x n, (s g).2 (Val x) n ->
-           valid (n \+ r) -> Q (Val x) (n \+ r)) ->
-        (forall x n, (s g).2 (Exn x) n ->
-           valid (n \+ r) -> Q (Exn x) (n \+ r)) ->
-        vrf (fg : heapPCM) e Q.
-Proof.
-move=>r; case: e=>e /= H Hm H1 H2 H3; rewrite (pullX' m Hm).
-apply: vrfV=>/validL/H1/H V.
-apply/vrf_frame/vrf_post/V.
-by case=>[x|ex] n Vn =>[/H2|/H3].
-Qed.
-*)
+Notation "[ 'gX' x1 , .. , xn ] @ i" :=
+  (gX (existT _ x1 .. (existT _ xn tt) ..) i erefl)
+  (at level 0, format "[ 'gX'  x1 ,  .. ,  xn ] @  i").
 
 (* an automated form of vrf_frame + gE *)
 (* i is the heap fragment to frame on *)
@@ -329,17 +252,34 @@ Notation "[ 'gR' x1 , .. , xn ] @ i" :=
   (gR (existT _ x1 .. (existT _ xn tt) ..) i)
   (at level 0, format "[ 'gR'  x1 ,  .. ,  xn ] @  i").
 
-Arguments gX [G A s] g m {m0 j tms k wh r2 e fm fu f fg Q} _ _ _ _.
-  (*
-Arguments gX [G A s] g m {m0 j tms k wh r2 rs e fm fu fg f Q} _ _ _ _.*)
+Lemma stepX G A B (s : spec G A) g (m : heapPCM) m0 j tms k wh r2
+             (e : STspec G s) (e2 : A -> ST B)
+             (fm : Syntactify.form (empx _) j tms)
+             (fu : uform m0 (Syntactify.untag fm))
+             (f : forall q, form q r2)
+             (fg : SubPart.pform j k tms wh (Some (untag (heap_of (f m0)))))
+             (Q : post B) :
+        untagU fu = m ->
+        (valid m -> (s g).1 m) ->
+        (forall x n, (s g).2 (Val x) n -> vrf (f n) (e2 x) Q) ->
+        (forall x n, (s g).2 (Exn x) n ->
+           valid (untag (f n)) -> Q (Exn x) (f n)) ->
+        vrf (fg : heapPCM) (bind e e2) Q.
+Proof.
+move=>Hm Hi H1 H2.
+apply/vrf_bind/(gX _ _ Hm Hi)=>[x n H V|ex n H V _].
+- by apply: H1 H.
+by apply: H2.
+Qed.
 
-Notation "[gX] @ i" := (gX tt i erefl) (at level 0).
+Arguments stepX [G A B s] g m {m0 j tms k wh r2 e e2 fm fu f fg Q} _ _ _ _.
 
-Notation "[ 'gX' x1 , .. , xn ] @ i" :=
-  (gX (existT _ x1 .. (existT _ xn tt) ..) i erefl)
-  (at level 0, format "[ 'gX'  x1 ,  .. ,  xn ] @  i").
+Notation "[stepX] @ i" := (stepX tt i erefl) (at level 0).
 
-(*
+Notation "[ 'stepX' x1 , .. , xn ] @ i" :=
+  (stepX (existT _ x1 .. (existT _ xn tt) ..) i erefl)
+  (at level 0, format "[ 'stepX'  x1 ,  .. ,  xn ] @  i").
+
 (* vrf_bind + gR *)
 Lemma stepR G A B (s : spec G A) g i j (e : STspec G s) (e2 : A -> ST B)
              (f : forall k, form k j) (Q : post B) :
@@ -363,6 +303,33 @@ Notation "[ 'stepR' x1 , .. , xn ] @ i" :=
   (stepR (existT _ x1 .. (existT _ xn tt) ..) i)
   (at level 0, format "[ 'stepR'  x1 ,  .. ,  xn ] @  i").
 
+Lemma tryX G A B (s : spec G A) g (m : heapPCM) m0 j tms k wh r2
+             (e : STspec G s) (e1 : A -> ST B) (e2 : exn -> ST B)
+             (fm : Syntactify.form (empx _) j tms)
+             (fu : uform m0 (Syntactify.untag fm))
+             (f : forall q, form q r2)
+             (fg : SubPart.pform j k tms wh (Some (untag (heap_of (f m0)))))
+             (Q : post B) :
+        untagU fu = m ->
+        (valid m -> (s g).1 m) ->
+        (forall x n, (s g).2 (Val x) n -> vrf (f n) (e1 x) Q) ->
+        (forall x n, (s g).2 (Exn x) n -> vrf (f n) (e2 x) Q) ->
+        vrf (fg : heapPCM) (try e e1 e2) Q.
+Proof.
+move=>Hm Hi H1 H2.
+apply/vrf_try/(gX _ _ Hm Hi)=>[x|ex] n H V.
+- by apply: H1 H.
+by apply: H2.
+Qed.
+
+Arguments tryX [G A B s] g m {m0 j tms k wh r2 e e1 e2 fm fu f fg Q} _ _ _ _.
+
+Notation "[tryX] @ i" := (stepX tt i erefl) (at level 0).
+
+Notation "[ 'tryX' x1 , .. , xn ] @ i" :=
+  (tryX (existT _ x1 .. (existT _ xn tt) ..) i erefl)
+  (at level 0, format "[ 'tryX'  x1 ,  .. ,  xn ] @  i").
+
 (* vrf_try + gR *)
 Lemma tryR G A B (s : spec G A) g i j (e : STspec G s) (e1 : A -> ST B) (e2 : exn -> ST B)
              (f : forall k, form k j) (Q : post B) :
@@ -384,7 +351,6 @@ Notation "[tryR] @ i" := (tryR tt i) (at level 0).
 Notation "[ 'tryR' x1 , .. , xn ] @ i" :=
   (tryR (existT _ x1 .. (existT _ xn tt) ..) i)
   (at level 0, format "[ 'tryR'  x1 ,  .. ,  xn ] @  i").
-*)
 
 (**********************************************************)
 (* Reflective lemmas that apply module AC-theory of heaps *)

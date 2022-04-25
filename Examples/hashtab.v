@@ -1,7 +1,7 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq fintype tuple finfun finset.
 From fcsl Require Import axioms prelude pred ordtype finmap.
-From fcsl Require Import pcm unionmap heap.
+From fcsl Require Import pcm unionmap heap auto autopcm.
 From HTT Require Import model heapauto.
 From HTT Require Import array kvmaps.
 Set Implicit Arguments.
@@ -68,7 +68,7 @@ move=>pf H2; rewrite -[h1 \+ h2]unitL.
 (* allocate an empty bucket *)
 apply/[stepR] @ Unit=>//= b m Hm.
 (* write its id to the array under index k *)
-apply/[stepR tab] @ h1=>{H1}//= [[]] m2 [E2 V2].
+apply/[stepX tab] @ h1=>{H1}//= [[]] m2 [E2 V2].
 (* invoke the loop *)
 apply/[gE]=>//=; split=>//; rewrite joinCA.
 (* extend the table by the new index/bucket pair, simplify *)
@@ -125,11 +125,11 @@ move=>/= x loop k [] _ /= [Eleq][tf][bf][h1][h2][-> [H1 H2]]; case: decP; last f
   move: H; rewrite (eq_sepit (s2 := set0)); first by rewrite sepit0=>->; rewrite unitR.
   by move=>y; rewrite Ek in_set in_set0 leqNgt ltn_ord.
 (* k < n, read from array *)
-move=>pf H; apply/[stepR tf, h1] @ h1=>//= _ _ [->->].
+move=>pf H; apply/[stepX tf, h1] @ h1=>//= _ _ [->->].
 (* split out the the k-th bucket *)
 move: H; rewrite (sepitS (Ordinal pf)) in_set leqnn; case=>h3[h4][{h2}-> H3 H4].
 (* free it *)
-apply/[stepR (bf (Ordinal pf))] @ h3=>//= [[]] _ ->; rewrite unitL.
+apply/[stepX (bf (Ordinal pf))] @ h3=>//= [[]] _ ->; rewrite unitL.
 (* invoke loop, simplify *)
 apply: [gE]=>//=; split=>//; exists tf, bf, h1, h4; split=>//.
 (* drop the k-th entry from the table *)
@@ -160,13 +160,13 @@ Next Obligation.
 (* pull out ghost + deconstruct precondition *)
 move=>/= x k v [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> [/= H1 _] H2]].
 (* read the bucket from array *)
-apply/[stepR tf, h1] @ h1=>//= _ _ [->->].
+apply/[stepX tf, h1] @ h1=>//= _ _ [->->].
 (* split out the bucket in the heap *)
 move: H2; rewrite (sepitT1 (hash k)) /table; case=>h3[h4][{h2}-> H3 H4].
 (* insert into the bucket *)
-apply/[stepR (bf (hash k))] @ h3=>//= b' m2 H'.
+apply/[stepX (bf (hash k))] @ h3=>//= b' m2 H'.
 (* write the bucket to the array, return the pointer *)
-apply/[stepR tf] @ h1=>{H1}//= [[]] m3 [E3 V3]; step=>_.
+apply/[stepX tf] @ h1=>{H1}//= [[]] m3 [E3 V3]; step=>_.
 (* update the array and buckets' specs *)
 exists [ffun z => if z == hash k then b' else tf z],
        (fun b => if b == hash k then ins k v (bf b) else bf b); split=>/=.
@@ -202,13 +202,13 @@ Next Obligation.
 (* pull out ghost + destructure precondition *)
 move=>/= x k [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> [/= H1 _] H2]].
 (* read the bucket from array *)
-apply/[stepR tf, h1] @ h1=>//= _ _ [->->].
+apply/[stepX tf, h1] @ h1=>//= _ _ [->->].
 (* split out the bucket in the heap *)
 move: H2; rewrite (sepitT1 (hash k)); case=>h3[h4][{h2}-> H3 H4].
 (* insert into the bucket *)
-apply/[stepR (bf (hash k))] @ h3=>//= b' m2 H'.
+apply/[stepX (bf (hash k))] @ h3=>//= b' m2 H'.
 (* write the bucket to the array, return the pointer *)
-apply/[stepR tf] @ h1=>{H1}//= [[]] m3 [E3 V3]; step=>_.
+apply/[stepX tf] @ h1=>{H1}//= [[]] m3 [E3 V3]; step=>_.
 (* update the array and buckets' specs *)
 exists [ffun z => if z == hash k then b' else tf z],
        (fun b => if b == hash k then rem k (bf b) else bf b); split=>/=.
@@ -240,7 +240,7 @@ Next Obligation.
 (* pull out ghost + destructure precondition *)
 move=>/= x k [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> H1 H2]].
 (* read the bucket from array *)
-apply/[stepR tf, h1] @ h1=>//= _ _ [->->].
+apply/[stepX tf, h1] @ h1=>//= _ _ [->->].
 (* split out the bucket in the heap *)
 move: H2; rewrite (sepitT1 (hash k)); case=>h3[h4][{h2}-> H3 H4].
 (* look up in the bucket, simplify *)
