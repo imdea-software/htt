@@ -1,7 +1,7 @@
 
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq.
 From fcsl Require Import axioms pred.
-From fcsl Require Import pcm unionmap heap auto autopcm automap.
+From fcsl Require Import pcm unionmap heap autopcm automap.
 From HTT Require Import model heapauto.
 Set Implicit Arguments.
 Unset Strict Implicit.

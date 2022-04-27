@@ -5,7 +5,7 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype seq path.
 From fcsl Require Import axioms pred ordtype finmap.
-From fcsl Require Import pcm unionmap heap auto autopcm automap.
+From fcsl Require Import pcm unionmap heap autopcm automap.
 From HTT Require Import interlude model heapauto.
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -228,8 +228,8 @@ step; case: eqP=>[|/eqP] Ek.
 (* branch on comparison *)
 case: ifP=>Ho'.
 - (* head key is less than the needed one, loop on tail *)
-  step; apply/[gX (behd fm)] @ h'=>//= v0 h0' [H0 E0] _.
-  by rewrite !joinA Ef fnd_ins (negbTE Ek); split=>//; exact: shape_cons.
+  step; apply/[gR (behd fm)] @ h'=>//= v0 h0' [H0 E0] _.
+  by rewrite Ef fnd_ins (negbTE Ek); split=>//; exact: shape_cons.
 (* head key is bigger than the needed one, abort *)
 move: (semiconnex Ek); rewrite {}Ho' orbC /= =>Ho'; step=>_; split=>//.
 (* k is not in the head entry *)

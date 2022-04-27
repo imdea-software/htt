@@ -1,7 +1,7 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype seq.
 From fcsl Require Import axioms pred.
-From fcsl Require Import pcm unionmap heap auto autopcm.
+From fcsl Require Import pcm unionmap heap autopcm.
 From HTT Require Import model heapauto.
 From HTT Require Import llist.
 Set Implicit Arguments.

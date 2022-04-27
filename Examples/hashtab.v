@@ -1,7 +1,7 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq fintype tuple finfun finset.
 From fcsl Require Import axioms prelude pred ordtype finmap.
-From fcsl Require Import pcm unionmap heap auto autopcm.
+From fcsl Require Import pcm unionmap heap autopcm.
 From HTT Require Import model heapauto.
 From HTT Require Import array kvmaps.
 Set Implicit Arguments.
