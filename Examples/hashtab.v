@@ -65,7 +65,7 @@ move=>/= arr loop k [] _ /= [Eleq][tab][h1][h2][-> H1]; case: decP; last first.
   by apply/tableP2: H=>//= x; rewrite Ek !in_set ltn_ord.
 (* k < n *)
 move=>pf H2; rewrite -[h1 \+ h2]unitL.
-(* allocate an empty bucket *)
+(* allocate an empty bucket (we fall back to stepR because of the Unit) *)
 apply/[stepR] @ Unit=>//= b m Hm.
 (* write its id to the array under index k *)
 apply/[stepX tab] @ h1=>{H1}//= [[]] m2 [E2 V2].

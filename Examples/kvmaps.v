@@ -228,6 +228,7 @@ step; case: eqP=>[|/eqP] Ek.
 (* branch on comparison *)
 case: ifP=>Ho'.
 - (* head key is less than the needed one, loop on tail *)
+  (* (we fall back to gR to preserve associativity) *)
   step; apply/[gR (behd fm)] @ h'=>//= v0 h0' [H0 E0] _.
   by rewrite Ef fnd_ins (negbTE Ek); split=>//; exact: shape_cons.
 (* head key is bigger than the needed one, abort *)
