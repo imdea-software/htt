@@ -1,16 +1,16 @@
 -Q . HTT
 -arg "-w -notation-overridden,-local-declaration,-redundant-canonical-projection,-projection-no-head-constant"
 
-Core/interlude.v
-Core/domain.v
-Core/model.v
-Core/heapauto.v
-Examples/exploit.v
-Examples/llist.v
-Examples/array.v
-Examples/queue.v
-Examples/stack.v
-Examples/dlist.v
-Examples/kvmaps.v
-Examples/hashtab.v
-Examples/congmath.v
+core/interlude.v
+core/domain.v
+core/model.v
+core/heapauto.v
+examples/exploit.v
+examples/llist.v
+examples/array.v
+examples/queue.v
+examples/stack.v
+examples/dlist.v
+examples/kvmaps.v
+examples/hashtab.v
+examples/congmath.v
