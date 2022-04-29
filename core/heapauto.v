@@ -1,13 +1,14 @@
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype seq ssrfun.
 From fcsl Require Import axioms pred prelude.
-From fcsl Require Import pcm unionmap heap.
+From fcsl Require Import pcm autopcm unionmap heap.
 From HTT Require Import model.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Import Prenex Implicits.
 
 (**************************************************************************)
-(* This file implements automations related to Hoare logic.               *)
+(* This file implements automations (both unification- and tactics-based) *)
+(* related to Hoare logic for heaps.                                      *)
 (*                                                                        *)
 (* First automation concerns selection of Hoare-style rule for symbolic   *)
 (* evaluation. The first command of the program determines the applicable *)
@@ -15,7 +16,12 @@ Import Prenex Implicits.
 (* applies it, while using AC-theory of heaps to rearrange the goal, if   *)
 (* necessary for the rule to apply.                                       *)
 (*                                                                        *)
-(* Second, a tactic for canceling common terms in disjoint unions         *)
+(* Second automation extends this mechanism for a common combination of   *)
+(* invoking the ghost lemma together with the frame rule. This allows the *)
+(* user to supply the "kernel" heap to frame directly instead of          *)
+(* rearranging the goal manually with AC-rewriting.                       *)
+(*                                                                        *)
+(* Third, a tactic for canceling common terms in disjoint unions.         *)
 (* Currently, it doesn't deal with weak pointers. I.e. only if it sees    *)
 (* terms like x :-> v1 and x :-> v2, it will reduce to v1 = v2            *)
 (* only if v1, v2 are of the same type. A more general tactic would emit  *)
@@ -27,6 +33,8 @@ Import Prenex Implicits.
 (* First, the reflection mechanism for search-and-replace       *)
 (* pattern-matching on heap expressions; the AC theory of heaps *)
 (****************************************************************)
+
+Section Partition.
 
 Structure tagged_heap := Tag {untag :> heap}.
 
@@ -64,56 +72,11 @@ Proof. by rewrite formE /form_axiom /= joinCA. Qed.
 Canonical Structure search_right h r (f : forall k, form k r) k :=
   Form k (h \+ r) (right_tag (h \+ f k)) (right_pf h f k).
 
+End Partition.
+
 (**********************************************************)
-(* Reflective lemmas that apply module AC-theory of heaps *)
+(* Reflective lemmas that apply modulo AC-theory of heaps *)
 (**********************************************************)
-
-(* an automated form of vrf_frame + gE *)
-Lemma gR G A (s : spec G A) g i j (e : STspec G s)
-          (f : forall k, form k j) (Q : post A) :
-        (valid i -> (s g).1 i) ->
-        (forall x m, (s g).2 (Val x) m ->
-           valid (untag (f m)) -> Q (Val x) (f m)) ->
-        (forall x m, (s g).2 (Exn x) m ->
-           valid (untag (f m)) -> Q (Exn x) (f m)) ->
-        vrf (f i) e Q.
-Proof.
-case: e=>e /= H H1 H2 H3; rewrite formE.
-apply: vrfV=>/validL/H1/H V.
-apply/vrf_frame/vrf_post/V.
-by case=>[x|ex] m Vm =>[/H2|/H3]; rewrite formE.
-Qed.
-
-Arguments gR [G A s] g i [j e f Q] _ _ _.
-
-Notation "[gR] @ i" := (gR tt i) (at level 0).
-
-Notation "[ 'gR' x1 , .. , xn ] @ i" :=
-  (gR (existT _ x1 .. (existT _ xn tt) ..) i)
-  (at level 0, format "[ 'gR'  x1 ,  .. ,  xn ] @  i").
-
-(* vrf_bind + gR *)
-Lemma stepR G A B (s : spec G A) g i j (e : STspec G s) (e2 : A -> ST B)
-             (f : forall k, form k j) (Q : post B) :
-        (valid i -> (s g).1 i) ->
-        (forall x m, (s g).2 (Val x) m -> vrf (f m) (e2 x) Q) ->
-        (forall x m, (s g).2 (Exn x) m ->
-           valid (untag (f m)) -> Q (Exn x) (f m)) ->
-        vrf (f i) (bind e e2) Q.
-Proof.
-move=>Hi H1 H2.
-apply/vrf_bind/(gR _ _ Hi)=>[x m H V|ex m H V _].
-- by apply: H1 H.
-by apply: H2.
-Qed.
-
-Arguments stepR [G A B s] g i [j e e2 f Q] _ _ _.
-
-Notation "[stepR] @ i" := (stepR tt i) (at level 0).
-
-Notation "[ 'stepR' x1 , .. , xn ] @ i" :=
-  (stepR (existT _ x1 .. (existT _ xn tt) ..) i)
-  (at level 0, format "[ 'stepR'  x1 ,  .. ,  xn ] @  i").
 
 (* We maintain three different kinds of lemmas *)
 (* in order to streamline the stepping *)
@@ -151,6 +114,24 @@ Lemma bnd_retR e (v : A) i (r : post B) :
 Proof. by move=>H; apply/vrf_bind/val_retR. Qed.
 
 End EvalRetR.
+
+
+Section EvalThrowR.
+Variables (A B : Type).
+
+Definition val_throwR := vrf_throw.
+
+Lemma try_throwR e e1 e2 i (r : post B) :
+        vrf i (e2 e) r ->
+        vrf i (try (@throw A e) e1 e2) r.
+Proof. by move=>H; apply/vrf_try/val_throwR. Qed.
+
+Lemma bnd_throwR e e1 i (r : post B) :
+        (valid i -> r (Exn e) i) ->
+        vrf i (bind (@throw A e) e1) r.
+Proof. by move=>H; apply/vrf_bind/val_throwR. Qed.
+
+End EvalThrowR.
 
 
 Section EvalReadR.
@@ -253,24 +234,6 @@ Proof. by move=>H; apply/vrf_bind/val_deallocR. Qed.
 End EvalDeallocR.
 
 
-Section EvalThrowR.
-Variables (A B : Type).
-
-Definition val_throwR := vrf_throw.
-
-Lemma try_throwR e e1 e2 i (r : post B) :
-        vrf i (e2 e) r ->
-        vrf i (try (@throw A e) e1 e2) r.
-Proof. by move=>H; apply/vrf_try/val_throwR. Qed.
-
-Lemma bnd_throwR e e1 i (r : post B) :
-        (valid i -> r (Exn e) i) ->
-        vrf i (bind (@throw A e) e1) r.
-Proof. by move=>H; apply/vrf_bind/val_throwR. Qed.
-
-End EvalThrowR.
-
-
 (****************************************************)
 (* Automating the selection of which lemma to apply *)
 (* (reflective implementation of the hstep tactic)  *)
@@ -369,6 +332,240 @@ Canonical Structure try_throw_form A B e e1 e2 i r :=
   TryForm (@try_throwR A B e e1 e2 i r).
 
 Ltac step := (apply: hstep=>/=).
+
+(*****************************************************************)
+(* Another reflection mechanism for splitting the heap into head *)
+(* and tail expressions. Note that this is a restricted version  *)
+(* of the partitioning mechanism (no right branching).           *)
+(*****************************************************************)
+
+Section Uncons.
+
+Structure tagged_heapU := TagU {untagU :> heap}.
+
+Definition head_tagU := TagU.
+Canonical Structure left_tagU i := head_tagU i.
+
+(* - k : output head *)
+(* - r : output tail *)
+Definition uform_axiom k r (h : tagged_heapU) :=
+  untagU h = k \+ r.
+
+Structure uform (k : heap) r :=
+  UForm {heap_ofU :> tagged_heapU;
+         _ : uform_axiom k r heap_ofU}.
+
+Arguments UForm : clear implicits.
+
+Lemma head_pfU k : uform_axiom k Unit (head_tagU k).
+Proof. by rewrite /uform_axiom unitR. Qed.
+
+Canonical Structure heap_headU k := UForm k Unit (head_tagU k) (head_pfU k).
+
+Lemma left_pfU h k r (f : uform k r) :
+        uform_axiom k (r \+ h) (left_tagU (untagU f \+ h)).
+Proof.
+case: f=>f; rewrite /uform_axiom /= =>->.
+by rewrite joinA.
+Qed.
+
+Canonical Structure search_leftU h k r (f : uform k r) :=
+  UForm k (r \+ h) (left_tagU (untagU f \+ h)) (left_pfU h f).
+
+End Uncons.
+
+(***************************)
+(* Ghost lemma automations *)
+(***************************)
+
+(* This is the main automated ghost lemma, which corresponds to a common     *)
+(* combination of gE + vrf_frame. It allows the user to manually supply a    *)
+(* heap subexpression (here named `m`) to be "consumed" by the frame rule.   *)
+(* For proving the postconditions, the automation replaces the first summand *)
+(* in the provided expression by a fresh heap variable and drops the rest.   *)
+(*                                                                           *)
+(* It uses the following algorithm:                                          *)
+(*                                                                           *)
+(* 1. The subexpression `m` is split into a head part `m0` and a tail part.  *)
+(* 2. The tail part is syntactified into a list of terms `tm`.               *)
+(* 3. The goal heap is split into a PCM expression corresponding to `tm` and *)
+(*    a residual term, using the `pullX` PCM automation.                     *)
+(* 4. The residual term is further split into `m0` and the framed-out heap   *)
+(*    expression `r2` using the higher-order partitioning automation, which  *)
+(*    simultaneously splits the postcondition heap into `n + r2` (where `n`  *)
+(*    is fresh and replaces the first expression of `m`).                    *)
+(*                                                                           *)
+(* There are two caveats for using this lemma and its variants:              *)
+(*                                                                           *)
+(* 1. It rewrites the goal into a right-biased form (i.e. `x + (y + z)`).    *)
+(*    This happens because it quotes the goal into a list of terms, losing   *)
+(*    the associativity information. Switching to tree-based AST for quoted  *)
+(*    terms could solve this, but will make the implementation more complex. *)
+(* 2. It will fail if the supplied subexpression is a singleton `Unit`. This *)
+(*    happens because the unconsing mechanism introduces spurious Units into *)
+(*    expressions which are later "garbage collected" by quoting & printing, *)
+(*    droppping user-provided Units as well.                                 *)
+(*                                                                           *)
+(* These issues can be circumvented by falling back to a simpler automated   *)
+(* lemma `gR` and its variants provided below.                               *)
+
+Lemma gX G A (s : spec G A) g (m : heapPCM) m0 j tm k wh r2
+             (e : STspec G s)
+             (fm : Syntactify.form (empx _) j tm)
+             (fu : uform m0 (Syntactify.untag fm))
+             (f : forall q, form q r2)
+             (fg : PullX.rform j k tm wh (Some (untag (heap_of (f m0)))))
+             (Q : post A) :
+        untagU fu = m ->
+        (valid m -> (s g).1 m) ->
+        (forall v n, (s g).2 (Val v) n ->
+           valid (untag (f n)) -> Q (Val v) (f n)) ->
+        (forall x n, (s g).2 (Exn x) n ->
+           valid (untag (f n)) -> Q (Exn x) (f n)) ->
+        vrf (fg : heapPCM) e Q.
+Proof.
+case: e=>e /= H; case: fu=>_ ->/= Em Hp Hv Hx; rewrite -{}Em in Hp.
+rewrite (pullX (Syntactify.untag fm)) formE joinCA joinA.
+apply: vrfV=>/validL/Hp/H V.
+apply/vrf_frame/vrf_post/V.
+by case=>[v|x] n _=>[/Hv|/Hx]; rewrite formE.
+Qed.
+
+Arguments gX [G A s] g m {m0 j tm k wh r2 e fm fu f fg Q} _ _ _ _.
+
+Notation "[gX] @ m" := (gX tt m erefl) (at level 0).
+
+Notation "[ 'gX' x1 , .. , xn ] @ m" :=
+  (gX (existT _ x1 .. (existT _ xn tt) ..) m erefl)
+  (at level 0, format "[ 'gX'  x1 ,  .. ,  xn ] @  m").
+
+(* a combination of gX + vrf_bind *)
+Lemma stepX G A B (s : spec G A) g (m : heapPCM) m0 j tm k wh r2
+             (e : STspec G s) (e2 : A -> ST B)
+             (fm : Syntactify.form (empx _) j tm)
+             (fu : uform m0 (Syntactify.untag fm))
+             (f : forall q, form q r2)
+             (fg : PullX.rform j k tm wh (Some (untag (heap_of (f m0)))))
+             (Q : post B) :
+        untagU fu = m ->
+        (valid m -> (s g).1 m) ->
+        (forall v n, (s g).2 (Val v) n -> vrf (f n) (e2 v) Q) ->
+        (forall x n, (s g).2 (Exn x) n ->
+           valid (untag (f n)) -> Q (Exn x) (f n)) ->
+        vrf (fg : heapPCM) (bind e e2) Q.
+Proof.
+move=>Hm Hp Hv Hx.
+by apply/vrf_bind/(gX _ _ Hm Hp)=>[v n H V|x n H V _]; [apply: Hv| apply: Hx].
+Qed.
+
+Arguments stepX [G A B s] g m {m0 j tm k wh r2 e e2 fm fu f fg Q} _ _ _ _.
+
+Notation "[stepX] @ m" := (stepX tt m erefl) (at level 0).
+
+Notation "[ 'stepX' x1 , .. , xn ] @ m" :=
+  (stepX (existT _ x1 .. (existT _ xn tt) ..) m erefl)
+  (at level 0, format "[ 'stepX'  x1 ,  .. ,  xn ] @  m").
+
+(* a combination of gX + vrf_try *)
+Lemma tryX G A B (s : spec G A) g (m : heapPCM) m0 j tm k wh r2
+             (e : STspec G s) (e1 : A -> ST B) (e2 : exn -> ST B)
+             (fm : Syntactify.form (empx _) j tm)
+             (fu : uform m0 (Syntactify.untag fm))
+             (f : forall q, form q r2)
+             (fg : PullX.rform j k tm wh (Some (untag (heap_of (f m0)))))
+             (Q : post B) :
+        untagU fu = m ->
+        (valid m -> (s g).1 m) ->
+        (forall v n, (s g).2 (Val v) n -> vrf (f n) (e1 v) Q) ->
+        (forall x n, (s g).2 (Exn x) n -> vrf (f n) (e2 x) Q) ->
+        vrf (fg : heapPCM) (try e e1 e2) Q.
+Proof.
+move=>Hm Hp Hv Hx.
+by apply/vrf_try/(gX _ _ Hm Hp)=>[x|ex] n H V; [apply: Hv|apply: Hx].
+Qed.
+
+Arguments tryX [G A B s] g m {m0 j tm k wh r2 e e1 e2 fm fu f fg Q} _ _ _ _.
+
+Notation "[tryX] @ m" := (stepX tt m erefl) (at level 0).
+
+Notation "[ 'tryX' x1 , .. , xn ] @ m" :=
+  (tryX (existT _ x1 .. (existT _ xn tt) ..) m erefl)
+  (at level 0, format "[ 'tryX'  x1 ,  .. ,  xn ] @  m").
+
+(**************************************)
+(* Simplified ghost lemma automations *)
+(**************************************)
+
+(* A simpler version of an automated framing+ghost lemma which only works on *)
+(* singleton heap subexpressions (here `m`). It preserves associativity and  *)
+(* can be used with `Unit`.                                                  *)
+Lemma gR G A (s : spec G A) g m r (e : STspec G s)
+          (f : forall k, form k r) (Q : post A) :
+        (valid m -> (s g).1 m) ->
+        (forall v n, (s g).2 (Val v) n ->
+           valid (untag (f n)) -> Q (Val v) (f n)) ->
+        (forall x n, (s g).2 (Exn x) n ->
+           valid (untag (f n)) -> Q (Exn x) (f n)) ->
+        vrf (f m) e Q.
+Proof.
+case: e=>e /= H Hp Hv Hx; rewrite formE.
+apply: vrfV=>/validL/Hp/H V.
+apply/vrf_frame/vrf_post/V.
+by case=>[x|ex] n _ =>[/Hv|/Hx]; rewrite formE.
+Qed.
+
+Arguments gR [G A s] g m {r e f Q} _ _ _.
+
+Notation "[gR] @ m" := (gR tt m) (at level 0).
+
+Notation "[ 'gR' x1 , .. , xn ] @ m" :=
+  (gR (existT _ x1 .. (existT _ xn tt) ..) m)
+  (at level 0, format "[ 'gR'  x1 ,  .. ,  xn ] @  m").
+
+(* a combination of gR + vrf_bind *)
+Lemma stepR G A B (s : spec G A) g i j (e : STspec G s) (e2 : A -> ST B)
+             (f : forall k, form k j) (Q : post B) :
+        (valid i -> (s g).1 i) ->
+        (forall x m, (s g).2 (Val x) m -> vrf (f m) (e2 x) Q) ->
+        (forall x m, (s g).2 (Exn x) m ->
+           valid (untag (f m)) -> Q (Exn x) (f m)) ->
+        vrf (f i) (bind e e2) Q.
+Proof.
+move=>Hi H1 H2.
+apply/vrf_bind/(gR _ _ Hi)=>[x m H V|ex m H V _].
+- by apply: H1 H.
+by apply: H2.
+Qed.
+
+Arguments stepR [G A B s] g i [j e e2 f Q] _ _ _.
+
+Notation "[stepR] @ i" := (stepR tt i) (at level 0).
+
+Notation "[ 'stepR' x1 , .. , xn ] @ i" :=
+  (stepR (existT _ x1 .. (existT _ xn tt) ..) i)
+  (at level 0, format "[ 'stepR'  x1 ,  .. ,  xn ] @  i").
+
+(* a combination of gR + vrf_try *)
+Lemma tryR G A B (s : spec G A) g i j (e : STspec G s) (e1 : A -> ST B) (e2 : exn -> ST B)
+             (f : forall k, form k j) (Q : post B) :
+        (valid i -> (s g).1 i) ->
+        (forall x m, (s g).2 (Val x) m -> vrf (f m) (e1 x) Q) ->
+        (forall x m, (s g).2 (Exn x) m -> vrf (f m) (e2 x) Q) ->
+        vrf (f i) (try e e1 e2) Q.
+Proof.
+move=>Hi H1 H2.
+apply/vrf_try/(gR _ _ Hi)=>[x|ex] m H V.
+- by apply: H1 H.
+by apply: H2.
+Qed.
+
+Arguments tryR [G A B s] g i [j e e1 e2 f Q] _ _ _.
+
+Notation "[tryR] @ i" := (tryR tt i) (at level 0).
+
+Notation "[ 'tryR' x1 , .. , xn ] @ i" :=
+  (tryR (existT _ x1 .. (existT _ xn tt) ..) i)
+  (at level 0, format "[ 'tryR'  x1 ,  .. ,  xn ] @  i").
 
 (* This is really brittle, but I didn't get around yet to substitute it *)
 (* with Mtac or overloaded lemmas. So for now, let's stick with the hack *)

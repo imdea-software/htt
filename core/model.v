@@ -1055,6 +1055,7 @@ End Vrf.
 
 Export Vrf.
 
+Definition skip := ret tt.
 
 Corollary vrf_mono A (e : ST A) i : monotone (vrf' e i).
 Proof. by move=>/= Q1 Q2 H; apply: vrf_post=>y m _; apply: H. Qed.
@@ -1120,6 +1121,27 @@ Notation "[ 'stepE' x1 , .. , xn ]" :=
   (stepE (existT _ x1 .. (existT _ xn tt) ..))
   (at level 0, format "[ 'stepE'  x1 ,  .. ,  xn ]").
 
+(* vrf_try + gE *)
+Lemma tryE G A B (s : spec G A) g i (e : STspec G s) (e1 : A -> ST B) (e2 : exn -> ST B) (Q : post B) :
+        (s g).1 i ->
+        (forall y m, (s g).2 y m -> match y with
+                                    | Val x => vrf m (e1 x) Q
+                                    | Exn e => vrf m (e2 e) Q
+                                    end) ->
+        vrf i (try e e1 e2) Q.
+Proof.
+move=>H1 H2.
+apply/vrf_try/(gE _ H1)=>y m Vm P.
+by apply: H2.
+Qed.
+
+Arguments tryE [G A B s] g [i e e1 e2 Q] _ _.
+
+Notation "[tryE]" := (tryE tt) (at level 0).
+
+Notation "[ 'tryE' x1 , .. , xn ]" :=
+  (tryE (existT _ x1 .. (existT _ xn tt) ..))
+  (at level 0, format "[ 'tryE'  x1 ,  .. ,  xn ]").
 
 (* some notation for writing posts that signify no exceptions are raised *)
 
