@@ -1,36 +1,46 @@
+# This file was generated from `meta.yml`, please do not edit manually.
+# Follow the instructions on https://github.com/coq-community/templates to regenerate.
+
 opam-version: "2.0"
+maintainer: "fcsl@software.imdea.org"
 version: "dev"
 
-maintainer: [
-  "Aleks Nanevski"
-  "Alex Gryzlov"
-  "Germán Andrés Delbianco"
-]
-authors: [
-  "Aleks Nanevski <aleks.nanevski@imdea.org>"
-  "Alex Gryzlov <aliaksandr.hryzlou@imdea.org>"
-  "Germán Andrés Delbianco <german@nomadic-labs.com>"
-]
-homepage: ["https://github.com/imdea-software/htt"]
-bug-reports: ["https://github.com/imdea-software/htt"]
+homepage: "https://github.com/imdea-software/htt"
 dev-repo: "git+https://github.com/imdea-software/htt.git"
-synopsis: "Hoare Type Theory"
-description: ""
+bug-reports: "https://github.com/imdea-software/htt/issues"
+license: "Apache-2.0"
 
-build: [ make ]
-install: [ make "install" ]
+synopsis: "Hoare Type Theory"
+description: """
+Hoare Type Theory (HTT) is a verification system for reasoning about sequential heap-manipulating
+programs. It incorporates Hoare-style specifications via preconditions and postconditions into
+types.
+
+A Hoare type `{P}x : A{Q}` denotes computations with a precondition `P` and postcondition `Q`,
+returning a value of type `A`. Hoare types are a dependently typed version of monads, as used in
+the programming language Haskell. Monads hygienically combine the language features for pure
+functional programming, with those for imperative programming, such as state or exceptions. In
+this sense, HTT establishes a formal connection between Hoare logic and monads, in the style of
+Curry-Howard isomorphism: every effectful command in HTT has a type which corresponds to the
+appropriate inference rule in Hoare logic, and vice versa, every inference rule in (a version of)
+Hoare logic, corresponds to a command in HTT which has that rule as the type."""
+
+build: [make "-j%{jobs}%"]
+install: [make "install"]
 depends: [
-  "ocaml"
-  "coq" {(>= "8.13" & < "8.15~") | (= "dev")}
-  "coq-mathcomp-ssreflect" {(>= "1.12.0" & < "1.14~") | (= "dev")}
-  "coq-fcsl-pcm" {(>= "1.4.0" & < "1.5~") | (= "dev")}
-  ]
+  "coq" { (>= "8.14" & < "8.16~") | (= "dev") }
+  "coq-mathcomp-ssreflect" { (>= "1.13.0" & < "1.15~") | (= "dev") }
+  "coq-fcsl-pcm" { (>= "1.5.0" & < "1.6~") | (= "dev") }
+]
+
 tags: [
-  "keyword:separation logic"
-  "keyword:partial commutative monoid"
   "category:Computer Science/Data Types and Data Structures"
+  "keyword:partial commutative monoids"
+  "keyword:separation logic"
   "logpath:htt"
 ]
-url {
-  src: "git+https://github.com/imdea-software/htt.git"
-}
+authors: [
+  "Aleksandar Nanevski"
+  "Germán Andrés Delbianco"
+  "Alexander Gryzlov"
+]

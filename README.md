@@ -1,56 +1,64 @@
+<!---
+This file was generated from `meta.yml`, please do not edit manually.
+Follow the instructions on https://github.com/coq-community/templates to regenerate.
+--->
 # Hoare Type Theory
 
-This repository contains the main libraries of Hoare Type Theory (HTT)
-for reasoning about sequential heap-manipulating programs.
+[![Docker CI][docker-action-shield]][docker-action-link]
 
-HTT is a verification system which incorporates Hoare style specifications via preconditions and
-postconditions, into types. A Hoare type `{P}x : A{Q}` denotes computations with a precondition `P`
-and postcondition `Q`, returning a value of type `A`. Hoare types are a dependently typed version
-of monads, as used in the programming language Haskell. Monads hygienically combine the language
-features for pure functional programming, with those for imperative programming, such as state or
-exceptions. In this sense, HTT establishes a formal connection between Hoare logic and monads, in
-the style of Curry-Howard isomorphism: every effectful command in HTT has a type which corresponds
-to the appropriate inference rule in Hoare logic, and vice versa, every inference rule in (a version
-of) Hoare logic, corresponds to a command in HTT which has that rule as the type.
+[docker-action-shield]: https://github.com/imdea-software/htt/workflows/Docker%20CI/badge.svg?branch=master
+[docker-action-link]: https://github.com/imdea-software/htt/actions?query=workflow:"Docker%20CI"
 
-## Building and executing artifacts
 
-### Requirements
 
-* [Coq](https://coq.inria.fr/download) (>= "8.12.0" & < "8.15~")
-* [Mathematical Components](http://math-comp.github.io/math-comp/) `ssreflect` (>= "1.11.0" & < "1.13~")
-* [FCSL-PCM](https://github.com/imdea-software/fcsl-pcm) (>= "1.3.0" & < "1.5~")
 
-For the installation, follow instructions in the corresponding
-`README` files.
+Hoare Type Theory (HTT) is a verification system for reasoning about sequential heap-manipulating
+programs. It incorporates Hoare-style specifications via preconditions and postconditions into
+types.
 
-Alternatively, Coq and mathcomp can be installed via the [opam](https://opam.ocaml.org/doc/Install.html)
-package manager, by executing the following commands in the console:
+A Hoare type `{P}x : A{Q}` denotes computations with a precondition `P` and postcondition `Q`,
+returning a value of type `A`. Hoare types are a dependently typed version of monads, as used in
+the programming language Haskell. Monads hygienically combine the language features for pure
+functional programming, with those for imperative programming, such as state or exceptions. In
+this sense, HTT establishes a formal connection between Hoare logic and monads, in the style of
+Curry-Howard isomorphism: every effectful command in HTT has a type which corresponds to the
+appropriate inference rule in Hoare logic, and vice versa, every inference rule in (a version of)
+Hoare logic, corresponds to a command in HTT which has that rule as the type.
 
-```
+## Meta
+
+- Author(s):
+  - Aleksandar Nanevski (initial)
+  - Germán Andrés Delbianco
+  - Alexander Gryzlov
+- License: [Apache-2.0](LICENSE)
+- Compatible Coq versions: Coq 8.14 to 8.15
+- Additional dependencies:
+  - [MathComp ssreflect 1.13 to 1.14](https://math-comp.github.io)
+  - [FCSL-PCM 1.5](https://github.com/imdea-software/fcsl-pcm)
+- Coq namespace: `htt`
+- Related publication(s):
+  - [Structuring the verification of heap-manipulating programs](https://software.imdea.org/~aleks/papers/reflect/reflect.pdf) doi:[10.1145/1706299.1706331](https://doi.org/10.1145/1706299.1706331)
+
+## Building and installation instructions
+
+The easiest way to install the latest released version of Hoare Type Theory
+is via [OPAM](https://opam.ocaml.org/doc/Install.html):
+
+```shell
 opam repo add coq-released https://coq.inria.fr/opam/released
-opam install coq-mathcomp-ssreflect coq-fcsl-pcm
+opam install coq-htt
 ```
 
-### Build
+To instead build and install manually, do:
 
-```
-make clean; make
-```
-
-### Install
-
-```
+``` shell
+git clone https://github.com/imdea-software/htt.git
+cd htt
+make   # or make -j <number-of-cores-on-your-machine> 
 make install
 ```
 
-### Usage with opam
-
-To install HTT as a opam package from your local repository, run the [following command](https://opam.ocaml.org/blog/opam-install-dir/) from the repository's root directory.
-
-```
-opam install .
-```
 
 ##  References
 
@@ -64,9 +72,13 @@ opam install .
 
   Aleksandar Nanevski, Viktor Vefeiadis and Josh Berfine. POPL 2010.
 
-  This paper introduces what is closest to the current structure of the implementation of HTT. It puts emphasis on structuring programs and proofs together, rather than on attacking the verification problem using proof automation. It carries out a large case study, verifying the congruence closure algorithm of the Barcelogic SAT solver.
+  This paper introduces what is closest to the current structure of the implementation of HTT.
+  It puts emphasis on structuring programs and proofs together, rather than on attacking the
+  verification problem using proof automation. It carries out a large case study, verifying the
+  congruence closure algorithm of the Barcelogic SAT solver.
 
-  The current implementation differs from what's explained in this paper, in that it uses unary, rather than binary postconditions.
+  The current implementation differs from what's explained in this paper, in that it uses unary,
+  rather than binary postconditions.
 
 * [Ynot: Dependent Types for Imperative Programs](http://software.imdea.org/~aleks/htt/ynot08.pdf)
 

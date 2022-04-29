@@ -46,10 +46,14 @@ cv/*.out
 .#*
 
 # -----------------------------------------------------------------------------
+#  Local VSCode settings
+.vscode
+
+# -----------------------------------------------------------------------------
 #  Coq-generated stuff
 
 \#*\#
-**/*.vo 
+**/*.vo
 **/*.v.d
 **/*.glob
 **/*.vok
@@ -57,8 +61,9 @@ cv/*.out
 
 # -----------------------------------------------------------------------------
 # HTT specific stuff
+.Makefile.coq.d
 Makefile.coq
 Makefile.coq.conf
 CoqMakefile.conf
 loadpath.v
-.*
+
