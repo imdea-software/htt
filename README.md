@@ -60,13 +60,46 @@ make install
 ```
 
 
-##  References
 
-* [Partiality, State and Dependent Types](http://software.imdea.org/~aleks/htt/tlca11.pdf)
+## History
 
-  Kasper Svendsen, Lars Birkedal and Aleksandar Nanevski. TLCA 2011.
+The original version of HTT can be found [here](https://software.imdea.org/~aleks/htt/).
 
-  A semantic model for HTT, with large sigma types.
+## References
+
+* [Dependent Type Theory of Stateful Higher-Order Functions](https://software.imdea.org/~aleks/papers/hoarelogic/depstate.pdf)
+
+  Aleksandar Nanevski and Greg Morrisett. Technical report TR-24-05, Harvard University, 2005.
+
+* [Polymorphism and Separation in Hoare Type Theory](http://software.imdea.org/~aleks/htt/icfp06.pdf)
+
+  Aleksandar Nanevski, Greg Morrisett and Lars Birkedal. ICFP 2006.
+
+  The first paper containing a (very impoverished) definition of HTT.
+
+* [Hoare Type Theory, Polymorphism and Separation](http://software.imdea.org/~aleks/htt/jfpsep07.pdf)
+
+  Aleksandar Nanevski, Greg Morrisett and Lars Birkedal. JFP 2007.
+
+  Journal version of the ICFP 2006 paper.
+
+* [Abstract Predicates and Mutable ADTs in Hoare Type Theory](http://software.imdea.org/~aleks/htt/esop07.pdf)
+
+  Aleksandar Nanevski, Amal Ahmed, Greg Morrisett, Lars Birkedal. ESOP 2007.
+
+  Adding abstract predicates to HTT.
+
+* [A Realizability Model for Impredicative Hoare Type Theory](http://software.imdea.org/~aleks/htt/esop08.pdf)
+
+  Rasmus L. Petersen, Lars Birkedal, Aleksandar Nanevski, Greg Morrisett. ESOP 2008.
+
+  A semantic model for HTT, but without large sigma types.
+
+* [Ynot: Dependent Types for Imperative Programs](http://software.imdea.org/~aleks/htt/ynot08.pdf)
+
+  Aleksandar Nanevski, Greg Morrisett, Avi Shinnar, Paul Govereau, Lars Birkedal. ICFP 2008.
+
+  First implementation of HTT as a DSL in Coq, and a number of examples.
 
 * [Structuring the Verification of Heap-Manipulating Programs](http://software.imdea.org/~aleks/htt/reflect.pdf)
 
@@ -80,32 +113,8 @@ make install
   The current implementation differs from what's explained in this paper, in that it uses unary,
   rather than binary postconditions.
 
-* [Ynot: Dependent Types for Imperative Programs](http://software.imdea.org/~aleks/htt/ynot08.pdf)
+* [Partiality, State and Dependent Types](http://software.imdea.org/~aleks/htt/tlca11.pdf)
 
-  Aleksandar Nanevski, Greg Morrisett, Avi Shinnar, Paul Govereau, Lars Birkedal. ICFP 2008.
+  Kasper Svendsen, Lars Birkedal and Aleksandar Nanevski. TLCA 2011.
 
-  First implementation of HTT as a DSL in Coq, and a number of examples.
-
-* [A Realizability Model for Impredicative Hoare Type Theory](http://software.imdea.org/~aleks/htt/esop08.pdf)
-
-  Rasmus L. Petersen, Lars Birkedal, Aleksandar Nanevski, Greg Morrisett. ESOP 2008.
-
-  A semantic model for HTT, but without large sigma types.
-
-* [Abstract Predicates and Mutable ADTs in Hoare Type Theory](http://software.imdea.org/~aleks/htt/esop07.pdf)
-
-  Aleksandar Nanevski, Amal Ahmed, Greg Morrisett, Lars Birkedal. ESOP 2007.
-
-  Adding abstract predicates to HTT.
-
-* [Hoare Type Theory, Polymorphism and Separation](http://software.imdea.org/~aleks/htt/jfpsep07.pdf)
-
-  Aleksandar Nanevski, Greg Morrisett and Lars Birkedal. JFP 2007.
-
-  Journal version of the ICFP 2006 paper.
-
-* [Polymorphism and Separation in Hoare Type Theory](http://software.imdea.org/~aleks/htt/icfp06.pdf)
-
-  Aleksandar Nanevski, Greg Morrisett and Lars Birkedal. ICFP 2006.
-
-  The first paper containing a (very impoverished) definition of HTT.
+  A semantic model for HTT, with large sigma types.
