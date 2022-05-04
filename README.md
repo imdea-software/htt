@@ -13,22 +13,23 @@ Follow the instructions on https://github.com/coq-community/templates to regener
 
 
 Hoare Type Theory (HTT) is a verification system for reasoning about sequential heap-manipulating
-programs based on separation logic.
+programs based on Separation logic.
 
-HTT incorporates Hoare-style specifications via preconditions and postconditions into types.
-A Hoare type `ST P (fun x : A => Q)` denotes computations with a precondition `P` and
-postcondition `Q`, returning a value `x` of type `A`. Hoare types are a dependently typed version
-of monads, as used in the programming language Haskell. Monads hygienically combine the language
-features for pure functional programming, with those for imperative programming, such as state
-or exceptions. In this sense, HTT establishes a formal connection between (functional programming
-variant of) Separation logic and monads, in the style of Curry-Howard isomorphism. Every
-effectful command in HTT has a type which corresponds to the appropriate non-structural inference
+HTT incorporates Hoare-style specifications via preconditions and postconditions into types. A
+Hoare type `ST P (fun x : A => Q)` denotes computations with a precondition `P` and postcondition
+`Q`, returning a value `x` of type `A`. Hoare types are a dependently typed version of monads,
+as used in the programming language Haskell. Monads hygienically combine the language features
+for pure functional programming, with those for imperative programming, such as state or
+exceptions. In this sense, HTT establishes a formal connection in the style of Curry-Howard
+isomorphism between monads and (functional programming variant of) Separation logic. Every
+effectful command in HTT has a type that corresponds to the appropriate non-structural inference
 rule in Separation logic, and vice versa, every non-structural inference rule corresponds to a
-command in HTT that has that rule as the type. The type for monadic bind is the Hoare-style rule
-for sequential composition, and the type for monadic unit combines the Hoare-style rule for the
-idle thread and the Hoare-style rule for variable assignment (adapted for functional variables).
-In implementation terms, the above means that HTT implements Separation logic as a shallow
-embedding in Coq.
+command in HTT that has that rule as the type. The type for monadic bind is the Hoare rule for
+sequential composition, and the type for monadic unit combines the Hoare rules for the idle
+program (in a small-footprint variant) and for variable assignment (adapted for functional
+variables). The connection reconciles dependent types with effects of state and exceptions and
+establishes Separation logic as a type theory for such effects. In implementation terms, it means
+that HTT implements Separation logic as a shallow embedding in Coq.
 
 ## Meta
 
@@ -41,7 +42,7 @@ embedding in Coq.
 - Additional dependencies:
   - [MathComp ssreflect 1.13 to 1.14](https://math-comp.github.io)
   - [FCSL-PCM 1.5](https://github.com/imdea-software/fcsl-pcm)
-- Coq namespace: `htt`
+- Coq namespace: `HTT`
 - Related publication(s):
   - [Structuring the verification of heap-manipulating programs](https://software.imdea.org/~aleks/papers/reflect/reflect.pdf) doi:[10.1145/1706299.1706331](https://doi.org/10.1145/1706299.1706331)
 
