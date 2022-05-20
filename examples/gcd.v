@@ -32,11 +32,11 @@ do 2!step; case: eqP=>/=.
 - move=>->; step=>_.
   by rewrite gcdnn; vauto.
 move=>E; case: ltngtP=>// {E}H; step.
-- apply: [gE x, (y-x)]=>/=; first by vauto.
+- apply: [gE x, (y-x)]=>/=; first by eauto.
   case=>//= _ _ _ [m ->]; exists m.
   suff: gcdn x (y - x) = gcdn x y by move=>->.
   by rewrite -gcdnDr subnK //; apply: ltnW.
-apply: [gE (x-y), y]=>//=; first by vauto.
+apply: [gE (x-y), y]=>//=; first by eauto.
 case=>//= _ _ _ [m ->]; exists m.
 suff: gcdn (x - y) y = gcdn x y by move=>->.
 by rewrite gcdnC -gcdnDr gcdnC subnK //; apply: ltnW.
@@ -48,16 +48,15 @@ Program Definition gcd u v :
   STsep (PredT, [vfun r h => r = gcdn u v]) :=
   Do (a <-- alloc u;
       b <-- alloc v;
-      _ <-- gcd_loop a b tt;
+      gcd_loop a b tt;;
       x <-- !a;
       dealloc a;;
       dealloc b;;
       ret x).
 Next Obligation.
 move=>u v _ m /= _.
-step=>x; step=>y.
-apply: [stepE u, v]=>/=.
-- by exists m; rewrite joinCA.
+step=>x; step=>y; apply: [stepE u, v]=>/=.
+- by rewrite joinCA; eauto.
 case=>//= _ _ [h' ->].
 by do 4!step; rewrite !unitL.
 Qed.
