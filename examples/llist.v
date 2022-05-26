@@ -206,10 +206,10 @@ Definition lenT : Type := forall (pl : ptr * nat),
 Program Definition len p :
   {xs : seq A}, STsep (lseq p xs,
                       [vfun l h => l == length xs /\ lseq p xs h]) :=
-  Do (let: len := Fix (fun (go : lenT) '(p, l) =>
-                        Do (if p == null then ret l
-                            else pnext <-- !(p .+ 1);
-                                 go (pnext, l + 1)))
+  Do (let len := Fix (fun (go : lenT) '(p, l) =>
+                       Do (if p == null then ret l
+                           else pnext <-- !(p .+ 1);
+                                go (pnext, l + 1)))
       in len (p, 0)).
 (* first, the loop *)
 Next Obligation.
@@ -239,12 +239,12 @@ Definition catT (p2 : ptr) : Type :=
 Program Definition concat p1 p2 :
   {xs1 xs2 : seq A}, STsep (lseq p1 xs1 # lseq p2 xs2,
                            [vfun a => lseq a (xs1 ++ xs2)]) :=
-  Do (let: cat := Fix (fun (go : catT p2) q =>
-                        Do (next <-- !(q .+ 1);
-                            if (next : ptr) == null
-                               then q .+ 1 ::= p2;;
-                                    ret tt
-                               else go next))
+  Do (let cat := Fix (fun (go : catT p2) q =>
+                      Do (next <-- !(q .+ 1);
+                          if (next : ptr) == null
+                             then q .+ 1 ::= p2;;
+                                  ret tt
+                             else go next))
       in if p1 == null
            then ret p2
            else cat p1;;
@@ -293,11 +293,11 @@ Definition revT : Type := forall (p : ptr * ptr),
 
 Program Definition reverse p :
   {xs : seq A}, STsep (lseq p xs, [vfun p' => lseq p' (rev xs)]) :=
-  Do (let: reverse := Fix (fun (go : revT) '(i, done) =>
-                        Do (if i == null then ret done
-                            else next <-- !i .+ 1;
-                                 i .+ 1 ::= done;;
-                                 go (next, i)))
+  Do (let reverse := Fix (fun (go : revT) '(i, done) =>
+                          Do (if i == null then ret done
+                              else next <-- !i .+ 1;
+                                   i .+ 1 ::= done;;
+                                   go (next, i)))
       in reverse (p, null)).
 (* first, the loop *)
 Next Obligation.
