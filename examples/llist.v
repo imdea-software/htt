@@ -83,6 +83,19 @@ move=>H /lseg_case; case=>//; case=>E.
 by rewrite E eq_refl in H.
 Qed.
 
+(* non-empty list is represented by a non-trivial segment *)
+
+Corollary lseg_lt0n (xs : seq A) p q h :
+        0 < size xs -> h \In lseg p q xs ->
+        exists x r h',
+         [/\ xs = x :: behead xs,
+             h = p :-> x \+ (p .+ 1 :-> r \+ h') &
+             h' \In lseg r q (behead xs)].
+Proof.
+move=>H /lseg_case; case=>//; case=>_ E.
+by rewrite E in H.
+Qed.
+
 (* splitting the list corresponds to splitting the heap *)
 
 Lemma lseg_cat (xs ys : seq A) p q h :

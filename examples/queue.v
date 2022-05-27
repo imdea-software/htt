@@ -26,7 +26,7 @@ Definition is_queue (fr bq : ptr) (xs : seq T) :=
                      h = h' \+ (bq :-> x \+ bq .+ 1 :-> null) &
                      h' \In lseg fr bq xt]].
 
-(* the structure itself is just a pair of pointers to body + last node *)
+(* the structure itself is a pair of pointers to body + last node *)
 (* insertion happens at the last node, and removal at the head *)
 Definition shape (q : queue) (xs : seq T) :=
   [Pred h | exists fr bq h',
