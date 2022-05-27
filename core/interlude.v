@@ -2,6 +2,15 @@ From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat seq eqtype path.
 From fcsl Require Import options axioms.
 
+Lemma rcons_nseq {A : Type} n (x : A) :
+  rcons (nseq n x) x = nseq n.+1 x.
+Proof. by elim: n=>//=n ->. Qed.
+
+Lemma behead_rcons {A : Type} (xs : seq A) (x : A) :
+  0 < size xs ->
+  behead (rcons xs x) = rcons (behead xs) x.
+Proof. by case: xs. Qed.
+
 Lemma mem_split {T : eqType} (x : T) (s : seq T) :
         x \in s -> exists s1 s2, s = s1 ++ [:: x] ++ s2.
 Proof.

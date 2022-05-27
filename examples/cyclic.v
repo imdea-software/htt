@@ -1,18 +1,21 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype seq ssrnat.
 From fcsl Require Import axioms pred.
-From fcsl Require Import pcm unionmap heap automap.
-From HTT Require Import model heapauto.
+From fcsl Require Import pcm unionmap heap automap autopcm.
+From HTT Require Import interlude model heapauto.
 From HTT Require Import llist.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 Obligation Tactic := auto.
 
+(* a queue variant that has a fixed capacity and can overwrite data in a circular way *)
+
 Record buffer (T : Type) : Type :=
-  Buf {active: ptr; inactive: ptr; len : ptr; capacity : nat}.
+  Buf {active: ptr; inactive: ptr; len: ptr; capacity: nat}.
 
 Definition BufferFull : exn := exn_from_nat 10.
+Definition BufferEmpty : exn := exn_from_nat 20.
 
 Module Buffer.
 Section Buffer.
@@ -37,16 +40,6 @@ Definition shape (b : buffer) (xs : seq T) :=
 (* main methods *)
 
 (* new buffer *)
-
-(* TODO move to interlude *)
-Lemma rcons_nseq {A : Type} n (x : A) :
-  rcons (nseq n x) x = nseq n.+1 x.
-Proof. by elim: n=>//=n ->. Qed.
-
-Lemma behead_rcons {A : Type} (xs : seq A) (x : A) :
-  0 < size xs ->
-  behead (rcons xs x) = rcons (behead xs) x.
-Proof. by case: xs. Qed.
 
 Definition new_loopT (n : nat) (init : T) : Type :=
   forall (pk : ptr * nat),
@@ -170,3 +163,87 @@ exists (behead ys), (ha \+ (i :-> x \+ i.+ 1 :-> r)), h'; split=>//.
 - by rewrite size_rcons.
 by apply/lseg_rcons; exists i, ha.
 Qed.
+
+Program Definition read (b : buffer) :
+  {xs}, STsep (shape b xs,
+               fun y h => match y with
+                          | Val x => h \In shape b (behead xs) /\ ohead xs = Some x
+                          | Exn e => e = BufferEmpty /\ xs = [::]
+                          end) :=
+  Do (m <-- !len b;
+      if 0 < m then
+        a <-- !active b;
+        x <-- !a;
+        r <-- !a.+ 1;
+        active b ::= (r : ptr);;
+        len b ::= m.-1;;
+        ret x
+      else throw BufferEmpty).
+Next Obligation.
+move=>b [xs []] _ /= [a][i][_][_][_ -> [ys][ha][hi][-> Hc -> Ha Hi]].
+step; case: ltnP.
+- move=>Hm; step.
+  case/lseg_case: Ha; first by case=>_ Exs; rewrite Exs in Hm.
+  case=>x[r][h'][Exs {ha}-> H'].
+  do 5![step]=>V; split; last by rewrite Exs.
+  exists r, i, (size xs).-1, (a :-> x \+ (a.+ 1 :-> r \+ h') \+ hi); split=>//.
+  exists (rcons ys x), h', (hi \+ (a :-> x \+ a.+ 1 :-> r)); split=>//.
+  - by rewrite [LHS](pullX (h' \+ hi)) !joinA.
+  - by rewrite size_rcons Hc {1}Exs /= addnS addSn.
+  - by rewrite size_behead.
+  by apply/lseg_rcons; exists a, hi.
+by rewrite leqn0=>/nilP->; step.
+Qed.
+
+Definition free_loopT (n : nat) : Type :=
+  forall (pk : ptr * nat),
+  {q (xs : seq T)}, STsep (fun h => h \In lseg pk.1 q xs /\ size xs = n - pk.2,
+                           [vfun _ : unit => emp]).
+
+Program Definition free (b : buffer) :
+  {xs}, STsep (fun h => h \In shape b xs,
+               [vfun _ => emp]) :=
+  Do (let run := Fix (fun (go : free_loopT (capacity b)) '(r,k) =>
+                      Do (if k < capacity b then
+                            p' <-- !r.+ 1;
+                            dealloc r;;
+                            dealloc r.+ 1;;
+                            go (p', k.+1)
+                          else ret tt)) in
+      (if 0 < capacity b then
+        a <-- !active b;
+        run (a, 0);;
+        skip
+      else skip);;
+      dealloc (active b);;
+      dealloc (inactive b);;
+      dealloc (len b)).
+Next Obligation.
+move=>b go [r k][_ _][->->] [q][xs][] h /= [H Hs].
+case: ltnP.
+- move=>Hk; case/lseg_case: H.
+  - case=>_ E; rewrite E /= in Hs; move/eqP: Hs.
+    by rewrite eq_sym subn_eq0 leqNgt Hk.
+  case=>x[p][h'][E {h}-> H'].
+  do 3!step; rewrite !unitL.
+  apply: [gE q, behead xs]=>//=; split=>//.
+  by rewrite subnS; move: Hs; rewrite {1}E /= =><-.
+rewrite -subn_eq0=>/eqP Hc; rewrite Hc in Hs.
+by step=>_; move: H; move/eqP/nilP: Hs=>->/=; case.
+Qed.
+Next Obligation.
+move=>b [xs][] _ /= [a][i][m][_][_ -> [ys][ha][hi][-> Hc -> Ha Hi]].
+case: ltnP.
+- move=>_; apply/vrf_bind; step; apply: [stepX a, xs++ys]@(ha \+ hi)=>//=.
+  - move=>_; split; last by rewrite size_cat subn0.
+    by apply/lseg_cat; exists i, ha, hi.
+  by move=>_ _ ->; rewrite unitR; step=>V; do 3![step]=>_; rewrite !unitR.
+rewrite leqn0=>/eqP E.
+do 4!step; rewrite !unitL=>_.
+move: Hc; rewrite E =>/eqP; rewrite eq_sym addn_eq0; case/andP=>/nilP Ex /nilP Ey.
+move: Ha; rewrite Ex /=; case=>_->; move: Hi; rewrite Ey /=; case=>_->.
+by rewrite unitR.
+Qed.
+
+End Buffer.
+End Buffer.
