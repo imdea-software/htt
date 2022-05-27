@@ -43,6 +43,11 @@ Lemma rcons_nseq {A : Type} n (x : A) :
   rcons (nseq n x) x = nseq n.+1 x.
 Proof. by elim: n=>//=n ->. Qed.
 
+Lemma behead_rcons {A : Type} (xs : seq A) (x : A) :
+  0 < size xs ->
+  behead (rcons xs x) = rcons (behead xs) x.
+Proof. by case: xs. Qed.
+
 Definition new_loopT (n : nat) (init : T) : Type :=
   forall (pk : ptr * nat),
   {q}, STsep (fun h => pk.2 < n /\ h \In lseg pk.1 q (nseq pk.2 init),
@@ -70,13 +75,12 @@ Program Definition new (n : nat) (init : T) :
            pa <-- alloc null;
            ret (Buf T pa pi m 0)).
 Next Obligation.
-move=>n init go [r k] _ _[->->][q []] i /= [Hk H]; case: ltnP.
-- move=>H0.
-  step=>p'; step; rewrite unitR.
+move=>n init go [r k] _ _[->->][q []] i /= [Hk H]; case: ltnP=>Hk1.
+- step=>p'; step; rewrite unitR.
   apply: [gE q]=>//=; split; first by rewrite -ltn_predRL.
   by exists r, i; rewrite joinA.
-move=>H2; move: Hk=>/[dup]/ltn_predK=>{1}<-; rewrite ltnS=>H1.
-by step=>_; have/eqP <-: (k == n.-1) by rewrite eqn_leq H1 H2.
+move: Hk=>/[dup]/ltn_predK=>{1}<-; rewrite ltnS=>Hk.
+by step=>_; have/eqP <-: (k == n.-1) by rewrite eqn_leq Hk1 Hk.
 Qed.
 Next Obligation.
 move=>n init [] _ /= ->; case: ifP.
@@ -99,7 +103,7 @@ Program Definition write (x : T) (b : buffer) :
                fun y h => match y with
                           | Val _ => h \In shape b (rcons xs x)
                           | Exn e => e = BufferFull /\ h \In shape b xs
-               end) :=
+                          end) :=
   Do (m <-- !len b;
       if m < capacity b then
         i <-- !inactive b;
@@ -109,14 +113,13 @@ Program Definition write (x : T) (b : buffer) :
         len b ::= m.+1
       else throw BufferFull).
 Next Obligation.
-move=>x b [xs []] _ /= [a][i][m][h][_ -> [ys][ha][hi][E Ec -> Ha Hi]].
+move=>x b [xs []] _ /= [a][i][_][h][_ -> [ys][ha][hi][E Ec -> Ha Hi]].
 rewrite Ec; step; case: ltnP.
 - rewrite -{1}(addn0 (size xs)) ltn_add2l => Hys.
-  step; rewrite E.
-  case/lseg_case: Hi.
-  - by case=>_ Eys; rewrite Eys in Hys.
-  case=>y[r][h'][Eys Ehi H']; rewrite Ehi.
-  do 4![step]=>V.
+  step; rewrite {}E.
+  case/lseg_case: Hi; first by case=>_ Eys; rewrite Eys in Hys.
+  case=>y[r][h'][_ {hi}-> H'].
+  do 4![step]=>{y}V.
   exists a, r, (size xs).+1, (ha \+ (i :-> x \+ (i.+ 1 :-> r \+ h'))); split=>//.
   exists (behead ys), (ha \+ (i :-> x \+ i.+ 1 :-> r)), h'; split=>//.
   - by rewrite !joinA.
@@ -126,5 +129,44 @@ rewrite Ec; step; case: ltnP.
 rewrite -{2}(addn0 (size xs)) leq_add2l leqn0 => /nilP Eys.
 step=>V; split=>//.
 exists a, i, (size xs), h; split=>//.
-by exists [::], ha, hi; rewrite Eys in Ec Hi; split.
+by exists [::], ha, hi; rewrite Eys in Ec Hi.
+Qed.
+
+(* we make checking for capacity != 0 the client's problem *)
+Program Definition overwrite (x : T) (b : buffer) :
+  {xs}, STsep (fun h => 0 < capacity b /\ h \In shape b xs,
+               [vfun _ => shape b (drop ((size xs).+1 - capacity b) (rcons xs x))]) :=
+  Do (i <-- !inactive b;
+      i ::= x;;
+      r <-- !i.+ 1;
+      inactive b ::= (r : ptr);;
+      m <-- !len b;
+      if m < capacity b then
+         len b ::= m.+1
+      else
+         active b ::= r).
+Next Obligation.
+move=>x b [xs []] _ /= [Hc][a][i][_][_][_ -> [ys][ha][hi][-> Ec -> Ha Hi]].
+rewrite Ec in Hc *; step.
+case/lseg_case: Hi.
+- case=>Ei Eys {hi}->; rewrite {i}Ei in Ha *; rewrite {ys}Eys /= addn0 in Hc Ec *.
+  case/lseg_case: Ha; first by case=>_ Exs; rewrite Exs in Hc.
+  case=>z[r][h'][Exs {ha}-> H'].
+  do 4!step; rewrite ltnn subSnn drop1 unitR; step=>V.
+  exists r, r, (size xs), (a :-> x \+ (a.+ 1 :-> r \+ h')); split=>//.
+  exists [::], (a :-> x \+ (a.+ 1 :-> r \+ h')), Unit; split=>//=.
+  - by rewrite unitR.
+  - by rewrite addn0 size_behead size_rcons.
+  - by rewrite size_behead size_rcons.
+  rewrite behead_rcons //; apply/lseg_rcons; exists a, h'; split=>//.
+  by rewrite [in RHS]joinC joinA.
+case=>y[r][h'][Eys {hi}-> H'].
+do 4!step; rewrite -{1}(addn0 (size xs)) ltn_add2l {1}Eys /=; step=>V.
+exists a, r, (size xs).+1, (ha \+ (i :-> x \+ (i.+ 1 :-> r \+ h'))); split=>//.
+rewrite Eys /= addnS subSS subnDA subnn sub0n drop0.
+exists (behead ys), (ha \+ (i :-> x \+ i.+ 1 :-> r)), h'; split=>//.
+- by rewrite !joinA.
+- by rewrite Ec {1}Eys /= size_rcons addnS addSn.
+- by rewrite size_rcons.
+by apply/lseg_rcons; exists i, ha.
 Qed.
