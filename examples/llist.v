@@ -83,6 +83,19 @@ move=>H /lseg_case; case=>//; case=>E.
 by rewrite E eq_refl in H.
 Qed.
 
+(* non-empty list is represented by a non-trivial segment *)
+
+Corollary lseg_lt0n (xs : seq A) p q h :
+        0 < size xs -> h \In lseg p q xs ->
+        exists x r h',
+         [/\ xs = x :: behead xs,
+             h = p :-> x \+ (p .+ 1 :-> r \+ h') &
+             h' \In lseg r q (behead xs)].
+Proof.
+move=>H /lseg_case; case=>//; case=>_ E.
+by rewrite E in H.
+Qed.
+
 (* splitting the list corresponds to splitting the heap *)
 
 Lemma lseg_cat (xs ys : seq A) p q h :
@@ -206,10 +219,10 @@ Definition lenT : Type := forall (pl : ptr * nat),
 Program Definition len p :
   {xs : seq A}, STsep (lseq p xs,
                       [vfun l h => l == length xs /\ lseq p xs h]) :=
-  Do (let: len := Fix (fun (go : lenT) '(p, l) =>
-                        Do (if p == null then ret l
-                            else pnext <-- !(p .+ 1);
-                                 go (pnext, l + 1)))
+  Do (let len := Fix (fun (go : lenT) '(p, l) =>
+                       Do (if p == null then ret l
+                           else pnext <-- !(p .+ 1);
+                                go (pnext, l + 1)))
       in len (p, 0)).
 (* first, the loop *)
 Next Obligation.
@@ -239,12 +252,12 @@ Definition catT (p2 : ptr) : Type :=
 Program Definition concat p1 p2 :
   {xs1 xs2 : seq A}, STsep (lseq p1 xs1 # lseq p2 xs2,
                            [vfun a => lseq a (xs1 ++ xs2)]) :=
-  Do (let: cat := Fix (fun (go : catT p2) q =>
-                        Do (next <-- !(q .+ 1);
-                            if (next : ptr) == null
-                               then q .+ 1 ::= p2;;
-                                    ret tt
-                               else go next))
+  Do (let cat := Fix (fun (go : catT p2) q =>
+                      Do (next <-- !(q .+ 1);
+                          if (next : ptr) == null
+                             then q .+ 1 ::= p2;;
+                                  ret tt
+                             else go next))
       in if p1 == null
            then ret p2
            else cat p1;;
@@ -293,11 +306,11 @@ Definition revT : Type := forall (p : ptr * ptr),
 
 Program Definition reverse p :
   {xs : seq A}, STsep (lseq p xs, [vfun p' => lseq p' (rev xs)]) :=
-  Do (let: reverse := Fix (fun (go : revT) '(i, done) =>
-                        Do (if i == null then ret done
-                            else next <-- !i .+ 1;
-                                 i .+ 1 ::= done;;
-                                 go (next, i)))
+  Do (let reverse := Fix (fun (go : revT) '(i, done) =>
+                          Do (if i == null then ret done
+                              else next <-- !i .+ 1;
+                                   i .+ 1 ::= done;;
+                                   go (next, i)))
       in reverse (p, null)).
 (* first, the loop *)
 Next Obligation.

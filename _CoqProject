@@ -6,11 +6,13 @@ core/domain.v
 core/model.v
 core/heapauto.v
 examples/exploit.v
+examples/gcd.v
 examples/llist.v
 examples/array.v
-examples/queue.v
 examples/stack.v
 examples/dlist.v
+examples/queue.v
+examples/cyclic.v
 examples/kvmaps.v
 examples/hashtab.v
 examples/congmath.v

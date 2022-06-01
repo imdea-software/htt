@@ -219,7 +219,7 @@ Definition traverse_backT (p : ptr) : Type :=
 Program Definition traverse_back p q :
   {l}, STsep (dseq p q l,
              [vfun r h => h \In dseq p q l /\ r = l]) :=
-  Do (let: tb :=
+  Do (let tb :=
         Fix (fun (go : traverse_backT p) '(r, acc) =>
               Do (if r == null then ret acc
                   else x <-- !r;

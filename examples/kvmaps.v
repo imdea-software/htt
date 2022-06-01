@@ -261,20 +261,20 @@ Definition removeT p k : Type :=
 Program Definition remove x (k : K) :
   {fm}, STsep (shape x fm,
               [vfun y => shape y (rem k fm)]) :=
-  Do (let: go := Fix (fun (loop : removeT x k) '(prev, cur) =>
-                      Do (if cur == null then ret tt
-                          else k' <-- !cur;
-                               if k == k'
-                                 then next <-- !(cur.+2);
-                                      dealloc cur;;
-                                      dealloc (cur.+1);;
-                                      dealloc (cur.+2);;
-                                      prev.+2 ::= (next : ptr);;
-                                      ret tt
-                                 else if ord k' k
-                                      then next <-- !(cur.+2);
-                                           loop (cur, next)
-                                      else ret tt))
+  Do (let go := Fix (fun (loop : removeT x k) '(prev, cur) =>
+                     Do (if cur == null then ret tt
+                         else k' <-- !cur;
+                              if k == k'
+                                then next <-- !(cur.+2);
+                                     dealloc cur;;
+                                     dealloc (cur.+1);;
+                                     dealloc (cur.+2);;
+                                     prev.+2 ::= (next : ptr);;
+                                     ret tt
+                                else if ord k' k
+                                     then next <-- !(cur.+2);
+                                          loop (cur, next)
+                                     else ret tt))
       in
       if x == null then ret null
         else k' <-- !x;
@@ -407,25 +407,25 @@ Definition insertT p k v : Type :=
 Program Definition insert x (k : K) (v : V) :
   {fm}, STsep (shape x fm,
               [vfun y => shape y (ins k v fm)]) :=
-  Do (let: go := Fix (fun (loop : insertT x k v) '(prev, cur) =>
-                      Do (if cur == null
-                            then new <-- allocb k 3;
-                                 new.+1 ::= v;;
-                                 new.+2 ::= null;;
-                                 prev.+2 ::= new;;
-                                 ret tt
-                            else k' <-- !cur;
-                                 if k == k'
-                                   then cur.+1 ::= v;;
-                                        ret tt
-                                   else if ord k' k
-                                        then next <-- !(cur.+2);
-                                             loop (cur, next)
-                                        else new <-- allocb k 3;
-                                             new.+1 ::= v;;
-                                             new.+2 ::= cur;;
-                                             prev.+2 ::= new;;
-                                             ret tt))
+  Do (let go := Fix (fun (loop : insertT x k v) '(prev, cur) =>
+                     Do (if cur == null
+                           then new <-- allocb k 3;
+                                new.+1 ::= v;;
+                                new.+2 ::= null;;
+                                prev.+2 ::= new;;
+                                ret tt
+                           else k' <-- !cur;
+                                if k == k'
+                                  then cur.+1 ::= v;;
+                                       ret tt
+                                  else if ord k' k
+                                       then next <-- !(cur.+2);
+                                            loop (cur, next)
+                                       else new <-- allocb k 3;
+                                            new.+1 ::= v;;
+                                            new.+2 ::= cur;;
+                                            prev.+2 ::= new;;
+                                            ret tt))
       in
       if x == null
         then new <-- allocb k 3;

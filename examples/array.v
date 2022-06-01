@@ -171,10 +171,10 @@ Definition free_loop (a : array) : Type :=
 
 Program Definition free (a : array) :
   STsep (fun i => exists f, i \In shape a f, [vfun _ => emp]) :=
-  Do (let: go := Fix (fun (loop : free_loop a) k =>
-                   Do (if k == #|I| then ret tt
-                       else dealloc a.+k;;
-                            loop k.+1))
+  Do (let go := Fix (fun (loop : free_loop a) k =>
+                     Do (if k == #|I| then ret tt
+                         else dealloc a.+k;;
+                              loop k.+1))
       in go 0).
 (* first the loop *)
 Next Obligation.
