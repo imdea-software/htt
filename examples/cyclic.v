@@ -64,7 +64,8 @@ Program Definition new (n : nat) (init : T) :
                             go (p', k.+1)
                           else ret r)) in
       if 0 < n then
-        (* we allocate the initial node separately so we can "tie" the cycle *)
+        (* we allocate the initial node separately *)
+        (* so we have something to "tie" the cycle to *)
         p <-- allocb null 2;
         p ::= init;;
         (* allocate the remaining n-1 nodes by prepending to it *)
@@ -252,7 +253,8 @@ by rewrite leqn0=>/nilP->; step.
 Qed.
 
 (* deallocating the buffer *)
-(* we do check the capacity = 0 here since this should be a rare operation *)
+(* we do check for capacity = 0 here since this should be a rare operation *)
+(* of course, it could also be moved into the precondition as for overwrite *)
 
 (* loop invariant for deallocating the inner structure *)
 Definition free_loopT (n : nat) : Type :=

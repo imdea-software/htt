@@ -39,7 +39,7 @@ do 2!step; case: ltngtP=>/= [H|H|->]; step; last first.
   by move=>_; rewrite gcdnn; vauto.
 - (* y<x, do the recursive call *)
   apply: [gE (x-y), y]=>//=; first by eauto.
-  (* the result is always succesful (no exception are ever thrown) *)
+  (* the result is always successful (no exception is ever thrown) *)
   case=>//= _ _ _ [m ->]; exists m.
   (* use the difference property of GCD *)
   suff: gcdn (x - y) y = gcdn x y by move=>->.
