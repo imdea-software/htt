@@ -35,7 +35,7 @@ build: [make "-j%{jobs}%"]
 install: [make "install"]
 depends: [
   "coq" { (>= "8.14" & < "8.16~") | (= "dev") }
-  "coq-mathcomp-ssreflect" { (>= "1.13.0" & < "1.15~") | (= "dev") }
+  "coq-mathcomp-ssreflect" { (>= "1.13.0" & < "1.16~") | (= "dev") }
   "coq-fcsl-pcm" { (>= "1.5.0" & < "1.6~") | (= "dev") }
 ]
 
