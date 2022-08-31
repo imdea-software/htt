@@ -151,6 +151,12 @@ Qed.
 
 (* main methods *)
 
+(* creating an empty list (a no-op) *)
+
+Program Definition new : STsep (emp, [vfun x => lseq x (@nil A)]) :=
+  Do (ret null).
+Next Obligation. by move=>[] /= _ ->; step. Qed.
+
 (* prepending a value *)
 
 Program Definition insert p (x : A) :
