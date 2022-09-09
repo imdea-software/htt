@@ -14,6 +14,8 @@ Obligation Tactic := auto.
 
 Inductive tree A := Leaf | Node of (tree A) & A & (tree A).
 
+Definition leaf {A} : tree A := @Leaf A.
+
 Fixpoint size_tree {A} (t : tree A) : nat :=
   if t is Node l _ r
     then (size_tree l + size_tree r).+1
@@ -23,6 +25,11 @@ Fixpoint inorder {A} (t : tree A) : seq A :=
   if t is Node l x r
     then inorder l ++ x :: inorder r
   else [::].
+
+Fixpoint addr {A} (y : A) (t : tree A) : tree A :=
+  if t is Node l x r
+    then Node l x (addr y r)
+  else Node leaf y leaf.
 
 (* Tree predicate *)
 
@@ -58,6 +65,21 @@ Qed.
 Section Tree.
 Variable A : Type.
 
+(* Node creation *)
+
+Program Definition mknode (x : A) :
+  STsep (emp,
+        [vfun p => treep p (Node leaf x leaf)]) :=
+  Do (n <-- allocb null 3;
+      n.+ 1 ::= x;;
+      ret n).
+Next Obligation.
+move=>x [] _ /= ->.
+step=>n; rewrite !unitR ptrA; step; step=>_.
+exists null, null, Unit; rewrite unitR; split=>//.
+by exists Unit, Unit; split=>//; rewrite unitR.
+Qed.
+
 (* Tree deletion *)
 
 Definition disposetreeT : Type :=
@@ -75,8 +97,9 @@ Program Definition disposetree : disposetreeT :=
                 dealloc p.+ 2
                 )).
 Next Obligation.
-move=>loop p [t][] i /= H; case: eqP=>[|/eqP] E.
-- by apply: vrfV=>D; step=>_; rewrite E in H; case: (treep_null D H).
+move=>loop p [t][] i /= H.
+case: eqP H=>[{p}->|/eqP E] H.
+- by apply: vrfV=>D; step=>_; case: (treep_null D H).
 case: (treep_cont E H)=>l[a][r][l'][r'][_][{t H E}_ {i}-> [hl][hr][-> Hl Hr]].
 do 2!step.
 apply: [stepX l]@hl=>//= _ _ ->; rewrite unitL.
@@ -98,16 +121,16 @@ Program Definition treesize p :
                            else l <-- !p;
                                 r <-- !(p.+ 2);
                                 ls <-- go (l, s);
-                                go (r, ls + 1)))
+                                go (r, ls.+1)))
       in len (p, 0)).
 Next Obligation.
-move=>_ go _ p s /= _ [t][] i /= H; case: eqP H=>[->|/eqP Ep] H.
+move=>_ go _ p s /= _ [t][] i /= H; case: eqP H=>[{p}->|/eqP Ep] H.
 - by step=>V; case: (treep_null V H)=>->->/=; rewrite addn0.
 case: (treep_cont Ep H)=>l[a][r][l'][r'][_][{t H}-> {i}-> [hl][hr][-> Hl Hr]] /=.
 do 2!step.
 apply: [stepX l]@hl=>//= _ hl' [/eqP -> Hl'].
 apply: [gX r]@hr=>//= _ hr' [/eqP -> Hr'] _.
-split; first by rewrite -addnA add1n -addnA addnS.
+split; first by rewrite addnS addSn addnA.
 by exists l', r', (hl' \+ hr'); split=>//; exists hl', hr'.
 Qed.
 Next Obligation.
@@ -138,7 +161,7 @@ Program Definition inordertrav p :
          loop (p, n)).
 Next Obligation.
 move=>_ go _ p s _ /= [t][xs][] _ /= [h1][h2][-> H1 H2].
-case: eqP H1=>[->|/eqP Ep] H1.
+case: eqP H1=>[{p}->|/eqP Ep] H1.
 - step=>V; case: (treep_null (validL V) H1)=>->->/=.
   by exists Unit, h2.
 case: (treep_cont Ep H1)=>l[a][r][l'][r'][_][{t H1}-> {h1}-> [hl][hr][-> Hl Hr]] /=.
@@ -149,7 +172,7 @@ apply: [stepX (inorder r ++ xs)]@hs=>//= pa _ [s2][h'][-> H'].
 apply: [gX l, (a::inorder r ++ xs)]@(hl \+ pa :-> a \+ pa.+ 1 :-> s2 \+ h')=>//=.
 - move=>_; exists hl, (pa :-> a \+ (pa.+ 1 :-> s2 \+ h')); split=>//=.
   - by rewrite !joinA.
-  by rewrite /lseq /=; exists s2, h'.
+  by exists s2, h'.
 move=>s3 _ [hl''][hs'][-> Hl'' Hs'] _.
 exists (p :-> l' \+ (p.+ 1 :-> a \+ (p.+ 2 :-> r' \+ (hl'' \+ hr')))), hs'; split.
 - by rewrite [RHS](pullX (hl'' \+ hs' \+ hr')) [LHS](pullX (hl'' \+ hs' \+ hr')).
@@ -162,6 +185,33 @@ rewrite -(unitL i); apply: [stepR]@Unit=>//= _ _ [->->]; rewrite unitL.
 apply: [gE t, [::]]=>/=.
 - by exists i, Unit; split=>//; rewrite unitR.
 by case=>//= s m _; rewrite cats0.
+Qed.
+
+(* Expanding the tree to the right *)
+
+Opaque mknode.
+
+Definition expandrightT x : Type := forall (p : ptr),
+  {t : tree A}, STsep (treep p t,
+                      [vfun p' => treep p' (addr x t)]).
+
+Program Definition expandright x : expandrightT x :=
+  Fix (fun (go : expandrightT x) p =>
+      Do (if p == null
+            then n <-- mknode x;
+                 ret n
+          else pr <-- !(p.+ 2);
+               p' <-- go pr;
+               p.+ 2 ::= p';;
+               ret p)).
+Next Obligation.
+move=>x go p [t []] i /= H.
+case: eqP H=>[{p}->|/eqP Ep] H.
+- apply: vrfV=>V; case: (treep_null V H)=>{t H}->{i V}->.
+  by apply: [stepE]=>//=; case=>//= n m H; step.
+case: (treep_cont Ep H)=>l[z][r][pl][pr][_][{t H}->{i}->][hl][hr][-> Hl Hr].
+step; apply: [stepX r]@hr=>//= p' h' H'; do 2![step]=>{pr Hr} _.
+by exists pl, p', (hl \+ h'); split=>//; exists hl, h'.
 Qed.
 
 End Tree.
