@@ -12,6 +12,12 @@ Obligation Tactic := auto.
 Section BST.
 Context {T : ordType}.
 
+(* A binary _search_ tree remains a binary tree structurally, plus: *)
+(* 1. its elements must have an ordering defined on them            *)
+(* 2. a recursive invariant should be satisfied:                    *)
+(*    all left branch elements are smaller than the node value &    *)
+(*    all right branch elements are larger than the node valiue     *)
+
 (* Search tree operations *)
 
 Fixpoint insert x (t : tree T) : tree T :=
@@ -37,16 +43,20 @@ Fixpoint bst (t : tree T) : bool :=
     then [&& all (ord^~ a) (inorder l), all (ord a) (inorder r), bst l & bst r]
     else true.
 
+(* Both BSTs and sorted lists can be used to implement lookup structures, but  *)
+(* trees are more efficient computationally, while lists are simpler to reason *)
+(* about (less constructors, operations are associative and commutative).      *)
+(* We can convert between two specification by using the in-order traversal.    *)
+
 Lemma bst_to_sorted (t : tree T) :
-  bst t <-> sorted ord (inorder t).
+  bst t = sorted ord (inorder t).
 Proof.
-elim: t=>//=l IHl a r IHr.
-rewrite sorted_cat_cons_cat /= cats1 (sorted_rconsE) (path_sortedE (@trans T)) -andbA.
-split; case/and4P.
-- by move=>->->/IHl->/IHr->.
-by move=>->/IHl->->/IHr->.
+elim: t=>//=l -> a r ->.
+by rewrite sorted_cat_cons_cat /= cats1 sorted_rconsE
+  (path_sortedE (@trans T)) andbACA -andbA.
 Qed.
 
+(* We also use the in-order representation to reason about insertion *)
 Lemma inorder_insert x (t : tree T) :
   bst t ->
   perm_eq (inorder (insert x t))
@@ -63,16 +73,17 @@ rewrite mem_cat inE; case: (ifP [|| _, _ | _]).
   move/allP: Har=>/(_ x H) /[dup] /nsym/negP/negbTE ->.
   move/ord_neq; rewrite eq_sym =>/negbTE -> /=.
   by apply/permEl/perm_catl; rewrite perm_cons.
-move/negbT; rewrite !negb_or; case/and3P=>/negbTE Hxl /negbTE Hx /negbTE Hxr.
-rewrite {}Hxl in Hl; rewrite {}Hxr in Hr; case: (ordP x a)=>/= H.
+move/negbT; rewrite !negb_or; case/and3P=>/negbTE Hxl /negbTE -> /negbTE Hxr;
+rewrite {}Hxl in Hl; rewrite {}Hxr in Hr.
+case: ifP=>/= H.
 - by rewrite -cat_cons; apply/permEl/perm_catr.
-- by rewrite H in Hx.
 rewrite -(cat1s x) -(cat1s a) -(cat1s a (inorder r)).
 rewrite perm_sym perm_catC -!catA catA perm_sym catA.
 apply/permEl/perm_catl; apply: (perm_trans Hr).
 by rewrite cats1 -perm_rcons.
 Qed.
 
+(* As a corollary, we can show that insertion preserves the tree invariant *)
 Lemma bst_insert x (t : tree T) : bst t -> bst (insert x t).
 Proof.
 elim: t=>//=l IHl a r IHr /and4P [Hal Har Hl Hr].
@@ -85,6 +96,7 @@ case: ifP=>//= _; rewrite Har andbT.
 by case: ordP=>//; [rewrite Ho| rewrite Hx].
 Qed.
 
+(* Insertion commutes on in-order representation *)
 Lemma insert_insert_perm x1 x2 (t : tree T) :
   bst t ->
   perm_eq (inorder (insert x1 (insert x2 t)))
@@ -115,6 +127,7 @@ rewrite -cat1s -(cat1s x1) perm_catCA /= perm_cons perm_sym.
 by apply: (perm_trans Hi2); rewrite Hx2.
 Qed.
 
+(* Moreover, the representations are equal *)
 Corollary insert_insert x1 x2 (t : tree T) :
   bst t ->
   inorder (insert x1 (insert x2 t)) = inorder (insert x2 (insert x1 t)).
@@ -122,34 +135,37 @@ Proof.
 move=>H; apply: (@irr_sorted_eq T ord).
 - by exact: trans.
 - by exact: irr.
-- by apply/bst_to_sorted; do 2![apply: bst_insert].
-- by apply/bst_to_sorted; do 2![apply: bst_insert].
+- by rewrite -bst_to_sorted; do 2![apply: bst_insert].
+- by rewrite -bst_to_sorted; do 2![apply: bst_insert].
 by apply/perm_mem/insert_insert_perm.
 Qed.
 
+(* Lookup in the tree is equivalent to lookup in the in-order *)
 Lemma inorder_search (t : tree T) :
   bst t ->
   search t =i inorder t.
 Proof.
 move=>+ x; elim: t=>//=l IHl a r IHr /and4P [Hal Har /IHl Hl /IHr Hr] {IHl IHr}.
 rewrite -topredE /= in Hl; rewrite -topredE /= in Hr.
-rewrite -topredE /= mem_cat inE.
+rewrite -topredE /= mem_cat inE {}Hl {}Hr.
 case: ifP=>_ /=; first by rewrite orbT.
 case: ifP=>Hx.
-- rewrite Hl.
-  suff: x \notin inorder r by move/negbTE=>->/=; rewrite orbF.
+- suff: x \notin inorder r by move/negbTE=>->/=; rewrite orbF.
   by apply: (all_notin Har); apply/negP/nsym.
-rewrite Hr.
 suff: x \notin inorder l by move/negbTE=>->.
 by apply: (all_notin Hal)=>/=; rewrite Hx.
 Qed.
 
-(* Procedures *)
+(* Pointer-based procedures *)
 
 Opaque mknode.
 
+(* Inserting into the BST *)
+
 Definition inserttreeT x : Type :=
-  forall p, {t : tree T}, STsep (treep p t, [vfun p' => treep p' (insert x t)]).
+  forall p,
+    {t : tree T}, STsep (treep p t,
+                        [vfun p' => treep p' (insert x t)]).
 
 Program Definition inserttree x : inserttreeT x :=
   Fix (fun (go : inserttreeT x) p =>
@@ -167,25 +183,33 @@ Program Definition inserttree x : inserttreeT x :=
                                          p.+ 2 ::= r';;
                                          ret p)).
 Next Obligation.
-move=>x go p [t][] i /= H.
-case: eqP H=>[{p}->|/eqP E] H.
-- apply: vrfV=>V; case: (treep_null V H)=>{t H}->{i V}->.
+(* pull out ghost + precondition, branch on null check *)
+move=>x go p [t][] i /= H; case: eqP H=>[{p}->|/eqP E] H.
+- (* the tree is empty, make a new node *)
+  apply: vrfV=>V; case: (treep_null V H)=>{t H}->{i V}->.
   by apply: [stepE]=>//=; case=>//= n m H; step.
+(* the tree is a node, deconstruct it *)
 case: (treep_cont E H)=>l[z][r][pl][pr][_][{t H}->{i}->][hl][hr][-> Hl Hr].
-step; case: eqP.
-- move=>_; step=>_.
-  by exists pl, pr, (hl \+ hr); split=>//; exists hl, hr.
-move=>Exz; case: ifP=>Ho; step.
-- apply: [stepX l]@hl=>//= p' h' H'.
-  do 2![step]=>{pl Hl} _.
-  by exists p', pr, (h' \+ hr); split=>//; exists h', hr.
+(* read the value, if the element is equal to it, just exit *)
+(* the tree shouldn't have duplicates *)
+step; case: eqP=>_; first by step; vauto.
+(* branch on comparison, read corresponding pointer *)
+case: ifP=>Ho; step.
+- (* insert in the left branch, update the left pointer *)
+  apply: [stepX l]@hl=>//= p' h' H'.
+  by do 2!step; vauto.
+(* insert in the right branch, update the right pointer *)
 apply: [stepX r]@hr=>//= p' h' H'.
-do 2![step]=>{pr Hr} _.
-by exists pl, p', (hl \+ h'); split=>//; exists hl, h'.
+by do 2!step; vauto.
 Qed.
 
+(* Lookup in the BST *)
+
+(* lopp invariant: the tree is unchanged, return true if the element is found *)
 Definition searchtreeT x : Type :=
-  forall p, {t : tree T}, STsep (treep p t, [vfun b h => treep p t h /\ b == search t x]).
+  forall p,
+    {t : tree T}, STsep (treep p t,
+                        [vfun b h => treep p t h /\ b == search t x]).
 
 Program Definition searchtree x : searchtreeT x :=
   Fix (fun (go : searchtreeT x) p =>
@@ -198,22 +222,24 @@ Program Definition searchtree x : searchtreeT x :=
                                     else r <-- !(p.+ 2);
                                          go r)).
 Next Obligation.
-move=>x go p [t][] i /= H.
-case: eqP H=>[{p}->|/eqP E] H.
-- apply: vrfV=>V; case: (treep_null V H)=>{t H}->{i V}->.
-  by step.
+(* pull out ghost + precondition, branch on null check *)
+move=>x go p [t][] i /= H; case: eqP H=>[{p}->|/eqP E] H.
+- (* tree is empty, it can't contain anything *)
+  by apply: vrfV=>V; case: (treep_null V H)=>{t H}->{i V}->; step.
+(* the tree is a node, deconstruct it *)
 case: (treep_cont E H)=>l[z][r][pl][pr][_][{t H}->{i}->][hl][hr][-> Hl Hr].
-step; case: eqP.
-- move=>_; step=>_; split=>//.
-  by exists pl, pr, (hl \+ hr); split=>//; exists hl, hr.
-move=>Exz; case: ifP=>Ho; step.
-- apply: [gX l]@hl=>//= b h' [H' E'] _; split=>{b E' hl Hl}//.
-  by exists pl, pr, (h' \+ hr); split=>//; exists h', hr.
-apply: [gX r]@hr=>//= b h' [H' E'] _; split=>{b E' hr Hr}//.
-by exists pl, pr, (hl \+ h'); split=>//; exists hl, h'.
+(* read the value, compare it to the element, return true if it matches *)
+step; case: eqP=>_; first by step; vauto.
+(* branch on comparison, read corresponding pointer *)
+case: ifP=>Ho; step.
+- (* loop on the left branch *)
+  by apply: [gX l]@hl=>//= b h' [H' E'] _; vauto.
+(* loop on the right branch *)
+by apply: [gX r]@hr=>//= b h' [H' E'] _; vauto.
 Qed.
 
-(* test that the API is consistent *)
+(* test that the API is consistent, i.e. BST invariant is preserved *)
+(* and lookup finds previously inserted elements *)
 Program Definition test p x1 x2 :
   {t : tree T}, STsep (fun h => treep p t h /\ bst t,
                        [vfun (pb : ptr * bool) h =>
@@ -224,16 +250,23 @@ Program Definition test p x1 x2 :
       b <-- searchtree x1 p2;
       ret (p2, b)).
 Next Obligation.
+(* pull out ghost + precondition *)
 move=>p x1 x2 [t][] i /= [Ht Hi].
+(* run the subroutines, return the final tree and the lookup result *)
 apply: [stepE t]=>//=; case=>//= {p i Ht} p1 h1 H1.
 apply: [stepE (insert x1 t)]=>//=; case=>//= {p1 h1 H1} p2 h2 H2.
 apply: [stepE (insert x2 (insert x1 t))]=>//=; case=>//= {h2 H2} b h3 [H3 /eqP Hb].
 step=>_.
+(* insertions preserve the invariant *)
 have Hr2: bst (insert x2 t) by apply: bst_insert.
 have Hr21: bst (insert x2 (insert x1 t)) by do 2![apply: bst_insert].
+(* the only non-trivial goal remaining is search being consistent with insert *)
 split=>//{p2 h3 H3}; rewrite {b}Hb.
+(* switch to in-order lookup *)
 move: (inorder_search Hr21 x1); rewrite -topredE /= =>->.
+(* use the insertion commutativity, unroll the insertion spec *)
 rewrite (insert_insert _ _ Hi) (perm_mem (inorder_insert x1 Hr2) x1).
+(* the goal is now trivially solved by case *)
 by case: ifP=>// _; rewrite inE eq_refl.
 Qed.
 
