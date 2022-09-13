@@ -242,7 +242,7 @@ Next Obligation.
 move=>x go p [t []] i /= H; case: eqP H=>[{p}->|/eqP Ep] H.
 - (* tree is empty, make a new node and return it *)
   apply: vrfV=>V; case: (shape_null V H)=>{t H}->{i V}->.
-  by apply: [stepE]=>//=; case=>//= n m H; step.
+  by apply: [stepE]=>//= n m H; step.
 (* tree is non-empty, i.e. a node, deconstruct it *)
 case: (shape_cont Ep H)=>l[z][r][pl][pr][_][{t H}->{i}->][hl][hr][-> Hl Hr].
 (* run the rest of the program on the right branch + subheap *)

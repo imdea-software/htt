@@ -85,12 +85,12 @@ Next Obligation.
 (* simplify *)
 move=>/= [] _ ->.
 (* allocate the array *)
-apply: [stepE]=>//=; case=>//= y m [H Vm].
+apply: [stepE]=>//= y m [H Vm].
 (* invoke the loop with index 0 *)
 apply: [gE]=>//=; split=>//.
 (* the table is empty *)
 exists [ffun => KVmap.default buckets], m, Unit; split=>//=; first by rewrite unitR.
-(* there are no bucket in the heap yet *)
+(* there are no buckets in the heap yet *)
 by rewrite (eq_sepit (s2 := set0)) // sepit0.
 Qed.
 

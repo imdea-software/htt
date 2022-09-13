@@ -186,7 +186,7 @@ Next Obligation.
 move=>x go p [t][] i /= H; case: eqP H=>[{p}->|/eqP E] H.
 - (* the tree is empty, make a new node *)
   apply: vrfV=>V; case: (shape_null V H)=>{t H}->{i V}->.
-  by apply: [stepE]=>//=; case=>//= n m H; step.
+  by apply: [stepE]=>// n m H; step.
 (* the tree is a node, deconstruct it *)
 case: (shape_cont E H)=>l[z][r][pl][pr][_][{t H}->{i}->][hl][hr][-> Hl Hr].
 (* read the value, if the element is equal to it, just exit *)

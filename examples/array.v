@@ -148,7 +148,7 @@ Next Obligation.
 (* pull out params, check if I is empty *)
 move=>f [] _ ->; case: fintype.pickP=>[v|] H /=.
 - (* run the `new` subroutine, simplify *)
-  apply: [stepE]=>//=; case=>//= a _ [-> V].
+  apply: [stepE]=>//= a _ [-> V].
   (* invoke the loop, construct g from the first value of f *)
   by apply: [gE]=>//=; exists [ffun => f v], nil.
 (* I is empty, so should be the resulting heap *)
