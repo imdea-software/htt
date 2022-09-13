@@ -244,7 +244,7 @@ apply/[stepX tf, h1] @ h1=>//= _ _ [->->].
 (* split out the bucket in the heap *)
 move: H2; rewrite (sepitT1 (hash k)); case=>h3[h4][{h2}-> H3 H4].
 (* look up in the bucket, simplify *)
-apply/[gR (bf (hash k))] @ h3=>//= r m2 [H2 Hr] _; split; last by rewrite Hf.
+apply/[gX (bf (hash k))] @ h3=>//= r m2 [H2 Hr] _; split; last by rewrite Hf.
 (* the shape is preserved, as nothing was modified *)
 exists tf, bf; split=>//=; exists h1, (m2 \+ h4); split=>//.
 by rewrite (sepitT1 (hash k)); vauto.
