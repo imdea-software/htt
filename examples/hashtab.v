@@ -22,7 +22,6 @@ Notation KVshape := (@KVmap.shape _ _ buckets).
 Notation table := (table KVshape).
 Notation nil := (nil K V).
 
-(* TODO is there another way to prevent unfolding these? *)
 Opaque Array.write Array.new Array.free Array.read.
 
 (* hash table is specified by a single finMap *)
@@ -47,36 +46,34 @@ Definition new_loopinv x := forall k,
 Program Definition new : STsep (emp, [vfun y => shape y nil]) :=
   Do (t <-- Array.new _ (KVmap.default buckets);
       let go := Fix (fun (loop : new_loopinv t) k =>
-           Do (if decP (b := k < n) idP is left pf then
-                 b <-- KVmap.new buckets;
-                 Array.write t (Ordinal pf) b;;
-                 loop k.+1
-               else ret t))
+                  Do (if decP (b := k < n) idP is left pf then
+                        b <-- KVmap.new buckets;
+                        Array.write t (Ordinal pf) b;;
+                        loop k.+1
+                      else ret t))
       in go 0).
 (* first the bucket initialization loop *)
 Next Obligation.
 (* pull out preconditions, branch on k comparison *)
-move=>/= arr loop k [] _ /= [Eleq][tab][h1][h2][-> H1]; case: decP; last first.
+move=>/= arr loop k [] _ /= [Eleq][tab][h1][h2][-> H1]; case: decP=>[{Eleq}pf H2|]; last first.
 - (* k = n, return the array pointer *)
   case: ltnP Eleq (eqn_leq k n)=>// _ -> /= /eqP Ek _ H; step=>_.
   (* pass through the constructed table, aggregated finmap is empty *)
-  exists tab, (fun _:'I_n => nil); split=>//; exists h1, h2; split=>//.
+  exists tab, (fun => nil); split=>//; exists h1, h2; split=>//{h1 H1}.
   (* h2 holds the table *)
   by apply/tableP2: H=>//= x; rewrite Ek !in_set ltn_ord.
-(* k < n *)
-move=>pf H2.
-(* allocate an empty bucket by framing on Unit *)
+(* k < n, allocate an empty bucket by framing on Unit *)
 apply: [stepU]=>//= b m Hm.
 (* write its id to the array under index k *)
-apply: [stepX tab] @ h1=>{H1}//= [[]] m2 [E2 V2].
+apply: [stepX tab] @ h1=>{h1 H1}//= _ m2 [E2 V2].
 (* invoke the loop *)
 apply: [gE]=>//=; split=>//; rewrite joinCA.
 (* extend the table by the new index/bucket pair, simplify *)
 exists [ffun z => if z == Ordinal pf then b else tab z], m2, (m \+ h2); split=>//{m2 E2 V2}.
 (* remove the new bucket from the heap *)
-rewrite (sepitS (Ordinal pf)) in_set leqnn {1}/table ffunE eq_refl; exists m, h2; do!split=>//.
-apply: tableP2 H2=>//.
-- by case=>x ?; rewrite !in_set -val_eqE /= ltnS (leq_eqVlt x); case: ltngtP.
+rewrite (sepitS (Ordinal pf)) in_set leqnn {1}/table ffunE eq_refl; exists m, h2; do!split=>{m Hm}//.
+apply: tableP2 H2=>{h2}//.
+- by case=>x Hx; rewrite !in_set -val_eqE /= ltnS (leq_eqVlt x); case: ltngtP.
 (* removing k from the domain of the new table gives the old table back *)
 by move=>x _; rewrite in_set ffunE; case: eqP=>//->; rewrite ltnn.
 Qed.
@@ -85,7 +82,7 @@ Next Obligation.
 (* simplify *)
 move=>/= [] _ ->.
 (* allocate the array *)
-apply: [stepE]=>//= y m [H Vm].
+apply: [stepE]=>//= y m [Hm Vm].
 (* invoke the loop with index 0 *)
 apply: [gE]=>//=; split=>//.
 (* the table is empty *)
@@ -108,15 +105,15 @@ Program Definition free x : {s}, STsep (shape x s,
                                         [vfun _ : unit => emp]) :=
   (* we add an extra Do here so we can derive the precondition from the loop *)
   Do (Fix (fun (loop : free_loopinv x) k =>
-          Do (if decP (b := k < n) idP is left pf then
-                b <-- Array.read x (Ordinal pf);
-                KVmap.free b;;
-                loop k.+1
-               else Array.free x)) 0).
+        Do (if decP (b := k < n) idP is left pf then
+              b <-- Array.read x (Ordinal pf);
+              KVmap.free b;;
+              loop k.+1
+             else Array.free x)) 0).
 (* first the loop *)
 Next Obligation.
 (* pull out the ghost + preconditions, branch on k comparison *)
-move=>/= x loop k [] _ /= [Eleq][tf][bf][h1][h2][-> [H1 H2]]; case: decP; last first.
+move=>/= x loop k [] _ /= [Eleq][tf][bf][h1][h2][-> [H1 V1]]; case: decP=>[pf H|]; last first.
 - (* k = n *)
   case: ltnP Eleq (eqn_leq k n)=>// _ -> /= /eqP Ek _ H.
   (* free the array *)
@@ -125,11 +122,11 @@ move=>/= x loop k [] _ /= [Eleq][tf][bf][h1][h2][-> [H1 H2]]; case: decP; last f
   move: H; rewrite (eq_sepit (s2 := set0)); first by rewrite sepit0=>->; rewrite unitR.
   by move=>y; rewrite Ek in_set in_set0 leqNgt ltn_ord.
 (* k < n, read from array *)
-move=>pf H; apply/[stepX tf, h1] @ h1=>//= _ _ [->->].
+apply: [stepX tf, h1] @ h1=>//= _ _ [->->].
 (* split out the the k-th bucket *)
 move: H; rewrite (sepitS (Ordinal pf)) in_set leqnn; case=>h3[h4][{h2}-> H3 H4].
 (* free it *)
-apply/[stepX (bf (Ordinal pf))] @ h3=>//= [[]] _ ->; rewrite unitL.
+apply: [stepX (bf (Ordinal pf))] @ h3=>{h3 H3}//= _ _ ->; rewrite unitL.
 (* invoke loop, simplify *)
 apply: [gE]=>//=; split=>//; exists tf, bf, h1, h4; split=>//.
 (* drop the k-th entry from the table *)
@@ -141,8 +138,8 @@ Qed.
 Next Obligation.
 (* pull out ghost+preconditions *)
 move=>/= x [fm][] h /= [tf][bf][_ _ H].
-(* invoke the loop, simplify *)
-by apply: [gE]=>//=; split=>//; exists tf, bf.
+(* invoke the loop *)
+by apply: [gE]=>//=; eauto.
 Qed.
 
 (* inserting into a hashmap is inserting into corresponding bucket + updating the array *)
@@ -164,9 +161,9 @@ apply/[stepX tf, h1] @ h1=>//= _ _ [->->].
 (* split out the bucket in the heap *)
 move: H2; rewrite (sepitT1 (hash k)) /table; case=>h3[h4][{h2}-> H3 H4].
 (* insert into the bucket *)
-apply/[stepX (bf (hash k))] @ h3=>//= b' m2 H'.
+apply/[stepX (bf (hash k))] @ h3=>{h3 H3}//= b' m2 H2.
 (* write the bucket to the array, return the pointer *)
-apply/[stepX tf] @ h1=>{H1}//= [[]] m3 [E3 V3]; step=>_.
+apply/[stepX tf] @ h1=>{h1 H1}//= _ m3 [E3 V3]; step=>_.
 (* update the array and buckets' specs *)
 exists [ffun z => if z == hash k then b' else tf z],
        (fun b => if b == hash k then ins k v (bf b) else bf b); split=>/=.
@@ -180,9 +177,9 @@ exists [ffun z => if z == hash k then b' else tf z],
   move=>i0 k0; case: eqP; last by move=>_; apply: Hh.
   by move=>->; rewrite supp_ins inE=>/orP; case; [move/eqP=>->|apply: Hh].
 (* the shape is respected: first, the array fits *)
-exists m3, (m2 \+ h4); split=>//.
+exists m3, (m2 \+ h4); split=>{Hf Hh m3 E3 V3}//.
 (* split out the modified bucket *)
-rewrite (sepitT1 (hash k)) /table /= ffunE eq_refl; exists m2, h4; split=>//.
+rewrite (sepitT1 (hash k)) /table /= ffunE eq_refl; exists m2, h4; split=>{m2 H2}//.
 (* the table fits too *)
 by apply/tableP/H4=>/= x0; rewrite !in_set andbT ?ffunE =>/negbTE->.
 Qed.
@@ -206,9 +203,9 @@ apply/[stepX tf, h1] @ h1=>//= _ _ [->->].
 (* split out the bucket in the heap *)
 move: H2; rewrite (sepitT1 (hash k)); case=>h3[h4][{h2}-> H3 H4].
 (* insert into the bucket *)
-apply/[stepX (bf (hash k))] @ h3=>//= b' m2 H'.
+apply/[stepX (bf (hash k))] @ h3=>{h3 H3}//= b' m2 H2.
 (* write the bucket to the array, return the pointer *)
-apply/[stepX tf] @ h1=>{H1}//= [[]] m3 [E3 V3]; step=>_.
+apply/[stepX tf] @ h1=>{H1}//= _ m3 [E3 V3]; step=>_.
 (* update the array and buckets' specs *)
 exists [ffun z => if z == hash k then b' else tf z],
        (fun b => if b == hash k then rem k (bf b) else bf b); split=>/=.
@@ -222,9 +219,9 @@ exists [ffun z => if z == hash k then b' else tf z],
   move=>i0 k0; case: eqP; last by move=>_; apply: Hh.
   by move=>->; rewrite supp_rem !inE=>/andP [] _; apply: Hh.
 (* the shape is respected: first, the array fits *)
-exists m3, (m2\+ h4); split=>//.
+exists m3, (m2\+ h4); split=>{m3 E3 V3 Hf Hh}//.
 (* split out the modified bucket *)
-rewrite (sepitT1 (hash k)) /table /= ffunE eq_refl; exists m2, h4; split=>//.
+rewrite (sepitT1 (hash k)) /table /= ffunE eq_refl; exists m2, h4; split=>{m2 H2}//.
 (* the table fits too *)
 by apply/tableP/H4=>/= x0; rewrite !in_set andbT ?ffunE =>/negbTE->.
 Qed.
@@ -244,9 +241,9 @@ apply/[stepX tf, h1] @ h1=>//= _ _ [->->].
 (* split out the bucket in the heap *)
 move: H2; rewrite (sepitT1 (hash k)); case=>h3[h4][{h2}-> H3 H4].
 (* look up in the bucket, simplify *)
-apply/[gX (bf (hash k))] @ h3=>//= r m2 [H2 Hr] _; split; last by rewrite Hf.
+apply/[gX (bf (hash k))] @ h3=>{h3 H3}//= r m2 [H2 Hr] _; split; last by rewrite Hf.
 (* the shape is preserved, as nothing was modified *)
-exists tf, bf; split=>//=; exists h1, (m2 \+ h4); split=>//.
+exists tf, bf; split=>//=; exists h1, (m2 \+ h4); split=>{h1 H1}//.
 by rewrite (sepitT1 (hash k)); vauto.
 Qed.
 

@@ -86,7 +86,7 @@ Qed.
 (* initializing all of them to `x` *)
 
 Program Definition new (x : T) :
-  STsep (emp, [vfun y => shape y [ffun => x]]) :=
+  STsep (emp, [vfun a => shape a [ffun => x]]) :=
   Do (x <-- allocb x #|I|;
       ret (Array x)).
 Next Obligation.
@@ -103,27 +103,27 @@ Opaque new.
 
 (* the loop invariant: *)
 (* a partially filled array corresponds to some finite function g acting as a prefix of f *)
-Definition newf_loop a (f : {ffun I -> T}) : Type :=
+Definition fill_loop a (f : {ffun I -> T}) : Type :=
   forall s : seq I, STsep (fun i => exists g s',
                                       [/\ i \In shape a g,
                                           s' ++ s = enum I &
                                           forall x, x \in s' -> g x = f x],
-                           [vfun y => shape y f]).
+                           [vfun a => shape a f]).
 
 Program Definition newf (f : {ffun I -> T}) :
-  STsep (emp, [vfun y => shape y f]) :=
+  STsep (emp, [vfun a => shape a f]) :=
   (* `return` helps to avoid extra obligations *)
   (* test I for emptiness *)
   Do (if [pick x in I] is Some v return _ then
         (* preallocate a new array *)
         x <-- new (f v);
         (* fill it with values of f on I *)
-        let go := Fix (fun (loop : newf_loop x f) s =>
-                    Do (if s is k::t return _ then
-                           x .+ (indx k) ::= f k;;
-                           loop t
-                        else ret (Array x)))
-        in go (enum I)
+        let fill := Fix (fun (loop : fill_loop x f) s =>
+                      Do (if s is k::t return _ then
+                             x .+ (indx k) ::= f k;;
+                             loop t
+                          else ret (Array x)))
+        in fill (enum I)
       else ret (Array null)).
 (* first the loop *)
 Next Obligation.
@@ -170,7 +170,8 @@ Definition free_loop (a : array) : Type :=
                    [vfun _ : unit => emp]).
 
 Program Definition free (a : array) :
-  STsep (fun i => exists f, i \In shape a f, [vfun _ => emp]) :=
+  STsep (fun i => exists f, i \In shape a f,
+         [vfun _ : unit => emp]) :=
   Do (let go := Fix (fun (loop : free_loop a) k =>
                      Do (if k == #|I| then ret tt
                          else dealloc a.+k;;
@@ -195,11 +196,11 @@ exists (tval (fgraph f))=>/=.
 by rewrite ptr0 V {3}codomE size_map -cardE addn0.
 Qed.
 
-(* reading from an array, shouldn't modify the heap *)
+(* reading from an array, doesn't modify the heap *)
 
 Program Definition read (a : array) (k : I) :
    {f h}, STsep (fun i => i = h /\ i \In shape a f,
-                 [vfun y m => m = h /\ y = f k]) :=
+                 [vfun (y : T) m => m = h /\ y = f k]) :=
   Do (!a .+ (indx k)).
 Next Obligation.
 (* pull out ghost vars *)
@@ -212,13 +213,13 @@ Qed.
 
 Program Definition write (a : array) (k : I) (x : T) :
   {f}, STsep (shape a f,
-              [vfun _ => shape a [ffun z => [eta f with k |-> x] z]]) :=
+              [vfun _ : unit => shape a (finfun [eta f with k |-> x])]) :=
   Do (a .+ (indx k) ::= x).
 Next Obligation.
 (* pull out ghost vars, split the heap *)
 move=>a k x [f][] _ [-> _] /=; rewrite /shape !(updi_split a k).
 (* run the program, simplify *)
-by step; rewrite takeord dropord ffunE eq_refl.
+by step; rewrite takeord dropord ffunE /= eq_refl.
 Qed.
 
 End Array.
