@@ -64,13 +64,13 @@ move=>/= arr loop k [] _ /= [Eleq][tab][h1][h2][-> H1]; case: decP; last first.
   (* h2 holds the table *)
   by apply/tableP2: H=>//= x; rewrite Ek !in_set ltn_ord.
 (* k < n *)
-move=>pf H2; rewrite -[h1 \+ h2]unitL.
-(* allocate an empty bucket (we fall back to stepR because of the Unit) *)
-apply/[stepR] @ Unit=>//= b m Hm.
+move=>pf H2.
+(* allocate an empty bucket by framing on Unit *)
+apply: [stepU]=>//= b m Hm.
 (* write its id to the array under index k *)
-apply/[stepX tab] @ h1=>{H1}//= [[]] m2 [E2 V2].
+apply: [stepX tab] @ h1=>{H1}//= [[]] m2 [E2 V2].
 (* invoke the loop *)
-apply/[gE]=>//=; split=>//; rewrite joinCA.
+apply: [gE]=>//=; split=>//; rewrite joinCA.
 (* extend the table by the new index/bucket pair, simplify *)
 exists [ffun z => if z == Ordinal pf then b else tab z], m2, (m \+ h2); split=>//{m2 E2 V2}.
 (* remove the new bucket from the heap *)

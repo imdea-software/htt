@@ -292,13 +292,13 @@ by move=>m H _; rewrite E /=; eauto.
 Qed.
 (* next, the initial call *)
 Next Obligation.
-(* pull out ghosts + preconditions, branch *)
+(* pull out ghosts + preconditions, branch on null check *)
 move=>p1 p2 [xs1][xs2][] /= _ [i1][i2][-> H1 H2].
 case: ifP H1=>[/eqP ->|/negbT N] H1.
 - (* first list is empty, the result simplifies to the second list *)
   by step=>V; case/(lseq_null (validL V)): H1=>->->; rewrite unitL.
 (* otherwise, feed everything to the loop *)
-by apply: [stepE xs1, xs2]=>[|[] //= [] m Hm]; heval.
+by apply: [stepE xs1, xs2]=>//= [|_ m Hm]; heval.
 Qed.
 
 (* in-place reversal by pointer swinging *)

@@ -35,18 +35,18 @@ Fixpoint addr {A} (y : A) (t : tree A) : tree A :=
 
 (* Tree heap predicate: [left branch pointer, value, right branch pointer] *)
 
-Fixpoint treep {A} (p : ptr) (t : tree A) :=
+Fixpoint shape {A} (p : ptr) (t : tree A) :=
   if t is Node l a r then
     [Pred h | exists l' r' h',
           h = p :-> l' \+ (p .+ 1 :-> a \+ (p .+ 2 :-> r' \+ h'))
-       /\ h' \In treep l' l # treep r' r]
+       /\ h' \In shape l' l # shape r' r]
   else [Pred h | p = null /\ h = Unit].
 
 (* Null pointer represents a leaf *)
 
-Lemma treep_null {A} (t : tree A) h :
-  valid h -> h \In treep null t ->
-  t = @Leaf A /\ h = Unit.
+Lemma shape_null {A} (t : tree A) h :
+        valid h -> h \In shape null t ->
+        t = @Leaf A /\ h = Unit.
 Proof.
 move=>V; case: t=>/= [|l a r]; first by case=>_->.
 by case=>?[?][?][E]; rewrite E validPtUn in V.
@@ -54,12 +54,12 @@ Qed.
 
 (* Non-null pointer represents a node *)
 
-Lemma treep_cont {A} (t : tree A) p h :
-  p != null -> h \In treep p t ->
-  exists l a r l' r' h',
-   [/\ t = Node l a r,
-       h = p :-> l' \+ (p .+ 1 :-> a \+ (p .+ 2 :-> r' \+ h'))
-     & h' \In treep l' l # treep r' r].
+Lemma shape_cont {A} (t : tree A) p h :
+        p != null -> h \In shape p t ->
+        exists l a r l' r' h',
+         [/\ t = Node l a r,
+             h = p :-> l' \+ (p .+ 1 :-> a \+ (p .+ 2 :-> r' \+ h'))
+           & h' \In shape l' l # shape r' r].
 Proof.
 move=>E; case: t=>/= [|l a r].
 - by case=>E0; rewrite E0 in E.
@@ -74,7 +74,7 @@ Variable A : Type.
 
 Program Definition mknode (x : A) :
   STsep (emp,
-        [vfun p => treep p (Node leaf x leaf)]) :=
+        [vfun p => shape p (Node leaf x leaf)]) :=
   Do (n <-- allocb null 3;
       n.+ 1 ::= x;;
       ret n).
@@ -91,7 +91,7 @@ Qed.
 
 (* We start from a well-formed tree and arrive at an empty heap *)
 Definition disposetreeT : Type :=
-  forall p, {t : tree A}, STsep (treep p t, [vfun _ : unit => emp]).
+  forall p, {t : tree A}, STsep (shape p t, [vfun _ : unit => emp]).
 
 Program Definition disposetree : disposetreeT :=
   Fix (fun (loop : disposetreeT) p =>
@@ -108,9 +108,9 @@ Next Obligation.
 (* pull out ghost var + precondition, branch on null check *)
 move=>loop p [t][] i /= H; case: eqP H=>[{p}->|/eqP E] H.
 - (* null pointer is an empty tree, so the heap is empty *)
-  by apply: vrfV=>V; step=>_; case: (treep_null V H).
+  by apply: vrfV=>V; step=>_; case: (shape_null V H).
 (* non-null pointer is a node, deconstruct it, read branch pointers *)
-case: (treep_cont E H)=>l[a][r][l'][r'][_][{t H E}_ {i}-> [hl][hr][-> Hl Hr]].
+case: (shape_cont E H)=>l[a][r][l'][r'][_][{t H E}_ {i}-> [hl][hr][-> Hl Hr]].
 do 2!step.
 (* recursive calls vacate left+right subheaps *)
 apply: [stepX l]@hl=>//= _ _ ->; rewrite unitL.
@@ -124,12 +124,12 @@ Qed.
 (* loop invariant: *)
 (* the subtree size is added to the accumulator *)
 Definition treesizeT : Type := forall (ps : ptr * nat),
-  {t : tree A}, STsep (treep ps.1 t,
-                      [vfun s h => s == ps.2 + size_tree t /\ treep ps.1 t h]).
+  {t : tree A}, STsep (shape ps.1 t,
+                      [vfun s h => s == ps.2 + size_tree t /\ shape ps.1 t h]).
 
 Program Definition treesize p :
-  {t : tree A}, STsep (treep p t,
-                      [vfun s h => s == size_tree t /\ treep p t h]) :=
+  {t : tree A}, STsep (shape p t,
+                      [vfun s h => s == size_tree t /\ shape p t h]) :=
   Do (let len := Fix (fun (go : treesizeT) '(p, s) =>
                        Do (if p == null then ret s
                            else l <-- !p;
@@ -141,9 +141,9 @@ Next Obligation.
 (* pull out ghost var + precondition, branch on null check *)
 move=>_ go _ p s /= _ [t][] i /= H; case: eqP H=>[{p}->|/eqP Ep] H.
 - (* empty tree has size 0 *)
-  by step=>V; case: (treep_null V H)=>->->/=; rewrite addn0.
+  by step=>V; case: (shape_null V H)=>->->/=; rewrite addn0.
 (* non-null pointer is a node, deconstruct it, read branch pointers *)
-  case: (treep_cont Ep H)=>l[a][r][l'][r'][_][{t H}-> {i}-> [hl][hr][-> Hl Hr]] /=.
+  case: (shape_cont Ep H)=>l[a][r][l'][r'][_][{t H}-> {i}-> [hl][hr][-> Hl Hr]] /=.
 do 2!step.
 (* calculate left branch size, update the accumulator *)
 apply: [stepX l]@hl=>//= _ hl' [/eqP -> Hl'].
@@ -165,12 +165,12 @@ Opaque insert new.
 (* the subtree is unchanged, its values are prepended to the accumulator list *)
 Definition inordertravT : Type := forall (ps : ptr * ptr),
   {(t : tree A) (l : seq A)},
-     STsep (treep ps.1 t # lseq ps.2 l,
-           [vfun s h => h \In treep ps.1 t # lseq s (inorder t ++ l)]).
+     STsep (shape ps.1 t # lseq ps.2 l,
+           [vfun s h => h \In shape ps.1 t # lseq s (inorder t ++ l)]).
 
 Program Definition inordertrav p :
-  {t : tree A}, STsep (treep p t,
-                      [vfun s h => h \In treep p t # lseq s (inorder t)]) :=
+  {t : tree A}, STsep (shape p t,
+                      [vfun s h => h \In shape p t # lseq s (inorder t)]) :=
   Do (let loop := Fix (fun (go : inordertravT) '(p, s) =>
                        Do (if p == null then ret s
                            else l <-- !p;
@@ -186,9 +186,9 @@ Next Obligation.
 move=>_ go _ p s _ /= [t][xs][] _ /= [h1][h2][-> H1 H2].
 case: eqP H1=>[{p}->|/eqP Ep] H1.
 - (* return the accumulated list - empty tree has no values *)
-  by step=>V; case: (treep_null (validL V) H1)=>->->/=; vauto.
+  by step=>V; case: (shape_null (validL V) H1)=>->->/=; vauto.
 (* non-empty tree is a node, deconstruct the node, read the pointers and the value *)
-case: (treep_cont Ep H1)=>l[a][r][l'][r'][_][{t H1}-> {h1}-> [hl][hr][-> Hl Hr]] /=.
+case: (shape_cont Ep H1)=>l[a][r][l'][r'][_][{t H1}-> {h1}-> [hl][hr][-> Hl Hr]] /=.
 do 3!step.
 (* run traversal on the right branch first (it's cheaper to grow a linked list to the left) *)
 apply: [stepX r, xs]@(hr \+ h2)=>//=; first by vauto.
@@ -210,12 +210,13 @@ Qed.
 Next Obligation.
 (* pull out ghost var + precondition *)
 move=>/= p [t][] i /= H.
-(* make an empty list - we have to use stepR here because we're framing on Unit *)
-rewrite -(unitL i); apply: [stepR]@Unit=>//= _ _ [->->]; rewrite unitL.
+(* make an empty list by framing on Unit *)
+(* this just sets n to null, but we stick to the list API *)
+apply: [stepU]=>//= _ _ [->->]; rewrite unitL.
 (* start the loop, conditions are satisfied by simple massaging *)
-apply: [gE t, [::]]=>/=.
+apply: [gE t, [::]]=>//=.
 - by exists i, Unit; split=>//; rewrite unitR.
-by case=>//= s m _; rewrite cats0.
+by move=>s m; rewrite cats0.
 Qed.
 
 (* Expanding the tree to the right *)
@@ -224,8 +225,8 @@ Opaque mknode.
 
 (* loop invariant: the value is added to the rightmost branch *)
 Definition expandrightT x : Type := forall (p : ptr),
-  {t : tree A}, STsep (treep p t,
-                      [vfun p' => treep p' (addr x t)]).
+  {t : tree A}, STsep (shape p t,
+                      [vfun p' => shape p' (addr x t)]).
 
 Program Definition expandright x : expandrightT x :=
   Fix (fun (go : expandrightT x) p =>
@@ -240,11 +241,11 @@ Next Obligation.
 (* pull out ghost + precondition, branch on null check *)
 move=>x go p [t []] i /= H; case: eqP H=>[{p}->|/eqP Ep] H.
 - (* tree is empty, make a new node and return it *)
-  apply: vrfV=>V; case: (treep_null V H)=>{t H}->{i V}->.
+  apply: vrfV=>V; case: (shape_null V H)=>{t H}->{i V}->.
   by apply: [stepE]=>//=; case=>//= n m H; step.
 (* tree is non-empty, i.e. a node, deconstruct it *)
-case: (treep_cont Ep H)=>l[z][r][pl][pr][_][{t H}->{i}->][hl][hr][-> Hl Hr].
-(* run the rest of the program, postcondition is satisfied trivially *)
+case: (shape_cont Ep H)=>l[z][r][pl][pr][_][{t H}->{i}->][hl][hr][-> Hl Hr].
+(* run the rest of the program on the right branch + subheap *)
 by step; apply: [stepX r]@hr=>//= p' h' H'; do 2!step; vauto.
 Qed.
 
