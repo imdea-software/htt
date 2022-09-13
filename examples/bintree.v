@@ -46,7 +46,7 @@ Fixpoint shape {A} (p : ptr) (t : tree A) :=
 
 Lemma shape_null {A} (t : tree A) h :
         valid h -> h \In shape null t ->
-        t = @Leaf A /\ h = Unit.
+        t = leaf /\ h = Unit.
 Proof.
 move=>V; case: t=>/= [|l a r]; first by case=>_->.
 by case=>?[?][?][E]; rewrite E validPtUn in V.
