@@ -1082,13 +1082,19 @@ Notation "{ x .. y }, 'STsep' ( p , q ) " :=
 (* Lemmas for pulling out and instantiating ghost variables *)
 (************************************************************)
 
+(* Lemmas without framing, i.e. they pass the entire heap to the *)
+(* routine being invoked.                                        *)
+
 Lemma gE G A (s : spec G A) g i (e : STspec G s) (Q : post A) :
         (s g).1 i ->
-        (forall y m, valid m -> (s g).2 y m -> Q y m) ->
+        (forall v m, (s g).2 (Val v) m ->
+           valid m -> Q (Val v) m) ->
+        (forall x m, (s g).2 (Exn x) m ->
+           valid m -> Q (Exn x) m) ->
         vrf i e Q.
 Proof.
-case: e=>e H /H X Y; apply: vrfV=>Vi /=.
-by apply/vrf_post/X.
+case: e=>e /= /[apply] Hp Hv He; apply: vrfV=>V /=.
+by apply/vrf_post/Hp; case=>[v|ex] m Vm H; [apply: Hv | apply: He].
 Qed.
 
 Arguments gE [G A s] g [i e Q] _ _.
@@ -1099,18 +1105,16 @@ Notation "[ 'gE' x1 , .. , xn ]" :=
   (gE (existT _ x1 .. (existT _ xn tt) ..))
   (at level 0, format "[ 'gE'  x1 ,  .. ,  xn ]").
 
-(* vrf_bind + gE *)
+(* a combination of gE + vrf_bind, for "stepping over" the call *)
 Lemma stepE G A B (s : spec G A) g i (e : STspec G s) (e2 : A -> ST B) (Q : post B) :
         (s g).1 i ->
-        (forall y m, (s g).2 y m -> match y with
-                                    | Val x => vrf m (e2 x) Q
-                                    | Exn e => valid m -> Q (Exn e) m
-                                    end) ->
+        (forall x m, (s g).2 (Val x) m -> vrf m (e2 x) Q) ->
+        (forall x m, (s g).2 (Exn x) m ->
+           valid m -> Q (Exn x) m) ->
         vrf i (bind e e2) Q.
 Proof.
-move=>H1 H2.
-apply/vrf_bind/(gE _ H1)=>y m Vm P.
-by apply: H2.
+move=>Hp Hv He.
+by apply/vrf_bind/(gE _ Hp)=>[v m P|x m P _] V; [apply: Hv | apply: He].
 Qed.
 
 Arguments stepE [G A B s] g [i e e2 Q] _ _.
@@ -1121,18 +1125,15 @@ Notation "[ 'stepE' x1 , .. , xn ]" :=
   (stepE (existT _ x1 .. (existT _ xn tt) ..))
   (at level 0, format "[ 'stepE'  x1 ,  .. ,  xn ]").
 
-(* vrf_try + gE *)
+(* a combination of gE + vrf_try *)
 Lemma tryE G A B (s : spec G A) g i (e : STspec G s) (e1 : A -> ST B) (e2 : exn -> ST B) (Q : post B) :
         (s g).1 i ->
-        (forall y m, (s g).2 y m -> match y with
-                                    | Val x => vrf m (e1 x) Q
-                                    | Exn e => vrf m (e2 e) Q
-                                    end) ->
+        (forall x m, (s g).2 (Val x) m -> vrf m (e1 x) Q) ->
+        (forall x m, (s g).2 (Exn x) m -> vrf m (e2 x) Q) ->
         vrf i (try e e1 e2) Q.
 Proof.
-move=>H1 H2.
-apply/vrf_try/(gE _ H1)=>y m Vm P.
-by apply: H2.
+move=>Hp Hv Hx.
+by apply/vrf_try/(gE _ Hp)=>[x|ex] m Vm P; [apply: Hv | apply: Hx].
 Qed.
 
 Arguments tryE [G A B s] g [i e e1 e2 Q] _ _.
@@ -1142,6 +1143,74 @@ Notation "[tryE]" := (tryE tt) (at level 0).
 Notation "[ 'tryE' x1 , .. , xn ]" :=
   (tryE (existT _ x1 .. (existT _ xn tt) ..))
   (at level 0, format "[ 'tryE'  x1 ,  .. ,  xn ]").
+
+(* Common special case for framing on `Unit`, i.e. passing an *)
+(* empty heap to the routine. For more sophisticated framing  *)
+(* variants see the `heapauto` module.                        *)
+
+Lemma gU G A (s : spec G A) g i (e : STspec G s) (Q : post A) :
+        (s g).1 Unit ->
+        (forall v m, (s g).2 (Val v) m ->
+           valid (m \+ i) -> Q (Val v) (m \+ i)) ->
+        (forall x m, (s g).2 (Exn x) m ->
+           valid (m \+ i) -> Q (Exn x) (m \+ i)) ->
+        vrf i e Q.
+Proof.
+case: e=>e /= /[apply] Hp Hv Hx; rewrite -(unitL i).
+apply/vrf_frame/vrf_post/Hp.
+by case=>[x|ex] n _ =>[/Hv|/Hx].
+Qed.
+
+Notation "[gU]" := (gU tt) (at level 0).
+
+Notation "[ 'gU' x1 , .. , xn ]" :=
+  (gU (existT _ x1 .. (existT _ xn tt) ..))
+  (at level 0, format "[ 'gU'  x1 ,  .. ,  xn ]").
+
+(* a combination of gU + vrf_bind *)
+Lemma stepU G A B (s : spec G A) g i (e : STspec G s) (e2 : A -> ST B)
+             (Q : post B) :
+        (s g).1 Unit ->
+        (forall x m, (s g).2 (Val x) m -> vrf (m \+ i) (e2 x) Q) ->
+        (forall x m, (s g).2 (Exn x) m ->
+           valid (m \+ i) -> Q (Exn x) (m \+ i)) ->
+        vrf i (bind e e2) Q.
+Proof.
+move=>Hp Hv Hx.
+apply/vrf_bind/(gU _ Hp)=>[x m H V|ex m H V _].
+- by apply: Hv H.
+by apply: Hx.
+Qed.
+
+Arguments stepU [G A B s] g i [e e2 Q] _ _ _.
+
+Notation "[stepU]" := (stepU tt) (at level 0).
+
+Notation "[ 'stepU' x1 , .. , xn ]" :=
+  (stepU (existT _ x1 .. (existT _ xn tt) ..))
+  (at level 0, format "[ 'stepU'  x1 ,  .. ,  xn ]").
+
+(* a combination of gU + vrf_try *)
+Lemma tryU G A B (s : spec G A) g i (e : STspec G s)
+             (e1 : A -> ST B) (e2 : exn -> ST B) (Q : post B) :
+        (s g).1 Unit ->
+        (forall x m, (s g).2 (Val x) m -> vrf (m \+ i) (e1 x) Q) ->
+        (forall x m, (s g).2 (Exn x) m -> vrf (m \+ i) (e2 x) Q) ->
+        vrf i (try e e1 e2) Q.
+Proof.
+move=>Hi H1 H2.
+apply/vrf_try/(gU _ Hi)=>[x|ex] m H V.
+- by apply: H1 H.
+by apply: H2.
+Qed.
+
+Arguments tryU [G A B s] g i [e e1 e2 Q] _ _ _.
+
+Notation "[tryU]" := (tryU tt) (at level 0).
+
+Notation "[ 'tryU' x1 , .. , xn ]" :=
+  (tryU (existT _ x1 .. (existT _ xn tt) ..))
+  (at level 0, format "[ 'tryU'  x1 ,  .. ,  xn ]").
 
 (* some notation for writing posts that signify no exceptions are raised *)
 

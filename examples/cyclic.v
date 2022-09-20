@@ -100,8 +100,8 @@ Next Obligation.
 move=>n init [] _ /= ->; case: ifP.
 - (* 0 < n, allocate the initial node *)
   move=>H0; step=>p; step; rewrite !unitR.
-  (* run the loop by framing on an empty heap (hence using stepR, not stepX) *)
-  rewrite -[_ \+ _]unitL; apply: [stepR p]@Unit=>//=q h H.
+  (* run the loop by framing on an empty heap *)
+  apply: [stepU p]=>//= q h H.
   (* run the rest of the program *)
   step; step=>m; step=>pi; step=>pa; step=>V.
   (* the structure is well-formed if the buffer is *)

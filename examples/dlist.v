@@ -244,7 +244,7 @@ Next Obligation.
 (* pull out ghost var *)
 move=>p q [xs][] i /= H.
 (* feed it and the null pointer (the accumulator is empty) to the loop *)
-by apply: [gE xs, null]=>//= y m _; rewrite cats0.
+by apply: [gE xs, null]=>//= y m; rewrite cats0.
 Qed.
 
 End DList.

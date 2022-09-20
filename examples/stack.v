@@ -92,7 +92,7 @@ Next Obligation.
 (* pull out ghost vars and precondition *)
 move=>s [xs][] _ /= [p][h0][V -> H].
 (* get the list and invoke head on it, deal with exception first *)
-step; apply/[tryR xs]@h0=>//= [x|ex] m [Hm]; last first.
+step; apply/[tryX xs]@h0=>//= [x|ex] m [Hm]; last first.
 - (* throw the stack exception *)
   case=>{ex}_ E /=; step=>Vm; split=>//.
   by rewrite E /= in Hm *; vauto.

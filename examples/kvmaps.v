@@ -337,7 +337,7 @@ case: ifP=>Ho0.
     rewrite joinC; split=>//; last by vauto.
     by apply: shape_seg_rcons.
   (* we can reassemble the spec because insertions of old and new foci commute *)
-  case=>//= [[]] m Vm Hm; rewrite Efr.
+  move=>_ m Hm Vm; rewrite Efr.
   by rewrite fcat_inss // -?fcat_sins // in Hm; apply: notin_path.
 (* k' is bigger than k, abort *)
 move: (semiconnex Ek); rewrite {}Ho0 orbC /= =>Ho0.
@@ -373,7 +373,7 @@ step; case: eqP=>[->|/eqP Ek].
 (* k <> k', now branch on order comparison *)
 case: ifP=>Ho0.
 (* k' is less than k, start the loop with the head entry as the focus *)
-- step; apply: [stepE fm]=>/=; last by case=>//= [[]] ??; step.
+- step; apply: [stepE fm]=>//=; last by move=>_ ??; step.
   (* invariants and shape are satisfied *)
   exists nil, (behd fm), k, v; do!split=>//.
   - by rewrite fcat_inss; [rewrite fcat0s|apply/notin_path/all_path].
@@ -481,7 +481,7 @@ step; case: eqP=>[|/eqP] Ek.
 (* k <> k', now branch on order comparison *)
 case: ifP=>Ho'0.
 (* k' is less than k, invoke the loop, shifting the focus to the right *)
-- step; apply/[gE (fcat (ins k' v' (ins k v fml)) (behd fmr))]=>/=.
+- step; apply/[gE (fcat (ins k' v' (ins k v fml)) (behd fmr))]=>//=.
   - (* prove that all conditions are respected *)
     exists (ins k v fml), (behd fmr), k', v'; do!split=>//.
     - (* new focus comes after fml ++ old focus *)
@@ -494,7 +494,7 @@ case: ifP=>Ho'0.
     exists (hl \+ entry prev cur k v), (entry cur next k' v' \+ hr').
     by rewrite joinC; split=>//; [apply: shape_seg_rcons | vauto].
   (* we can reassemble the spec because insertions of old and new foci commute *)
-  case=>//= [[]] m _ Hm; rewrite Efr.
+  move=>_ m Hm _; rewrite Efr.
   rewrite fcat_inss // in Hm; first by rewrite -fcat_sins in Hm.
   by apply/notin_path/all_path.
 (* k' is bigger than k, insert at this position *)
@@ -537,7 +537,7 @@ step; case: eqP=>[->|/eqP Ek].
 (* k <> k', now branch on order comparison *)
 case: ifP=>Ho0.
 - (* k' is less than k, run the loop with the head entry as the focus *)
-  step; apply: [stepE fm]=>/=; last by case=>// [[]] /= ??; step.
+  step; apply: [stepE fm]=>//=; last by move=>_ ??; step.
   (* invariants are respected *)
   exists nil, (behd fm), k, v; do!split=>//.
   - by rewrite fcat_inss; [rewrite fcat0s|apply/notin_path/all_path].

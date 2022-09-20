@@ -18,14 +18,14 @@ Import Prenex Implicits.
 (*                                                                        *)
 (* Second automation extends this mechanism for a common combination of   *)
 (* invoking the ghost lemma together with the frame rule. This allows the *)
-(* user to supply the "kernel" heap to frame directly instead of          *)
+(* user to supply the "kernel" heap to frame on directly instead of       *)
 (* rearranging the goal manually with AC-rewriting.                       *)
 (*                                                                        *)
 (* Third, a tactic for canceling common terms in disjoint unions.         *)
-(* Currently, it doesn't deal with weak pointers. I.e. only if it sees    *)
-(* terms like x :-> v1 and x :-> v2, it will reduce to v1 = v2            *)
-(* only if v1, v2 are of the same type. A more general tactic would emit  *)
-(* obligation dyn v1 = dyn v2, but I don't bother with this now.          *)
+(* Currently, it doesn't deal with weak pointers. I.e. if it sees terms   *)
+(* like x :-> v1 and x :-> v2, it will reduce to v1 = v2 only if v1, v2   *)
+(* are of the same type. A more general tactic would emit obligation      *)
+(* dyn v1 = dyn v2, but I don't bother with this now.                     *)
 (*                                                                        *)
 (**************************************************************************)
 
@@ -89,7 +89,7 @@ End Partition.
 (* actually gives us some additional, spurious, validity hypotheses, which we *)
 (* always discard anyway. However the discarding interrupts automation, so we want to avoid it *)
 
-(* However, we only need only gR lemma *)
+(* However, we only need gR lemma *)
 (* This one is always applied by hand, not automatically, so *)
 (* if we need to prefix it with a call to bnd_seq or try_seq, we can *)
 (* do that by hand *)
@@ -404,10 +404,10 @@ End Uncons.
 (* 2. It will fail if the supplied subexpression is a singleton `Unit`. This *)
 (*    happens because the unconsing mechanism introduces spurious Units into *)
 (*    expressions which are later "garbage collected" by quoting & printing, *)
-(*    droppping user-provided Units as well.                                 *)
+(*    dropping user-provided Units as well.                                  *)
 (*                                                                           *)
-(* These issues can be circumvented by falling back to a simpler automated   *)
-(* lemma `gR` and its variants provided below.                               *)
+(* These issues can be circumvented by falling back to simpler (automated)   *)
+(* lemmas `gU`, `gR` and their variants.                                     *)
 
 Lemma gX G A (s : spec G A) g (m : heapPCM) m0 j tm k wh r2
              (e : STspec G s)
@@ -497,8 +497,7 @@ Notation "[ 'tryX' x1 , .. , xn ] @ m" :=
 (**************************************)
 
 (* A simpler version of an automated framing+ghost lemma which only works on *)
-(* singleton heap subexpressions (here `m`). It preserves associativity and  *)
-(* can be used with `Unit`.                                                  *)
+(* literal heap subexpressions (here `m`) but preserves associativity.       *)
 Lemma gR G A (s : spec G A) g m r (e : STspec G s)
           (f : forall k, form k r) (Q : post A) :
         (valid m -> (s g).1 m) ->
