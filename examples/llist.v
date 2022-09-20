@@ -1,12 +1,8 @@
 
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq.
-From fcsl Require Import axioms pred.
+From fcsl Require Import options axioms pred.
 From fcsl Require Import pcm unionmap heap autopcm automap.
 From HTT Require Import model heapauto.
-Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
-Obligation Tactic := auto.
 
 (* Linked lists, storing a value and next pointer in consecutive locations. *)
 (* We start with a more general "segment" definition, where the last node's *)
@@ -233,7 +229,7 @@ Program Definition len p :
 (* first, the loop *)
 Next Obligation.
 (* pull out ghosts+precondition, branch *)
-move=>_ go _ p l /= _ [xs][] i /= H; case: eqP H=>[->|/eqP Ep] H.
+move=>_ go _ p l /= [xs][] i /= H; case: eqP H=>[->|/eqP Ep] H.
 - (* the end is reached *)
   by step=>V; case/(lseq_null V): H=>->->/=; rewrite addn0.
 (* deconstruct non-empty list, run one step *)
@@ -321,7 +317,7 @@ Program Definition reverse p :
 (* first, the loop *)
 Next Obligation.
 (* pull out ghosts + preconditions, branch *)
-move=>_ go _ i done _ [x1][x2][] _ /= [i1][i2][-> H1 H2].
+move=>_ go _ i done [x1][x2][] _ /= [i1][i2][-> H1 H2].
 case: eqP H1=>[->|/eqP E] H1.
 - (* nothing left to reverse, return the accumulator *)
   by step=>/validL V1; case/(lseq_null V1): H1=>->->/=; rewrite unitL.

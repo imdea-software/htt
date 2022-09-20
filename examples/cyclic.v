@@ -1,13 +1,9 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype seq ssrnat.
-From fcsl Require Import axioms pred.
+From fcsl Require Import options axioms pred.
 From fcsl Require Import pcm unionmap heap automap autopcm.
 From HTT Require Import interlude model heapauto.
 From HTT Require Import llist.
-Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
-Obligation Tactic := auto.
 
 (* a queue variant that has a fixed capacity and can overwrite data in a circular way *)
 
@@ -84,7 +80,7 @@ Program Definition new (n : nat) (init : T) :
 (* first the loop *)
 Next Obligation.
 (* pull out the ghost (the initial node) + preconditions, match on k *)
-move=>n init go [r k] _ _[->->][q []] i /= [Hk H]; case: ltnP=>Hk1.
+move=>n init go _ r k [q][] i /= [Hk H]; case: ltnP=>Hk1.
 - (* k < n.-1, allocate new node *)
   step=>p'; step; rewrite unitR.
   (* do the recursive call, both preconditions hold *)
@@ -283,7 +279,7 @@ Program Definition free (b : buffer) :
 (* first the loop *)
 Next Obligation.
 (* pull out ghosts, destructure the preconditions, match on k *)
-move=>b go [r k][_ _][->->][q][xs][] h /= [H Hs]; case: ltnP.
+move=>b go _ r k [q][xs][] h /= [H Hs]; case: ltnP.
 - (* k < capacity, so the spec is still non-empty *)
   move=>Hk; have {Hk}Hxs: 0 < size xs by rewrite Hs subn_gt0.
   (* unroll the heap *)

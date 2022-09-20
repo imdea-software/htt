@@ -1,11 +1,7 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype div.
-From fcsl Require Import axioms pred pcm heap.
+From fcsl Require Import options axioms pred pcm heap.
 From HTT Require Import model heapauto.
-Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
-Obligation Tactic := auto.
 
 (* classical mutable Euclid's algorithm for computing GCD with subtractions *)
 

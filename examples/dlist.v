@@ -1,13 +1,9 @@
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq.
-From fcsl Require Import axioms pred.
+From fcsl Require Import options axioms pred.
 From fcsl Require Import pcm unionmap heap autopcm.
 From HTT Require Import model heapauto.
-Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
-Obligation Tactic := auto.
 
 (* Doubly linked lists, follows the same structure as singly-linked *)
 (* ones, adding a second pointer pointing backwards. *)
@@ -229,11 +225,11 @@ Program Definition traverse_back p q :
 (* first, the loop *)
 Next Obligation.
 (* pull out ghosts + precondition, branch *)
-move=>p _ go [r acc] _ _ [->->][l][nx][] i /= H; case: ifP H=>[/eqP->|/negbT].
+move=>p _ go _ r acc [l][nx][] i /= H; case: ifP H=>[/eqP->|/negbT].
 - (* remainder is empty, return accumulator *)
   by move/dseg_nullR=>H; step=>/H [->_->->].
 (* deconstruct non-empty remainder *)
-rewrite eq_sym=>Hr /(dseg_neqR Hr) [xs][x][z][h'][{l}-> {i}-> H'].
+rewrite eq_sym=>Hr /(dseg_neqR Hr) [xs][x][z][h'][{l}-> {i}-> H']{Hr}.
 (* run the rest, feed remainder, acc pointer and subheap to recursive call *)
 do 2!step; apply: [gX xs, r]@h'=>//= _ m [Hm ->] _ /=.
 (* simplify and restructure the goal *)

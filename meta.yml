@@ -55,13 +55,13 @@ license:
   file: LICENSE
 
 supported_coq_versions:
-  text: Coq 8.14 to 8.15
-  opam: '{ (>= "8.14" & < "8.16~") | (= "dev") }'
+  text: Coq 8.14 to 8.16
+  opam: '{ (>= "8.14" & < "8.17~") | (= "dev") }'
 
 tested_coq_opam_versions:
 - version: '1.13.0-coq-8.14'
   repo: 'mathcomp/mathcomp'
-- version: '1.15.0-coq-8.15'
+- version: '1.15.0-coq-8.16'
   repo: 'mathcomp/mathcomp'
 - version: 'coq-dev'
   repo: 'mathcomp/mathcomp-dev'
@@ -74,9 +74,9 @@ dependencies:
     [MathComp ssreflect 1.13 to 1.15](https://math-comp.github.io)
 - opam:
     name: coq-fcsl-pcm
-    version: '{ (>= "1.5.0" & < "1.6~") | (= "dev") }'
+    version: '{ (>= "1.6.0" & < "1.7~") | (= "dev") }'
   description: |-
-    [FCSL-PCM 1.5](https://github.com/imdea-software/fcsl-pcm)
+    [FCSL-PCM 1.6](https://github.com/imdea-software/fcsl-pcm)
 
 namespace: HTT
 

@@ -1,14 +1,10 @@
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype seq ssrnat.
-From fcsl Require Import axioms pred.
+From fcsl Require Import options axioms pred.
 From fcsl Require Import pcm unionmap heap autopcm automap.
 From HTT Require Import model heapauto.
 From HTT Require Import llist.
-Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
-Obligation Tactic := auto.
 
 (* Binary tree specification *)
 
@@ -139,7 +135,7 @@ Program Definition treesize p :
       in len (p, 0)).
 Next Obligation.
 (* pull out ghost var + precondition, branch on null check *)
-move=>_ go _ p s /= _ [t][] i /= H; case: eqP H=>[{p}->|/eqP Ep] H.
+move=>_ go _ p s /= [t][] i /= H; case: eqP H=>[{p}->|/eqP Ep] H.
 - (* empty tree has size 0 *)
   by step=>V; case: (shape_null V H)=>->->/=; rewrite addn0.
 (* non-null pointer is a node, deconstruct it, read branch pointers *)
@@ -183,7 +179,7 @@ Program Definition inordertrav p :
          loop (p, n)).
 Next Obligation.
 (* pull out ghosts + precondition, deconstruct the heap, branch on null check *)
-move=>_ go _ p s _ /= [t][xs][] _ /= [h1][h2][-> H1 H2].
+move=>_ go _ p s /= [t][xs][] _ /= [h1][h2][-> H1 H2].
 case: eqP H1=>[{p}->|/eqP Ep] H1.
 - (* return the accumulated list - empty tree has no values *)
   by step=>V; case: (shape_null (validL V) H1)=>->->/=; vauto.

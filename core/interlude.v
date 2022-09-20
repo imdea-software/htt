@@ -1,6 +1,6 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat seq eqtype path.
-From fcsl Require Import options axioms ordtype.
+From fcsl Require Import options prelude ordtype.
 
 Lemma rcons_nseq {A} n (x : A) :
   rcons (nseq n x) x = nseq n.+1 x.
@@ -62,18 +62,6 @@ Lemma path_all {S} (xs : seq S) x r :
   transitive r ->
   path r x xs -> all (r x) xs.
 Proof. by move=>Ht; rewrite path_sortedE; [case/andP | exact: Ht]. Qed.
-
-(* remove after fcsl-pcm update *)
-Lemma iffPb (b1 b2 : bool) : reflect (b1 <-> b2) (b1 == b2).
-Proof.
-case: eqP=>[->|N]; constructor=>//.
-case: b1 b2 N; case=>//= _.
-- by case=>/(_ erefl).
-by case=>_ /(_ erefl).
-Qed.
-
-Lemma iffE (b1 b2 : bool) : b1 = b2 <-> (b1 <-> b2).
-Proof. by split=>[->|] //; move/iffPb/eqP. Qed.
 
 Lemma all_notin {A : eqType} (p : pred A) xs y :
   all p xs -> ~~ p y -> y \notin xs.

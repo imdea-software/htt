@@ -1,13 +1,9 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype ssrnat seq path.
-From fcsl Require Import axioms pred ordtype.
+From fcsl Require Import options axioms pred ordtype.
 From fcsl Require Import pcm unionmap heap autopcm automap.
 From HTT Require Import interlude model heapauto.
 From HTT Require Import bintree.
-Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
-Obligation Tactic := auto.
 
 Section BST.
 Context {T : ordType}.

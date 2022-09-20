@@ -1,13 +1,9 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype seq.
-From fcsl Require Import axioms pred.
+From fcsl Require Import options axioms pred.
 From fcsl Require Import pcm unionmap heap automap.
 From HTT Require Import model heapauto.
 From HTT Require Import llist.
-Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
-Obligation Tactic := auto.
 
 Record queue (T : Type) : Type := Queue {front: ptr; back: ptr}.
 Definition EmptyQueue : exn := exn_from_nat 100.

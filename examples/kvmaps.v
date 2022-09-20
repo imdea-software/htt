@@ -4,13 +4,9 @@
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype seq path.
-From fcsl Require Import axioms pred ordtype finmap.
+From fcsl Require Import options axioms pred ordtype finmap.
 From fcsl Require Import pcm unionmap heap autopcm automap.
 From HTT Require Import interlude model heapauto.
-Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
-Obligation Tactic := auto.
 
 (***********************)
 (* stateful KV map ADT *)
@@ -293,7 +289,7 @@ Program Definition remove x (k : K) :
 (* we don't return the pointer because it cannot change, as the head is fixed by fml *)
 Next Obligation.
 (* pull out ghost var, preconditions and heap validity *)
-move=>x k0 go _ prev cur _ [_][] _ /= [fml][fmr][k][v][-> [Ol Or][El E]][hl][_][-> Hl [_][hr][->->Hr]].
+move=>x k0 go _ prev cur [_][] _ /= [fml][fmr][k][v][-> [Ol Or][El E]][hl][_][-> Hl [_][hr][->->Hr]].
 (* branch on cur *)
 case: eqP=>[|/eqP] Ec.
 (* cur = null - nothing to left to process, i.e., fmr = [] *)
@@ -448,7 +444,7 @@ Program Definition insert x (k : K) (v : V) :
 (* we don't return the pointer because it cannot change, as the head is fixed by fml *)
 Next Obligation.
 (* pull out ghost var+preconditions *)
-move=>x k0 v0 loop _ prev cur _ [_][] _ /= [fml][fmr][k][v][-> [Ol Or][El Ho0]][hl][_][-> Hl [_][hr][->-> Hr]].
+move=>x k0 v0 loop _ prev cur [_][] _ /= [fml][fmr][k][v][-> [Ol Or][El Ho0]][hl][_][-> Hl [_][hr][->-> Hr]].
 (* branch on cur *)
 case: eqP=>[|/eqP] Ec.
 - (* cur = null, insert as the last element *)
