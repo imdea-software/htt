@@ -2,7 +2,7 @@ From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype ssrnat seq path.
 (* temp*)
 From mathcomp Require Import bigop.
-From fcsl Require Import options axioms pred ordtype finmap.
+From fcsl Require Import options axioms pred prelude seqperm.
 
 From fcsl Require Import pcm unionmap heap autopcm automap.
 From HTT Require Import interlude model heapauto.
@@ -42,13 +42,16 @@ Notation "p2 '--#' p" := (wand p2 p)
 
 Variant bin_node A := BN of ptr & A & ptr.
 
-Definition bn_val {A} : bin_node A -> ptr * A * ptr :=
+Definition bn_get {A} : bin_node A -> ptr * A * ptr :=
   fun '(BN l a r) => (l, a, r).
+
+Definition bn_val {A} : bin_node A -> A :=
+  fun '(BN _ a _) => a.
 
 Definition bn_sub {A} : ptr * A * ptr -> bin_node A :=
   fun '(l, a, r) => BN l a r.
 
-Lemma bn_ccl {A : Type} : ssrfun.cancel bn_val (@bn_sub A).
+Lemma bn_ccl {A : Type} : ssrfun.cancel bn_get (@bn_sub A).
 Proof. by case; case. Qed.
 
 Definition binnode_eqMixin {A : eqType} := CanEqMixin (@bn_ccl A).
@@ -221,15 +224,22 @@ case/IterStar.sepit_cons=>h21[h22][{h2}-> H21 H22].
 by rewrite (node_shapeK H11 H21) (IH _ _ H12 H22).
 Qed.
 
-Lemma shapePtUnG g p n :
-  valid (p &-> n \+ g) ->
-  forall h, valid h ->
-  h \In shape (pts p n \+ g) <-> h \In node_shape p n # shape g.
+Lemma shapeUn g1 g2 :
+  valid (g1 \+ g2) ->
+  shape (g1 \+ g2) =p shape g1 # shape g2.
 Proof.
-move=>V h Vh; rewrite /shape.
+move=>V h; rewrite /shape.
 move: (assocs_perm V)=>H.
-rewrite (sepit_perm _ H) IterStar.sepit_cat assocsPt.
-move: (validL V); rewrite validPt=>->; split.
+by rewrite (sepit_perm _ H) IterStar.sepit_cat.
+Qed.
+
+Lemma shapePtUn g p n :
+  valid (p &-> n \+ g) ->
+  shape (pts p n \+ g) =p node_shape p n # shape g.
+Proof.
+move=>V h; apply: iff_trans; first by apply: shapeUn.
+rewrite /shape assocsPt.
+move: (validL V); rewrite validPt=>->/=; split.
 - case=>h1[h2][->]; rewrite IterStar.sepit_cons.
   case=>h11[h12][-> H11]; rewrite IterStar.sepit0=>-> H2; rewrite unitR.
   by exists h11, h2.
@@ -239,6 +249,7 @@ rewrite IterStar.sepit_cons.
 exists h1, Unit; split=>//; first by rewrite unitR.
 by rewrite IterStar.sepit0.
 Qed.
+
 (*
 (* focusing on a node *)
 Lemma in_shape g p :
@@ -286,24 +297,321 @@ by rewrite E H1 in V.
 Qed.
 *)
 
+Definition good_ptr p (g : pregraph A) : bool := (p == null) || (p \in dom g).
 
-End Bingraph.
-
-Definition good_ptr {A} p (g : pregraph A) := (p == null) || (p \in dom g).
-
-Lemma good_dom {A} (g1 g2 : pregraph A) p : dom_eq g1 g2 -> good_ptr p g1 -> good_ptr p g2.
+Lemma good_dom (g1 g2 : pregraph A) p : dom_eq g1 g2 -> good_ptr p g1 <-> good_ptr p g2.
 Proof.
-move=>H; rewrite /good_ptr; case/orP=>[->|] //.
-move/domeqP: H=>[_ H] Hp.
-by rewrite -(H p) Hp orbT.
+move=>H; rewrite /good_ptr; case: eqP=>//= Hp.
+move/domeqP: H =>[_ H].
+by rewrite (H p).
 Qed.
 
-Definition good_graph {A} (g : pregraph A) :=
+Definition good_graph (g : pregraph A) : Prop :=
   forall p l a r, find p g = Some (BN l a r) -> good_ptr l g && good_ptr r g.
 
-Definition good_graph_b {T : eqType} (g : pregraph T) :=
+Definition good_graph_b (g : pregraph A) : bool :=
   valid g &&
-  all (fun n : bin_node T => let: BN l _ r := n in good_ptr l g && good_ptr r g) (range g).
+  all (fun '(BN l _ r) => good_ptr l g && good_ptr r g) (range g).
+
+Definition plink (p : pred A) (g : pregraph A) (x : ptr) : bool * seq ptr :=
+  match find x g with
+  | Some (BN l a r) => (p a, filter (fun x => x \in dom g) [::l;r])
+  | None => (false, [::])
+  end.
+
+Definition prel (p : pred A) (g : pregraph A) :=
+  [rel x y | (plink p g x).1 && (y \in (plink p g x).2)].
+
+Fixpoint dfs (p : pred A) (g : pregraph A) n (v : seq ptr) x :=
+  if (x \in v) || ~~ (plink p g x).1 then v else
+  if n is n'.+1 then foldl (dfs p g n') (x :: v) (plink p g x).2 else v.
+
+(*
+Variant dfs_path (p : pred A) (g : pregraph A) (v : seq ptr) : ptr -> ptr -> Prop :=
+  | DfsSame : forall x l a r,
+              find x g = Some (BN l a r) -> p a ->
+              x \notin v ->
+              dfs_path p g v x x
+  | DfsPath : forall x y l a r xs,
+              path (pred_linked p g) x (rcons xs y) ->
+              find y g = Some (BN l a r) -> p a ->
+              all (fun z => z \notin v) (x::rcons xs y) ->
+              dfs_path p g v x y.
+
+Lemma dfs_pathP p g n x y v :
+  size (dom g) <= size v + n ->
+  uniq v ->
+  {subset v <= dom g} ->
+  y \in dom g ->
+  y \notin v ->
+  reflect (dfs_path p g v x y) (y \in pred_dfs p g n v x).
+Proof.
+(*
+have dfs_id w z: z \notin w -> dfs_path w z z.
+  by exists [::]; rewrite ?disjoint_has //= orbF.
+*)
+elim: n => [|n IHn] /= in x y v * => Hv Uv Sv Hy Ny.
+- rewrite addn0 (*. (geq_leqif (subset_leqif_card (subset_predT _))) *) in Hv.
+  by case: (uniq_min_size Uv Sv Hv) Ny=>_ /(_ y); rewrite Hy=>->.
+case E: (pred_links p g x)=>[px ls].
+case/boolP: (x==y).
+- move/eqP=>Exy; rewrite {x}Exy in E *.
+  move/negbTE: (Ny)=>->/=.
+  case: ifP.
+  apply: IHn.
+have [v_x | not_vx] := ifPn.
+  by rewrite (negPf not_vy); right=> [] [p _ _]; rewrite disjoint_has /= v_x.
+set v1 := x :: v; set a := g x; have sub_dfs := subsetP (subset_dfs n _ _).
+have [-> | neq_yx] := eqVneq y x.
+  by rewrite sub_dfs ?mem_head //; left; apply: dfs_id.
+apply: (@equivP (exists2 x1, x1 \in a & dfs_path v1 x1 y)); last first.
+  split=> {IHn} [[x1 a_x1 [p g_p p_y]] | [p /shortenP[]]].
+    rewrite disjoint_has has_sym /= has_sym /= => /norP[_ not_pv].
+    by exists (x1 :: p); rewrite /= ?a_x1 // disjoint_has negb_or not_vx.
+  case=> [_ _ _ eq_yx | x1 p1 /=]; first by case/eqP: neq_yx.
+  case/andP=> a_x1 g_p1 /andP[not_p1x _] /subsetP p_p1 p1y not_pv.
+  exists x1 => //; exists p1 => //.
+  rewrite disjoint_sym disjoint_cons not_p1x disjoint_sym.
+  by move: not_pv; rewrite disjoint_cons => /andP[_ /disjointWl->].
+have{neq_yx not_vy}: y \notin v1 by apply/norP.
+have{le_v'_n not_vx}: #|T| <= #|v1| + n by rewrite cardU1 not_vx addSnnS.
+elim: {x v}a v1 => [|x a IHa] v /= le_v'_n not_vy.
+  by rewrite (negPf not_vy); right=> [] [].
+set v2 := dfs n v x; have v2v: v \subset v2 := subset_dfs n v [:: x].
+have [v2y | not_v2y] := boolP (y \in v2).
+  by rewrite sub_dfs //; left; exists x; [apply: mem_head | apply: IHn].
+apply: {IHa}(equivP (IHa _ _ not_v2y)).
+  by rewrite (leq_trans le_v'_n) // leq_add2r subset_leq_card.
+split=> [] [x1 a_x1 [p g_p p_y not_pv]].
+  exists x1; [exact: predU1r | exists p => //].
+  by rewrite disjoint_sym (disjointWl v2v) // disjoint_sym.
+suffices not_p1v2: [disjoint x1 :: p & v2].
+  case/predU1P: a_x1 => [def_x1 | ]; last by exists x1; last exists p.
+  case/pred0Pn: not_p1v2; exists x; rewrite /= def_x1 mem_head /=.
+  suffices not_vx: x \notin v by apply/IHn; last apply: dfs_id.
+  by move: not_pv; rewrite disjoint_cons def_x1 => /andP[].
+apply: contraR not_v2y => /pred0Pn[x2 /andP[/= p_x2 v2x2]].
+case/splitPl: p_x2 p_y g_p not_pv => p0 p2 p0x2.
+rewrite last_cat cat_path -cat_cons lastI cat_rcons {}p0x2 => p2y /andP[_ g_p2].
+rewrite disjoint_cat disjoint_cons => /and3P[{p0}_ not_vx2 not_p2v].
+have{not_vx2 v2x2} [p1 g_p1 p1_x2 not_p1v] := IHn _ _ v le_v'_n not_vx2 v2x2.
+apply/IHn=> //; exists (p1 ++ p2); rewrite ?cat_path ?last_cat -?p1_x2 ?g_p1 //.
+by rewrite -cat_cons disjoint_cat not_p1v.
+Qed.
+
+(*
+Definition path_pred (p : pred A) (g : pregraph A) (x y : ptr) : Prop :=
+  if x == y then oapp (p \o bn_val) false (find x g) = true
+    else exists (xs : seq ptr), path (linked_pred p g) x (rcons xs y).
+*)
+*)
+
+Lemma plinkT p g x xs : plink p g x = (true, xs) ->
+                        (x \in dom g) * (all (fun z => z \in dom g) xs).
+Proof.
+rewrite /plink.
+case Hf: (find x g)=>[[l a r]|]; last by case.
+case=>? <-; split; first by move/find_some: Hf.
+rewrite -/(filter (fun x => x \in dom g) [::l;r]) all_filter.
+by apply/sub_all/all_predT=>z _ /=; apply: implybb.
+Qed.
+
+Lemma subset_dfs p g n v a : {subset v <= foldl (dfs p g n) v a}.
+Proof.
+elim: n a v => [|n IHn].
+- elim=>/=[|h t IH] v; first by move=>?.
+  by rewrite if_same.
+elim=>/=[|h t IHa v]; first by move=>?.
+move=>x Hx; apply: IHa; case: ifP=>//= _.
+by apply: IHn; rewrite inE Hx orbT.
+Qed.
+
+(* hacky *)
+Lemma subset_foldl_dfs_dom p g n v x :
+  {subset v <= dom g} ->
+  {subset foldl (dfs p g n) v x <= dom g}.
+Proof.
+elim: n x v=>/=[|n IH].
+- by elim=>//= h t IH v; rewrite if_same; apply: IH.
+elim=>//=h t IHx v Hv; case: ifP=>/=; first by move=>_; apply: IHx.
+move/negbT; rewrite negb_or; case/andP=>_ /negbNE.
+case Ep: (plink p g h)=>[px ls] /= Hpx; rewrite {px}Hpx in Ep.
+case: (plinkT Ep)=>Hh _.
+apply/IHx/IH=>z; rewrite inE; case/orP; last by apply/Hv.
+by move/eqP=>{z}->.
+Qed.
+
+Corollary subset_dfs_dom p g n v x :
+  {subset v <= dom g} ->
+  {subset dfs p g n v x <= dom g}.
+Proof.
+case: n=>/= [|n] H; first by rewrite if_same.
+move=>z; case: ifP; first by move=>_ /H.
+move/negbT; rewrite negb_or; case/andP=>Hx /negbNE.
+case Ep: (plink p g x)=>[px ls] /= Hpx; rewrite {px}Hpx in Ep.
+apply: subset_foldl_dfs_dom=>{}z; rewrite inE; case/orP; last by apply/H.
+by move/eqP=>{z}->; case: (plinkT Ep).
+Qed.
+
+Lemma uniq_dfs_foldl p g n v x : uniq v -> uniq (foldl (dfs p g n) v x).
+Proof.
+elim: n x v=>/=[|n IH].
+- by elim=>//= h t IH v; rewrite if_same; apply: IH.
+elim=>//=h t IHx v Hv; case: ifP=>/=; first by move=>_; apply: IHx.
+move/negbT; rewrite negb_or; case/andP=>Hx _.
+by apply/IHx/IH=>/=; rewrite Hx.
+Qed.
+
+Corollary uniq_dfs p g n v x :
+  uniq v ->
+  uniq (dfs p g n v x).
+Proof.
+case: n=>/= [|n] H; first by rewrite if_same.
+case: ifP=>//.
+move/negbT; rewrite negb_or; case/andP=>Hx _.
+by apply: uniq_dfs_foldl=>/=; rewrite Hx.
+Qed.
+
+Definition p_val (p : pred A) (g : pregraph A) x :=
+  oapp (p \o bn_val) false (find x g).
+
+Lemma plink_val p g x : p_val p g x = (plink p g x).1.
+Proof.
+by rewrite /plink /p_val; case: (find x g)=>//=; case.
+Qed.
+
+Inductive dfs_path (p : pred A) g (v : seq ptr) x y : Prop :=
+  DfsPath xs of
+    path (prel p g) x xs &
+    y = last x xs &
+    p_val p g y &
+    all (fun z => z \notin v) (x::xs).
+
+Lemma dfs_path_id p g v x :
+  p_val p g x -> x \notin v -> dfs_path p g v x x.
+Proof.
+move=>Hx Hv; apply (DfsPath (xs:=[::]))=>//=.
+by rewrite andbT.
+Qed.
+
+Lemma dfs_pathP p g n x y v :
+  size (dom g) <= size v + n ->
+  uniq v ->
+  {subset v <= dom g} ->
+  y \in dom g ->
+  y \notin v ->
+  reflect (dfs_path p g v x y) (y \in dfs p g n v x).
+Proof.
+elim: n => [|n IHn] /= in x y v * => Hv Uv Sv Hy Ny.
+- rewrite addn0 in Hv.
+  by case: (uniq_min_size Uv Sv Hv) Ny=>_ /(_ y); rewrite Hy=>->.
+case Epl: (plink p g x)=>[px ls] /=.
+have [Vx|] := ifPn.
+- move/negbTE: (Ny)=>->; apply: ReflectF; case=>/= xs.
+  case/orP: Vx; first by move=>->.
+  move/negbTE=>Epx; rewrite {px}Epx in Epl.
+  case: xs=>/=; last by rewrite Epl.
+  by move=>_ ->; rewrite plink_val Epl.
+rewrite negb_or; case/andP=>Nx /negbNE Px; rewrite {px}Px in Epl.
+set v1 := x :: v; have [-> | Nyx] := eqVneq y x.
+- rewrite subset_dfs; last by rewrite inE eq_refl.
+  apply: ReflectT; apply: dfs_path_id=>//.
+  by rewrite plink_val Epl.
+apply: (@equivP (exists2 x1, x1 \in ls & dfs_path p g v1 x1 y)); last first.
+- split=> {IHn} [[x1 Hx1 [p1 P1 Ey Py]] | [p1 /shortenP []]] /=.
+  - case/andP; rewrite inE negb_or; case/andP =>Ex1 Nx1 Ha1; apply: (DfsPath (xs:=x1::p1))=>//=.
+    - by rewrite Epl /= Hx1.
+    by rewrite Nx Nx1 /=; apply/sub_all/Ha1=>z; rewrite inE negb_or; case/andP.
+  case=>[_ _ _ /= Eyx | x1 xs /=]; first by case/eqP: Nyx.
+  rewrite Epl /=. case/andP=>Hx1 Hp1 /and3P [H11 H12 H13] H2 H3 H4 /andP [H5 H6].
+  exists x1=>//; apply: (DfsPath (xs:=xs))=>//.
+  apply/allP=>z /[dup] Hz /H2; move/allP: H6=>/(_ z) /[apply].
+  rewrite !inE negb_or=>->; rewrite andbT; apply/negP=>/eqP Ez.
+  by rewrite -Ez Hz in H11.
+have{Nyx Ny}: y \notin v1 by apply/norP.
+have{Nx Uv}: uniq v1 by rewrite /= Nx.
+have{Sv}: {subset v1 <= dom g}.
+- move=>z; rewrite inE; case/orP; last by move/Sv.
+  by move/eqP=>{z}->; case: (plinkT Epl).
+have{Hv}: size (dom g) <= size v1 + n by rewrite addSnnS.
+case/plinkT: Epl=>_ Hl.
+elim: {x v}ls Hl v1 => /= [_|x a IHa /andP [Ha Hl]] v /= Hv Sv Uv Nv.
+- by rewrite (negPf Nv); apply: ReflectF; case.
+set v2 := dfs p g n v x; have v2v: {subset v <= v2} := @subset_dfs p g n v [:: x].
+have [Hy2 | Ny2] := boolP (y \in v2).
+- rewrite subset_dfs //; apply: ReflectT; exists x; first by rewrite inE eq_refl.
+  by apply/IHn.
+apply: {IHa}(equivP (IHa Hl _ _ _ _ Ny2)).
+- by apply: (leq_trans Hv); rewrite leq_add2r; apply: uniq_leq_size.
+- by apply: subset_dfs_dom.
+- by apply: uniq_dfs.
+split=> [] [x1 Hx1 [p1 P1 Ey Py Nay]].
+  exists x1; first by rewrite inE Hx1 orbT.
+  by apply: (DfsPath (xs:=p1))=>//; apply/sub_all/Nay=>z; apply/contra/v2v.
+suff Nv2: all (fun z => z \notin v2) (x1 :: p1).
+- move: Hx1; rewrite inE; case/orP=>[/eqP Ex1|Hx1]; last first.
+  - by exists x1=>//; apply: (DfsPath (xs:=p1)).
+  rewrite {x1}Ex1 in P1 Ey Nay Nv2.
+  exfalso; move: Nv2=>/=; case/andP=>+ _; move/negbTE/negP; apply.
+  suff Nx: x \notin v.
+  - apply/IHn=>//; apply: dfs_path_id=>//.
+    case: {Nay}p1 P1 Ey=>/=[_|??]; first by move=><-.
+    by case/andP; case/andP; rewrite plink_val.
+  by case/andP: Nay.
+apply: contraR Ny2; case/allPn => x2 Hx2 /negbNE Hx2v.
+case/splitPl: Hx2 Ey P1 Nay => p0 p2 p0x2.
+rewrite last_cat cat_path -cat_cons lastI cat_rcons {}p0x2 => p2y /andP[_ g_p2].
+rewrite all_cat /= => /and3P[{p0}_ not_vx2 not_p2v].
+have H2d : x2 \in dom g.
+- case: {not_p2v}p2 p2y g_p2=>/=[<-|??] // _.
+  case Epl: (plink p g x2)=>[uu vv] /=; case/andP; case/andP=>H0.
+  by rewrite H0 in Epl; case: (plinkT Epl).
+have{not_vx2 Hx2v} [p3 g_p1 p1_x2 V2 not_p1v] := (IHn _ _ v Hv Uv Sv H2d not_vx2 Hx2v).
+apply/IHn=>//; exists (p3 ++ p2)=>//.
+- by rewrite cat_path g_p1 -p1_x2.
+- by rewrite last_cat -p1_x2.
+by rewrite -cat_cons all_cat not_p1v.
+Qed.
+
+Lemma dfsP p g x y :
+  y \in dom g ->
+  reflect (exists xs, [/\ path (prel p g) x xs, p_val p g y & y = last x xs])
+          (y \in dfs p g (size (dom g)) [::] x).
+Proof.
+move=>Hy.
+apply: (iffP (dfs_pathP _ _ _ _ _ _ _))=>//.
+- by case=>xs P Ey Pv _; exists xs.
+case=>xs [P Ey Pv]; apply: (DfsPath (xs:=xs))=>//.
+by apply/sub_all/all_predT.
+Qed.
+
+End Dfs.
+
+(*
+Definition torel {A} (g : pregraph A) : ptr -> seq ptr :=
+  fun x =>
+  match find x g with
+  | Some (BN l _ r) => [:: l; r]
+  | None => [::]
+  end.
+
+
+
+Lemma um_eta_t (K : ordType) (C : pred K) (V : Type)
+                 (U : union_map_class C V) (k : K) (f : U)  :
+        k \in dom f -> sig (fun v => find k f = Some v /\ f = pts k v \+ free f k).
+Proof.
+case: dom_find=>// v E1 E2 _; exists v; split=>//.
+by rewrite {1}E2 -{1}[free f k]unitL updUnR domF inE /= eq_refl ptsU.
+Qed.
+
+Lemma pre2fin {A} (g : pregraph A) : good_graph_b g -> seq_sub (dom g) -> seq (seq_sub (dom g)).
+Proof.
+move=>H [x Hx].
+case/um_eta_t: Hx. case=>l a r [E _].
+case: (find x g) E=>//; case=>???; case.
+*)
+
 
 Section ExampleCyclic.
 Definition p1 := ptr_nat 1.
@@ -391,6 +699,7 @@ Definition good_graph {A} (g : graph A) :=
   forall p l a r, (p, BN l a r) \In g -> good_ptr l g /\ good_ptr r g.
 *)
 
+(*
 Inductive un_path : pregraph bool -> ptr -> ptr -> Prop :=
 | stop  : forall g p      , un_path g p p
 | hopl  : forall g p l r q, (p, BN l false r) \In assocs g -> un_path g l q -> un_path g p q
@@ -406,10 +715,18 @@ Lemma linked_null g x : ~~ linked_f g null x.
 Proof.
 by rewrite /linked_f; move: (no_null g)=>/find_none ->.
 Qed.
+*)
 
-Definition un_path_b (g : pregraph bool) (x y : ptr) : Prop :=
-  if x == y then True
-    else exists (xs : seq ptr), path (linked_f g) x (rcons xs y).
+
+Lemma un_path_b_cat g x y z : un_path_b g x y -> un_path_b g y z -> un_path_b g x z.
+Proof.
+rewrite /un_path_b; case: eqP; first by move=>->.
+move=>Hxy [xs Hxs]; case: eqP.
+- by move=><-; move/eqP/negbTE: Hxy=>-> _; exists xs.
+move=>Hyz [ys Hys]; case: eqP=>// _.
+exists (xs ++ y::ys); rewrite rcons_cat /= -cat1s catA cats1 cat_path.
+by rewrite Hxs /= last_rcons.
+Qed.
 
 Lemma un_path_null gr x : x \in dom gr -> ~ un_path gr null x.
 Proof.
@@ -465,6 +782,52 @@ Definition mark_rel (x : ptr) (g1 g2 : pregraph bool) :=
   forall y l r m2, (y, BN l m2 r) \In g2 <->
     exists m1 : bool, (y, BN l m1 r) \In g1 /\
                       if m2 then m1 \/ (~~ m1 /\ un_path_b g1 x y) else ~~ m1.
+
+Lemma mark_linked x a b g1 g2 :
+  mark_rel x g1 g2 -> linked_f g2 a b -> linked_f g1 a b.
+Proof.
+move=>M; rewrite /linked_f.
+case H: (find a g2)=>[[l z r]|] //.
+move/In_find: H; case/M=>b1 [/In_find ->].
+by case: z=>//= ->.
+Qed.
+
+Lemma mark_lift a x y g1 g2 :
+  mark_rel a g1 g2 ->
+  un_path_b g2 x y ->
+  un_path_b g1 x y.
+Proof.
+move=>M; rewrite /un_path_b.
+case: eqP=>// _ [xs Hxs]; exists xs.
+elim: xs x Hxs=>/= [|z xs IH] x.
+- by rewrite !andbT; apply: mark_linked.
+by case/andP=>/(mark_linked M)->/=; apply: IH.
+Qed.
+
+Lemma mark_trans a b g1 g2 g3 :
+  un_path_b g1 a b ->
+  mark_rel b g1 g2 -> mark_rel a g2 g3 ->
+  mark_rel a g1 g3.
+Proof.
+move=>P M1 M2 x l r m2.
+apply: iff_trans; first by apply: M2.
+split.
+- case=>m1; case=>/M1; case=>m3 [H1 E1] E2.
+  exists m3; split=>// {H1}; case: m3 E1=>/=; case: m2 E2=>//=.
+  - case; last by case=>/negbTE->.
+    move=>->; case; last by case.
+    by move=>_; left.
+  - by move/negbTE=>->.
+  case.
+  - move=>->; case=>//; case=>_ H; right; split=>//.
+    by apply/un_path_b_cat/H.
+  case=>/negbTE-> H _; right; split=>//.
+  apply/(un_path_b_cat P)/(mark_lift M1).
+  move: H.
+  rewrite /un_path_b.
+
+  first by move=>->.
+  case=>/negbTE=>-> H _; right; split=>//.
 
 Lemma mark_good x g1 g2 : mark_rel x g1 g2 -> valid g2 -> good_graph_b g1 -> good_graph_b g2.
 Proof.
@@ -625,9 +988,8 @@ have Hpm : mark_rel p gr gr'.
     by move=>_ [xs Hpu]; exists (l::xs)=>/=; rewrite Hpu andbT /linked_f Hp' eq_refl.
   admit.
 
-have Hpr : mark_rel p gr' gr''.
-move=>????; rewrite /mark_rel in Hmk' Hpm.
-
+have Hpr : mark_rel p gr' g''.
+- move=>y0 l0 r0 b2; apply: iff_trans; first by apply: Hmk'.
 
   case=>b1 [H3 E3].
 
