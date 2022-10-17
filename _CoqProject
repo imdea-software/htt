@@ -18,3 +18,4 @@ examples/bst.v
 examples/kvmaps.v
 examples/hashtab.v
 examples/congmath.v
+examples/graphmark.v
