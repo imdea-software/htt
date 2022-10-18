@@ -3,84 +3,8 @@ From mathcomp Require Import eqtype ssrnat seq path.
 From fcsl Require Import options axioms pred ordtype.
 From fcsl Require Import pcm unionmap heap autopcm automap.
 From HTT Require Import interlude model heapauto.
-From HTT Require Import bintree graphmark.
+From HTT Require Import bintree graph.
 
-(*
-Section Wand.
-Variable U : pcm.
-
-Definition wand (p2 p : Pred U) : Pred U :=
-  [Pred h1 | forall h2 h, h = h1 \+ h2 -> h2 \In p2 -> h \In p].
-
-End Wand.
-
-Notation "p2 '--#' p" := (wand p2 p)
-  (at level 58, right associativity) : rel_scope.
-
-Section Bingraph.
-Variable A : Type.
-
-Variant bin_node := BN of ptr & A & ptr.
-
-(* this looks like a `ptr :-> bin_node` aux PCM *)
-Definition graph := seq (ptr * bin_node).
-
-Definition node_shape p (n : bin_node) :=
-  let '(BN l a r) := n in
-  [Pred h | h = p :-> l \+ (p .+ 1 :-> a \+ p .+ 2 :-> r)].
-
-Lemma node_shapeK h1 h2 p n :
-  h1 \In node_shape p n -> h2 \In node_shape p n -> h1 = h2.
-Proof. by case: n=>/= l a r ->->. Qed.
-
-Definition shape (gr : graph) :=
-  IterStar.sepit gr (fun '(p,n) => node_shape p n).
-
-Lemma shapeK h1 h2 gr :
-  h1 \In shape gr -> h2 \In shape gr -> h1 = h2.
-Proof.
-rewrite /shape; elim: gr h1 h2=>[|[p n] gr IH] h1 h2.
-- by move/IterStar.sepit0=>->/IterStar.sepit0->.
-case/IterStar.sepit_cons=>h11[h12][{h1}-> H11 H12].
-case/IterStar.sepit_cons=>h21[h22][{h2}-> H21 H22].
-by rewrite (node_shapeK H11 H21) (IH _ _ H12 H22).
-Qed.
-
-(* focusing on a node *)
-Lemma in_shape g n p :
-  (p, n) \In g ->
-  forall h, valid h ->
-  h \In shape g <-> h \In node_shape p n # (node_shape p n --# shape g).
-Proof.
-elim: g; first by move/In_nil.
-move=>[q nq] g IH /In_cons; case.
-- case=>[{q}<-{nq}<-] h Vh; rewrite /shape IterStar.sepit_cons; split.
-  - case=>h1[h2][E H1 H2]; exists h1, h2; split=>// h22 _ -> H22.
-    by apply/IterStar.sepit_cons; exists h22, h2; split=>//; rewrite joinC.
-  case=>h1[h2][E H1 H2]; exists h1, h2; split=>//; rewrite {h}E in Vh.
-  move: (H2 h1 (h2 \+ h1) erefl H1)=>/IterStar.sepit_cons [h3][h4][E2 H3 H4].
-  move: (node_shapeK H3 H1)=>E3; rewrite {h3 H3}E3 joinC in E2.
-  by move: (joinxK Vh E2)=>->.
-move/IH=>{}IH h Vh; rewrite /shape IterStar.sepit_cons; split.
-- case=>h1[h2][E H1 /[dup] H2]; rewrite E in Vh.
-  case/(IH h2 (validR Vh))=>h3[h4][E2 H3 H4].
-  exists h3, (h1 \+ h4); rewrite E E2 joinCA; split=>// h5 _ -> H5.
-  move: (node_shapeK H5 H3)=>{h5 H5}->; rewrite IterStar.sepit_cons.
-  by exists h1, h2; split=>//; rewrite E2 joinA joinAC.
-case=>h1[h2][E H1 H2].
-move: (H2 h1 h); rewrite joinC => /(_ E H1).
-by rewrite IterStar.sepit_cons; case=>h3[h4][E2 H3 H4]; exists h3, h4.
-Qed.
-
-Corollary no_null g n h :
-  valid h -> h \In shape g -> (null, n) \Notin g.
-Proof.
-case: n=>p l r V + Hg; case/(in_shape Hg V)=>h1[h2][E H1 _].
-by rewrite E H1 in V.
-Qed.
-
-End Bingraph.
-*)
 Section Shape.
 Variable (f : ptrmap nat).
 
@@ -164,7 +88,7 @@ Fixpoint tree_in_graph (g : pregraph) (t : tree nat) (p : ptr) : Prop :=
 
 Fixpoint tree_in_graph_b (g : pregraph) (t : tree nat) (p : ptr) : bool :=
   if t is Node l a r then
-    match links g p with
+    match find p g with
     | Some ns => [&& find p f == Some a, tree_in_graph_b g l (get_nth ns 0) & tree_in_graph_b g r (get_nth ns 1)]
     | None => false
     end
@@ -174,7 +98,7 @@ Lemma tree_in_graph_null g t :
   tree_in_graph_b g t null -> t = leaf.
 Proof.
 case: t=>//=l a r.
-by move: (no_null g)=>/linksF->.
+by move: (no_null g)=>/find_none->.
 Qed.
 
 Lemma tree_in_graph_nonnull g t p :
@@ -183,19 +107,19 @@ Lemma tree_in_graph_nonnull g t p :
   [ /\ t = Node tl x tr,
        find p g = Some [::pl;pr],
        find p f = Some x,
-       tree_in_graph g tl pl &
-       tree_in_graph g tr pr ].
+       tree_in_graph_b g tl pl &
+       tree_in_graph_b g tr pr ].
 Proof.
-move=>Hp H2; case: t=>/=.
-- by move=>Ep; rewrite Ep in Hp.
-move=>tl x tr; case El: (links g p)=>[ns|]//.
-
-case/
-
-[pl][pr][Hp1 Hl Hr].
-by exists x, tl, pl, tr, pr; split=>//; rewrite -E1.
+move=>Hp H2; case: t; first by move=>/= Ep; rewrite Ep in Hp.
+move=>tl x tr /=; case El: (find p g)=>[ns|] //.
+case/and3P=>/eqP Hx Tl Tr; exists x, tl, (get_nth ns 0), tr, (get_nth ns 1); split=>//.
+set l := get_nth ns 0.
+set r := get_nth ns 1.
+suff: ns == [::l; r] by move/eqP ->.
+move/all_nth/allP: H2; apply.
+by apply/(mem_range (k:=p))/In_find.
 Qed.
-*)
+
 (*
 Inductive tree_in_graph (g: graph) : tree A -> ptr -> Prop :=
 | TIG_L: tree_in_graph g leaf null
@@ -299,7 +223,7 @@ Fixpoint sum_tree (t : tree nat) : nat :=
 
 Definition treesumT : Type := forall (p : ptr),
   {(t : tree nat) (gr : pregraph) (f : ptrmap nat)},
-  STsep (fun h => shape f gr h /\ tree_in_graph_b f gr t p,
+  STsep (fun h => [/\ shape f gr h, n_graph 2 gr, good_graph gr & tree_in_graph_b f gr t p],
           [vfun n h => n == sum_tree t /\ shape f gr h]).
 
 Program Definition treesum : treesumT :=
@@ -312,16 +236,19 @@ Program Definition treesum : treesumT :=
              rs <-- go r;
              ret (ls + n + rs))).
 Next Obligation.
-move=>go p [tn][gn][pn][] i /= [Hg Ht]; case: eqP Ht=>[{p}->|/eqP Ep] Ht.
-- step=>V. rewrite (tree_in_graph_null Ht V).
-apply: vrfV=>Vi.
-case: (tree_in_graph_nonnull Ep Ht)=>x[tl][pl][tr][pr][-> I Hl Hr].
-move: (Hg); case/(in_shape I Vi)=>i1[i2][Ei Hi1 Hi2]; rewrite Ei Hi1.
-do 3!step.
-apply: [stepE tl, gn]=>//=; first by split=>//; rewrite -Hi1 -Ei.
+move=>go p [tn][gn][pn][] i /= [Hs H2 Hg Ht]; case: eqP Ht=>[{p}->|/eqP Ep] Ht.
+- by step=>V; rewrite (tree_in_graph_null Ht).
+case/andP: (Hg)=>Hv Ha.
+case: (tree_in_graph_nonnull Ep H2 Ht)=>x[tl][pl][tr][pr][-> Hf Hx Hl Hr] /=.
+move/um_eta2: (Hf)=>Egn; rewrite Egn in Hv Hs.
+case/(shapePtUn _ Hv): (Hs)=>i1[i2][Ei Hi1 Hi2]; rewrite Ei Hi1 Hx /=.
+do 3!step; apply: [stepE tl, gn, pn]=>//=.
+- split=>//; rewrite Egn; apply/shapePtUn=>//.
+  exists (p :-> pl \+ (p.+ 1 :-> x \+ p.+ 2 :-> pr)), i2; split=>//.
+  by rewrite -toPredE /= Hx.
 move=>_ m [/eqP -> Hm].
-rewrite (shapeK Hm Hg)=>{m Hm}.
-by apply: [stepE tr, gn]=>//=_ m [/eqP -> Hm]; step.
+rewrite -Egn in Hs; rewrite (shapeK Hm Hs)=>{m Hm}.
+by apply: [stepE tr, gn, pn]=>//=_ m [/eqP -> Hm]; step.
 Qed.
 
 End SumDag.
