@@ -9,12 +9,11 @@ From HTT Require Import graphmark.
 Section Shape.
 
 Definition node_shape p (n : graph_node) (s : nodeset) :=
-  let: GN ns := n in
-  [Pred h | h = p :-> get_nth ns 0 \+ (p .+ 1 :-> (p \in dom s) \+ p .+ 2 :-> get_nth ns 1)].
+  [Pred h | h = p :-> get_nth n 0 \+ (p .+ 1 :-> (p \in dom s) \+ p .+ 2 :-> get_nth n 1)].
 
 Lemma node_shapeK h1 h2 p n s :
   h1 \In node_shape p n s -> h2 \In node_shape p n s -> h1 = h2.
-Proof. by case: n=>/= ns ->->. Qed.
+Proof. by move=>->->. Qed.
 
 Definition shape (gr : pregraph) (m : nodeset) :=
   IterStar.sepit (assocs gr) (fun '(p,n) => node_shape p n m).
@@ -63,7 +62,7 @@ Lemma shapeMPtUn g p m :
   p \notin dom g ->
   shape g (#p \+ m) =p shape g m.
 Proof.
-move=>Vm Hm Hg h; rewrite /shape; apply: sepitF; case=>q [ns] /=.
+move=>Vm Hm Hg h; rewrite /shape; apply: sepitF; case=>q ns /=.
 move/In_assocs/In_find=>Hq z.
 rewrite !InE /= domPtUn validPtUn /= inE /= Vm Hm /=.
 suff: p != q by move/negbTE=>->.
@@ -86,20 +85,20 @@ Definition p8 := ptr_nat 8.
 (* https://www.comp.nus.edu.sg/~hobor/Teaching/SW-PhD.pdf#1f *)
 
 Definition ex : pregraph :=
-  p1 &-> GN [::p2;p3]   \+
-  p2 &-> GN [::p4;p5]   \+
-  p3 &-> GN [::p6;p7]   \+
-  p4 &-> GN [::] \+
-  p5 &-> GN [::p5;p8]   \+
-  p6 &-> GN [::p1;p8]   \+
-  p7 &-> GN [::] \+
-  p8 &-> GN [::p4;p7].
+  p1 &-> [::p2  ;p3]   \+
+  p2 &-> [::p4  ;p5]   \+
+  p3 &-> [::p6  ;p7]   \+
+  p4 &-> [::null;null] \+
+  p5 &-> [::p5  ;p8]   \+
+  p6 &-> [::p1  ;p8]   \+
+  p7 &-> [::null;null] \+
+  p8 &-> [::p4  ;p7].
 
 End ExampleCyclic.
 
 Definition markT : Type := forall (p : ptr),
   {(gr : pregraph) (m_o : nodeset)},
-  STsep (fun h => [/\ valid m_o, h \In shape gr m_o, good_graph_b gr, n_graph 2 gr & good_ptr gr p ],
+  STsep (fun h => [/\ valid m_o, h \In shape gr m_o, good_graph gr, n_graph 2 gr & good_ptr gr p ],
         [vfun (_ : unit) h => exists m_s,
                   [/\ valid (m_s \+ m_o), h \In shape gr (m_s \+ m_o) & dom m_s =i connect m_o gr p]]).
 
@@ -119,14 +118,14 @@ move=>go p [gr][m_o][] i /= [Vmo Hg Hgg Hg2 Hp]; apply: vrfV=>V; case/orP: Hp.
   exists Unit; rewrite unitL; split=>//; rewrite dom0=>z; rewrite in_nil.
   by rewrite connect_notd {z}//; exact: no_null.
 move/[dup]/dom_cond/[dup]=>Np /negbTE ->.
-case/um_eta; case=>ns [Hp Egr].
+case/um_eta=>ns [Hp Egr].
 case/andP: (Hgg)=>Vg Eg; rewrite Egr in Vg Hg.
 case/(shapePtUn _ Vg): (Hg)=>i1[i2][E H1 H2].
 rewrite E H1.
 set l := get_nth ns 0.
 set r := get_nth ns 1.
 have /eqP Hns: size ns == 2.
-- move/allP: Hg2=>/(_ (GN ns)); apply.
+- move/allP: Hg2; apply.
   apply/mem_rangeX; exists p.
   by move/In_find: Hp.
 have Ens : ns = [::l; r].
@@ -134,11 +133,11 @@ have Ens : ns = [::l; r].
   by case=>//; case.
 step; case: ifP=>[Mp|/negbT Mp].
 - step=>V1; exists Unit; rewrite unitL {1}Egr dom0; split=>//.
-  - by rewrite (shapePtUn _ Vg) /= Mp; vauto.
+  - by rewrite (shapePtUn _ Vg) /node_shape Mp; vauto.
   by move=>z; rewrite in_nil connect_notp.
 do 3!step.
 have Hans : all (good_ptr gr) ns.
-- move/allP: Eg => /(_ (GN ns)); apply.
+- move/allP: Eg; apply.
   by rewrite {1}Egr rangePtUn inE Vg eq_refl.
 have Hgl : good_ptr gr l by apply: (all_good_get (p:=p)).
 have Hgr : good_ptr gr r by apply: (all_good_get (p:=p)).

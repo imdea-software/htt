@@ -156,16 +156,7 @@ Qed.
 
 End Sep.
 
-Variant graph_node := GN of seq ptr.
-
-Definition gn_get : graph_node -> seq ptr :=
-  fun '(GN ns) => ns.
-
-Lemma gn_ccl : ssrfun.cancel gn_get GN.
-Proof. by case; case. Qed.
-
-Definition binnode_eqMixin := CanEqMixin gn_ccl.
-Canonical binnode_eqType := Eval hnf in EqType _ binnode_eqMixin.
+Definition graph_node := seq ptr.
 
 (* pregraph as a union map `ptr :-> graph_node` *)
 
@@ -286,7 +277,7 @@ Definition pregraphTPCMMix := union_map_classTPCMMix pregraphUMC.
 Canonical pregraphTPCM := Eval hnf in TPCM pregraph pregraphTPCMMix.
 
 Definition pregraph_eqMix :=
-  @union_map_class_eqMix ptr_ordType ptr_pred binnode_eqType _ pregraphMixin.
+  @union_map_class_eqMix ptr_ordType ptr_pred _ _ pregraphMixin.
 Canonical pregraph_eqType :=
   Eval hnf in EqType pregraph pregraph_eqMix.
 
@@ -314,15 +305,15 @@ Section GraphOps.
 
 Definition good_ptr (g : pregraph) p : bool := (p == null) || (p \in dom g).
 
-Definition good_graph_b (g : pregraph) : bool :=
+Definition good_graph (g : pregraph) : bool :=
   valid g &&
-  all (fun '(GN ns) => all (good_ptr g) ns) (range g).
+  all (all (good_ptr g)) (range g).
 
 Definition links (g : pregraph) (x : ptr) : option (seq ptr) :=
-  ssrfun.omap (fun '(GN ns) => filter (fun x => x \in dom g) ns) (find x g).
+  ssrfun.omap (filter (fun x => x \in dom g)) (find x g).
 
 Definition edge (g : pregraph) x y :=
-  oapp (fun 'ys => y \in ys) false (links g x).
+  oapp (fun ys => y \in ys) false (links g x).
 
 Arguments edge g x y : simpl never.
 
@@ -340,7 +331,7 @@ Proof. by rewrite /links; case: (dom_find x)=>[|v] ->. Qed.
 Lemma linksT g x xs : links g x = Some xs ->
                         (x \in dom g) * (all (fun z => z \in dom g) xs).
 Proof.
-rewrite /links; case Hf: (find x g)=>[[ns]|] //=.
+rewrite /links; case Hf: (find x g)=>[ns|] //=.
 case=><-; split; first by move/find_some: Hf.
 rewrite -/(filter (fun x => x \in dom g) ns) all_filter.
 by apply/sub_all/all_predT=>z _ /=; apply: implybb.
@@ -354,7 +345,7 @@ by move/allP: E2; apply.
 Qed.
 
 Lemma find_edge g x ns y :
-  find x g = Some (GN ns) ->
+  find x g = Some ns ->
   edge g x y = (y \in dom g) && (y \in ns).
 Proof.
 move=>E; rewrite /edge /links E [filter _]lock /=.
@@ -580,7 +571,7 @@ by apply/sub_all/Ha=>z; apply/contra/Hp.
 Qed.
 
 Lemma connect_links_sub p g x ns :
-  find x g = Some (GN ns) ->
+  find x g = Some ns ->
   forall y, y \in connect p g x -> (y == x) || has (fun n => y \in connect p g n) ns.
 Proof.
 move=>Hx y.
@@ -592,7 +583,7 @@ by apply/connectP; exists xs; rewrite Hh /= Hcp Ha; split=>//; apply: implybT.
 Qed.
 
 Lemma connect_eq_links p g x ns :
-  find x g = Some (GN ns) ->
+  find x g = Some ns ->
   x \notin dom p ->
   all (good_ptr g) ns ->
   forall y, y \in connect p g x = (y == x) || has (fun n => y \in connect p g n) ns.
@@ -615,7 +606,7 @@ Section Marking.
 Lemma connectMPtUn p m g x cs :
   valid m ->
   p \notin dom m ->
-  find p g = Some (GN cs) ->
+  find p g = Some cs ->
   forall z, z != p ->
              x \in cs -> z \in connect        m  g x ->
   exists2 y, y \in cs &  z \in connect (#p \+ m) g y.
@@ -676,7 +667,7 @@ Qed.
 Corollary connectMPtUnHas p m g cs :
   valid m ->
   p \notin dom m ->
-  find p g = Some (GN cs) ->
+  find p g = Some cs ->
   forall z, z != p ->
   has (fun x => z \in connect m g x) cs = has (fun x => z \in connect (#p \+ m) g x) cs.
 Proof.
@@ -690,7 +681,7 @@ Qed.
 
 Lemma connectMUn p m1 m2 g x c cs :
   valid (m2 \+ m1) ->
-  find p g = Some (GN cs) ->
+  find p g = Some cs ->
   c \in cs -> good_ptr g c ->
   dom m2 =i connect m1 g c ->
   forall z,  x \in cs                  -> z \in connect m1 g x ->
@@ -735,7 +726,7 @@ Qed.
 
 Corollary connectMUnHas p m1 m2 g c cs :
   valid (m2 \+ m1) ->
-  find p g = Some (GN cs) ->
+  find p g = Some cs ->
   c \in cs -> good_ptr g c ->
   dom m2 =i connect m1 g c ->
   forall z,
@@ -757,21 +748,21 @@ End Marking.
 Section NGraph.
 
 Definition n_graph (n : nat) (g : pregraph) : bool :=
-  all (fun '(GN ns) => size ns == n) (range g).
+  all (fun ns => size ns == n) (range g).
 
 Definition get_nth (ps : seq ptr) (n : nat) : ptr :=
   nth null ps n.
 
 Lemma all_good_get p g ps m :
-  good_graph_b g ->
-  find p g = Some (GN ps) ->
+  good_graph g ->
+  find p g = Some ps ->
   good_ptr g (get_nth ps m).
 Proof.
 case/andP=>_ Hg Hf.
 case: (ltnP m (size ps))=>Hm; last first.
 - by apply/orP; left; rewrite /get_nth; rewrite nth_default.
 have /allP : all (good_ptr g) ps.
-- move/allP: Hg=>/(_ (GN ps)); apply.
+- move/allP: Hg; apply.
   apply/mem_rangeX; exists p.
   by move/In_find: Hf.
 by apply; apply: mem_nth.

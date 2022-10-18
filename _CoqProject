@@ -14,4 +14,9 @@ examples/dlist.v
 examples/queue.v
 examples/cyclic.v
 examples/bintree.v
+examples/bst.v
+examples/kvmaps.v
+examples/hashtab.v
+examples/congmath.v
 examples/graphmark.v
+examples/bingraphmark.v
