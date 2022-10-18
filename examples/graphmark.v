@@ -100,7 +100,7 @@ by constructor.
 Qed.
 
 End FindLastEq.
-
+(*
 Section UM.
 Variables (K : ordType) (C : pred K) (V : Type) (U : union_map_class C V).
 
@@ -117,7 +117,7 @@ by case: eqP=>//= _; rewrite Hk.
 Qed.
 
 End UM.
-
+*)
 Section Sep.
 Variable U : pcm.
 
@@ -156,40 +156,38 @@ Qed.
 
 End Sep.
 
-Definition graph_node := seq ptr.
-
-(* pregraph as a union map `ptr :-> graph_node` *)
-
 Notation ptr_pred := (fun x : ptr => x != null).
 
-Module Type PGSig.
+Module Type PMSig.
 
-Parameter tp : Type.
+Parameter tp : Type -> Type.
 
 Section Params.
+Variable A : Type.
+Notation tp := (tp A).
 
 Parameter pg_undef : tp.
 Parameter defined : tp -> bool.
 Parameter empty : tp.
-Parameter upd : ptr -> graph_node -> tp -> tp.
+Parameter upd : ptr -> A -> tp -> tp.
 Parameter dom : tp -> seq ptr.
 Parameter dom_eq : tp -> tp -> bool.
-Parameter assocs : tp -> seq (ptr * graph_node).
+Parameter assocs : tp -> seq (ptr * A).
 Parameter free : tp -> ptr -> tp.
-Parameter find : ptr -> tp -> option graph_node.
+Parameter find : ptr -> tp -> option A.
 Parameter union : tp -> tp -> tp.
 Parameter empb : tp -> bool.
 Parameter undefb : tp -> bool.
-Parameter pts : ptr -> graph_node -> tp.
+Parameter pts : ptr -> A -> tp.
 
-Parameter from : tp -> @UM.base ptr_ordType ptr_pred graph_node.
-Parameter to : @UM.base ptr_ordType ptr_pred graph_node -> tp.
+Parameter from : tp -> @UM.base ptr_ordType ptr_pred A.
+Parameter to : @UM.base ptr_ordType ptr_pred A -> tp.
 
 Axiom ftE : forall b, from (to b) = b.
 Axiom tfE : forall f, to (from f) = f.
-Axiom undefE : pg_undef = to (@UM.Undef ptr_ordType ptr_pred graph_node).
+Axiom undefE : pg_undef = to (@UM.Undef ptr_ordType ptr_pred A).
 Axiom defE : forall f, defined f = UM.valid (from f).
-Axiom emptyE : empty = to (@UM.empty ptr_ordType ptr_pred graph_node).
+Axiom emptyE : empty = to (@UM.empty ptr_ordType ptr_pred A).
 Axiom updE : forall k v f, upd k v f = to (UM.upd k v (from f)).
 Axiom domE : forall f, dom f = UM.dom (from f).
 Axiom dom_eqE : forall f1 f2, dom_eq f1 f2 = UM.dom_eq (from f1) (from f2).
@@ -199,38 +197,39 @@ Axiom findE : forall k f, find k f = UM.find k (from f).
 Axiom unionE : forall f1 f2, union f1 f2 = to (UM.union (from f1) (from f2)).
 Axiom empbE : forall f, empb f = UM.empb (from f).
 Axiom undefbE : forall f, undefb f = UM.undefb (from f).
-Axiom ptsE : forall k v, pts k v = to (@UM.pts ptr_ordType ptr_pred graph_node k v).
+Axiom ptsE : forall k v, pts k v = to (@UM.pts ptr_ordType ptr_pred A k v).
 
 End Params.
-End PGSig.
+End PMSig.
 
-Module PGDef : PGSig.
-Section PGDef.
+Module PMDef : PMSig.
+Section PMDef.
+Variable A : Type.
 
-Definition tp : Type := @UM.base ptr_ordType ptr_pred graph_node.
+Definition tp : Type := @UM.base ptr_ordType ptr_pred A.
 
-Definition pg_undef := @UM.Undef ptr_ordType ptr_pred graph_node.
-Definition defined f := @UM.valid ptr_ordType ptr_pred graph_node f.
-Definition empty := @UM.empty ptr_ordType ptr_pred graph_node.
-Definition upd k v f := @UM.upd ptr_ordType ptr_pred graph_node k v f.
-Definition dom f := @UM.dom ptr_ordType ptr_pred graph_node f.
-Definition dom_eq f1 f2 := @UM.dom_eq ptr_ordType ptr_pred graph_node f1 f2.
-Definition assocs f := @UM.assocs ptr_ordType ptr_pred graph_node f.
-Definition free f k := @UM.free ptr_ordType ptr_pred graph_node f k.
-Definition find k f := @UM.find ptr_ordType ptr_pred graph_node k f.
-Definition union f1 f2 := @UM.union ptr_ordType ptr_pred graph_node f1 f2.
-Definition empb f := @UM.empb ptr_ordType ptr_pred graph_node f.
-Definition undefb f := @UM.undefb ptr_ordType ptr_pred graph_node f.
-Definition pts k v := @UM.pts ptr_ordType ptr_pred graph_node k v.
+Definition pg_undef := @UM.Undef ptr_ordType ptr_pred A.
+Definition defined f := @UM.valid ptr_ordType ptr_pred A f.
+Definition empty := @UM.empty ptr_ordType ptr_pred A.
+Definition upd k v f := @UM.upd ptr_ordType ptr_pred A k v f.
+Definition dom f := @UM.dom ptr_ordType ptr_pred A f.
+Definition dom_eq f1 f2 := @UM.dom_eq ptr_ordType ptr_pred A f1 f2.
+Definition assocs f := @UM.assocs ptr_ordType ptr_pred A f.
+Definition free f k := @UM.free ptr_ordType ptr_pred A f k.
+Definition find k f := @UM.find ptr_ordType ptr_pred A k f.
+Definition union f1 f2 := @UM.union ptr_ordType ptr_pred A f1 f2.
+Definition empb f := @UM.empb ptr_ordType ptr_pred A f.
+Definition undefb f := @UM.undefb ptr_ordType ptr_pred A f.
+Definition pts k v := @UM.pts ptr_ordType ptr_pred A k v.
 
-Definition from (f : tp) : @UM.base ptr_ordType ptr_pred graph_node := f.
-Definition to (b : @UM.base ptr_ordType ptr_pred graph_node) : tp := b.
+Definition from (f : tp) : @UM.base ptr_ordType ptr_pred A := f.
+Definition to (b : @UM.base ptr_ordType ptr_pred A) : tp := b.
 
 Lemma ftE b : from (to b) = b. Proof. by []. Qed.
 Lemma tfE f : to (from f) = f. Proof. by []. Qed.
-Lemma undefE : pg_undef = to (@UM.Undef ptr_ordType ptr_pred graph_node). Proof. by []. Qed.
+Lemma undefE : pg_undef = to (@UM.Undef ptr_ordType ptr_pred A). Proof. by []. Qed.
 Lemma defE f : defined f = UM.valid (from f). Proof. by []. Qed.
-Lemma emptyE : empty = to (@UM.empty ptr_ordType ptr_pred graph_node). Proof. by []. Qed.
+Lemma emptyE : empty = to (@UM.empty ptr_ordType ptr_pred A). Proof. by []. Qed.
 Lemma updE k v f : upd k v f = to (UM.upd k v (from f)). Proof. by []. Qed.
 Lemma domE f : dom f = UM.dom (from f). Proof. by []. Qed.
 Lemma dom_eqE f1 f2 : dom_eq f1 f2 = UM.dom_eq (from f1) (from f2).
@@ -242,23 +241,23 @@ Lemma unionE f1 f2 : union f1 f2 = to (UM.union (from f1) (from f2)).
 Proof. by []. Qed.
 Lemma empbE f : empb f = UM.empb (from f). Proof. by []. Qed.
 Lemma undefbE f : undefb f = UM.undefb (from f). Proof. by []. Qed.
-Lemma ptsE k v : pts k v = to (@UM.pts ptr_ordType ptr_pred graph_node k v).
+Lemma ptsE k v : pts k v = to (@UM.pts ptr_ordType ptr_pred A k v).
 Proof. by []. Qed.
 
-End PGDef.
-End PGDef.
+End PMDef.
+End PMDef.
 
-Notation pregraph := PGDef.tp.
+Notation ptrmap := PMDef.tp.
 
-Definition pregraphMixin :=
-  UMCMixin PGDef.ftE PGDef.tfE PGDef.defE
-           PGDef.undefE PGDef.emptyE PGDef.updE
-           PGDef.domE PGDef.dom_eqE PGDef.assocsE
-           PGDef.freeE PGDef.findE PGDef.unionE
-           PGDef.empbE PGDef.undefbE PGDef.ptsE.
+Definition ptrmapMixin A :=
+  UMCMixin (@PMDef.ftE A) (@PMDef.tfE A) (@PMDef.defE A)
+           (@PMDef.undefE A) (@PMDef.emptyE A) (@PMDef.updE A)
+           (@PMDef.domE A) (@PMDef.dom_eqE A) (@PMDef.assocsE A)
+           (@PMDef.freeE A) (@PMDef.findE A) (@PMDef.unionE A)
+           (@PMDef.empbE A) (@PMDef.undefbE A) (@PMDef.ptsE A).
 
-Canonical pregraphUMC :=
-  Eval hnf in UMC pregraph pregraphMixin.
+Canonical ptrmapUMC A :=
+  Eval hnf in UMC (ptrmap A) (@ptrmapMixin A).
 
 (* we add the canonical projections matching against naked type *)
 (* thus, there are two ways to get a PCM for a union map: *)
@@ -267,36 +266,38 @@ Canonical pregraphUMC :=
 (* and this is just a matter of convenience *)
 (* Ditto for the equality type *)
 
-Definition pregraphPCMMix := union_map_classPCMMix pregraphUMC.
-Canonical pregraphPCM := Eval hnf in PCM pregraph pregraphPCMMix.
+Definition ptrmapPCMMix A := union_map_classPCMMix (ptrmapUMC A).
+Canonical ptrmapPCM A := Eval hnf in PCM (ptrmap A) (@ptrmapPCMMix A).
 
-Definition pregraphCPCMMix := union_map_classCPCMMix pregraphUMC.
-Canonical pregraphCPCM := Eval hnf in CPCM pregraph pregraphCPCMMix.
+Definition ptrmapCPCMMix A := union_map_classCPCMMix (ptrmapUMC A).
+Canonical ptrmapCPCM A := Eval hnf in CPCM (ptrmap A) (@ptrmapCPCMMix A).
 
-Definition pregraphTPCMMix := union_map_classTPCMMix pregraphUMC.
-Canonical pregraphTPCM := Eval hnf in TPCM pregraph pregraphTPCMMix.
+Definition ptrmapTPCMMix A := union_map_classTPCMMix (ptrmapUMC A).
+Canonical ptrmapTPCM A := Eval hnf in TPCM (ptrmap A) (@ptrmapTPCMMix A).
 
-Definition pregraph_eqMix :=
-  @union_map_class_eqMix ptr_ordType ptr_pred _ _ pregraphMixin.
-Canonical pregraph_eqType :=
-  Eval hnf in EqType pregraph pregraph_eqMix.
+Definition ptrmap_eqMix (A : eqType) :=
+  @union_map_class_eqMix ptr_ordType ptr_pred A _ (@ptrmapMixin A).
+Canonical ptrmap_eqType (A : eqType) :=
+  Eval hnf in EqType (ptrmap A) (@ptrmap_eqMix A).
 
 (* installing the Pred structure for writing x \In h *)
-Canonical Structure pregraph_PredType : PredType (ptr * graph_node) :=
-  Mem_UmMap_PredType pregraphUMC.
-Coercion Pred_of_pregraph (f : pregraph) : Pred_Class := [eta Mem_UmMap f].
+Canonical Structure ptrmap_PredType A : PredType (ptr * A) :=
+  Mem_UmMap_PredType (ptrmapUMC A).
+Coercion Pred_of_ptrmap A (f : ptrmap A) : Pred_Class := [eta Mem_UmMap f].
 
-Definition pg_pts (k : ptr) (v : graph_node) :=
-  @UMC.pts ptr_ordType ptr_pred graph_node pregraphUMC k v.
+Definition pg_pts A (k : ptr) (v : A) :=
+  @UMC.pts ptr_ordType ptr_pred A (ptrmapUMC A) k v.
 
 (* baking ptr_pred into the notation *)
-Notation "x &-> v" := (@pg_pts x v) (at level 30).
+Notation "x &-> v" := (@pg_pts _ x v) (at level 30).
 
-Fact no_null (g : pregraph) :
+Fact no_null A (g : ptrmap A) :
   null \notin dom g.
-Proof.
-by apply/negP=>/dom_cond.
-Qed.
+Proof. by apply/negP=>/dom_cond. Qed.
+
+(* pregraph as a union map `ptr :-> seq ptr` *)
+
+Definition pregraph := [pcm of ptrmap (seq ptr)].
 
 Definition nodeset := [pcm of fset [ordType of ptr]].
 
@@ -585,10 +586,9 @@ Qed.
 Lemma connect_eq_links p g x ns :
   find x g = Some ns ->
   x \notin dom p ->
-  all (good_ptr g) ns ->
   forall y, y \in connect p g x = (y == x) || has (fun n => y \in connect p g n) ns.
 Proof.
-move=>Hx Hd Hns y; apply/iffE; split; first by apply: connect_links_sub.
+move=>Hx Hd y; apply/iffE; split; first by apply: connect_links_sub.
 case/orP.
 - move/eqP=>->; apply: connect0=>//.
   by move/find_some: Hx.
@@ -668,14 +668,15 @@ Corollary connectMPtUnHas p m g cs :
   valid m ->
   p \notin dom m ->
   find p g = Some cs ->
-  forall z, z != p ->
-  has (fun x => z \in connect m g x) cs = has (fun x => z \in connect (#p \+ m) g x) cs.
+  forall z, z \in connect m g p = (z == p) || has (fun x => z \in connect (#p \+ m) g x) cs.
 Proof.
-move=>Vm Npm Hc z Hzp; apply/iffE; split.
-- case/hasP=>x Hx Hz; apply/hasP.
+move=>Vm Npm Hc z.
+rewrite (connect_eq_links Hc) //; case: eqP=>/= // /eqP Hzp.
+have Vpm : valid (#p \+ m) by rewrite validPtUn Vm.
+apply/iffE; split; case/hasP=>x Hx.
+- move=>Hz; apply/hasP.
   by apply: (connectMPtUn (x:=x)).
-have Vpm: valid (#p \+ m) by rewrite validPtUn Vm Npm.
-case/hasP=>x Hx /(connectMUnSub Vpm) Hz.
+move/(connectMUnSub Vpm)=>Hz.
 by apply/hasP; exists x.
 Qed.
 
@@ -766,6 +767,16 @@ have /allP : all (good_ptr g) ps.
   apply/mem_rangeX; exists p.
   by move/In_find: Hf.
 by apply; apply: mem_nth.
+Qed.
+
+Lemma all_nth n g :
+  n_graph n g ->
+  all (fun ns => ns == map (get_nth ns) (iota 0 n)) (range g).
+Proof.
+move=>H; apply/sub_all/H=>ns /eqP Hns.
+apply/eqP/(eq_from_nth (x0:=null)).
+- by rewrite size_map size_iota.
+by rewrite Hns=>i Hi; rewrite map_nth_iota0 -Hns // take_size.
 Qed.
 
 End NGraph.

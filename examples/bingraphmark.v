@@ -8,7 +8,7 @@ From HTT Require Import graphmark.
 
 Section Shape.
 
-Definition node_shape p (n : graph_node) (s : nodeset) :=
+Definition node_shape p (n : seq ptr) (s : nodeset) :=
   [Pred h | h = p :-> get_nth n 0 \+ (p .+ 1 :-> (p \in dom s) \+ p .+ 2 :-> get_nth n 1)].
 
 Lemma node_shapeK h1 h2 p n s :
@@ -39,7 +39,7 @@ move: (assocs_perm V)=>H.
 by rewrite (sepit_perm _ H) IterStar.sepit_cat.
 Qed.
 
-Lemma shapePtUn g p n m :
+Lemma shapePtUn (g : pregraph) p n m :
   valid (p &-> n \+ g) ->
   shape (pts p n \+ g) m =p node_shape p n m # shape g m.
 Proof.
@@ -113,35 +113,26 @@ Program Definition mark : markT :=
                   go l;;
                   go r)).
 Next Obligation.
-move=>go p [gr][m_o][] i /= [Vmo Hg Hgg Hg2 Hp]; apply: vrfV=>V; case/orP: Hp.
+move=>go p [gr][m_o][] i /= [Vmo Hi Hgg Hg2 Hp]; apply: vrfV=>V; case/orP: Hp.
 - move=>/eqP->; rewrite eq_refl; step=>_.
   exists Unit; rewrite unitL; split=>//; rewrite dom0=>z; rewrite in_nil.
   by rewrite connect_notd {z}//; exact: no_null.
 move/[dup]/dom_cond/[dup]=>Np /negbTE ->.
 case/um_eta=>ns [Hp Egr].
-case/andP: (Hgg)=>Vg Eg; rewrite Egr in Vg Hg.
-case/(shapePtUn _ Vg): (Hg)=>i1[i2][E H1 H2].
-rewrite E H1.
+case/andP: (Hgg)=>Vg Eg; rewrite Egr in Vg Hi.
+case/(shapePtUn _ Vg): Hi=>i1[i2][->-> H2].
 set l := get_nth ns 0.
 set r := get_nth ns 1.
-have /eqP Hns: size ns == 2.
-- move/allP: Hg2; apply.
-  apply/mem_rangeX; exists p.
-  by move/In_find: Hp.
-have Ens : ns = [::l; r].
-- apply: (eq_from_nth (x0:=null)); rewrite Hns //.
-  by case=>//; case.
+have /eqP Ens : ns == [::l; r].
+- move/all_nth/allP: Hg2; apply.
+  by apply/(mem_range (k:=p))/In_find.
+have Hgl : good_ptr gr l by apply: (all_good_get (p:=p)).
+have Hgr : good_ptr gr r by apply: (all_good_get (p:=p)).
 step; case: ifP=>[Mp|/negbT Mp].
 - step=>V1; exists Unit; rewrite unitL {1}Egr dom0; split=>//.
   - by rewrite (shapePtUn _ Vg) /node_shape Mp; vauto.
   by move=>z; rewrite in_nil connect_notp.
-do 3!step.
-have Hans : all (good_ptr gr) ns.
-- move/allP: Eg; apply.
-  by rewrite {1}Egr rangePtUn inE Vg eq_refl.
-have Hgl : good_ptr gr l by apply: (all_good_get (p:=p)).
-have Hgr : good_ptr gr r by apply: (all_good_get (p:=p)).
-apply: [stepE gr, #p \+ m_o]=>//=.
+do 3!step; apply: [stepE gr, #p \+ m_o]=>//=.
 - split=>//; first by rewrite validPtUn Mp /= andbT.
   rewrite Egr; apply/shapePtUn=>//.
   exists (p :-> l \+ (p.+ 1 :-> true \+ p.+ 2 :-> r)), i2; split=>//=.
@@ -151,11 +142,9 @@ move=>_ m [m_l][Vml Sml Hml].
 apply: [gE gr, m_l \+ (#p \+ m_o)]=>//=_ m' [m_r][Vmr Smr Hmr] V'.
 exists (m_r \+ (m_l \+ (# p))); rewrite -!joinA; split=>//.
 move=>z; rewrite domUn inE (validX Vmr) /= domUn inE (validX Vml) /= domPt inE /= Hml Hmr.
-rewrite [RHS](@connect_eq_links _ _ _ ns) // eq_sym.
-case/boolP: (z == p); first by move=>_; rewrite !orbT.
-move=>Hpz; rewrite orbF /= orbC.
-rewrite (connectMPtUnHas (p:=p)) // (connectMUnHas (p:=p) (m2:=m_l) (c:=l)) //; last by apply: mem_nth; rewrite Hns.
-rewrite Ens /= eq_refl /=; case: eqP=>/=; rewrite orbF //.
-move=>->; case Hz: (z \in connect (# p \+ m_o) gr l)=>//=; apply/negbTE.
-by move/negbT: Hz; apply/contra/connectMUnSub.
+rewrite [RHS](connectMPtUnHas Vmo Mp Hp) eq_sym [RHS]orbC orbCA.
+rewrite (connectMUnHas Vml Hp _ Hgl Hml) Ens /=; last by rewrite inE eq_refl.
+rewrite eq_refl /=; case/boolP: (r == l)=>/=; rewrite orbF orbA //.
+move/eqP=>->; case Hz: (z \in connect (m_l \+ (# p \+ m_o)) gr l)=>/=; last by rewrite orbF.
+by rewrite !orbT /=; move/(connectMUnSub Vml): Hz=>->.
 Qed.
