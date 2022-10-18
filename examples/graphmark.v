@@ -309,72 +309,15 @@ Qed.
 
 Definition nodeset := [pcm of fset [ordType of ptr]].
 
-(*Structure bpgraph := BPG {structure : pregraph; marked : nodeset}.*)
-
 (* graph ops and properties *)
 Section GraphOps.
 
-(*
-Definition forget : graph_node A -> graph_node unit :=
-  fun '(GN l _ r) => GN l tt r.
-
-Definition structure : pregraph A -> pregraph unit :=
-  mapv forget.
-
-Lemma dom_structure g : dom (structure g) = dom g.
-Proof. by apply: dom_omap_some. Qed.
-
-Lemma structure_dom_eq g1 g2 : structure g1 = structure g2 -> dom g1 =i dom g2.
-Proof. by move=>Hs; rewrite -dom_structure Hs dom_structure. Qed.
-
-Lemma valid_structure g : valid (structure g) = valid g.
-Proof. by rewrite valid_omap. Qed.
-
-Lemma structurePt p n :
-  structure (p &-> n) = p &-> forget n.
-Proof.
-rewrite /structure omapPt; case: ifP=>// /negbT/negbNE/eqP {p}->.
-by symmetry; apply/invalidE; rewrite validPt.
-Qed.
-
-Lemma structurePtUn p n g :
-  structure (p &-> n \+ g) = p &-> forget n \+ structure g.
-Proof.
-rewrite {1}/structure omapPtUn /=.
-case: ifP=>// /negbT V; symmetry; apply/invalidE.
-rewrite !validPtUn in V *.
-by rewrite valid_structure dom_structure.
-Qed.
-
-Corollary structureUnPt p n g :
-  structure (g \+ p &-> n) = structure g \+ p &-> forget n.
-Proof. by rewrite joinC structurePtUn joinC. Qed.
-
-Lemma find_structure x g :
-  find x (structure g) = ssrfun.omap forget (find x g).
-Proof. by rewrite /structure find_omap. Qed.
-*)
 Definition good_ptr (g : pregraph) p : bool := (p == null) || (p \in dom g).
-
-Lemma good_dom (g1 g2 : pregraph) : dom g1 =i dom g2 -> good_ptr g1 =1 good_ptr g2.
-Proof.
-by move=>H p; rewrite /good_ptr; case: eqP=>/=.
-Qed.
 
 Definition good_graph_b (g : pregraph) : bool :=
   valid g &&
   all (fun '(GN ns) => all (good_ptr g) ns) (range g).
 
-(*
-Lemma good_eq g1 g2 :
-  valid g1 = valid g2 -> structure g1 = structure g2 ->
-  good_graph_b g1 = good_graph_b g2.
-Proof.
-rewrite /good_graph_b =>->/[dup] Hs ->; case: (valid g2)=>//=.
-apply: eq_all; case=>l _ r; rewrite /good_ptr.
-by rewrite -!dom_structure Hs.
-Qed.
-*)
 Definition links (g : pregraph) (x : ptr) : option (seq ptr) :=
   ssrfun.omap (fun '(GN ns) => filter (fun x => x \in dom g) ns) (find x g).
 
@@ -409,16 +352,6 @@ rewrite /edge; case E: (links g x)=>[v|]//= Ey.
 case/linksT: E=>E1 E2; split=>//.
 by move/allP: E2; apply.
 Qed.
-
-(*
-Lemma find_good g x l r :
-  good_graph_b g ->
-  find x g = Some (GN l r) ->
-  links g x = Some [::l; r].
-Proof.
-case/andP=>Vg Ha; rewrite /links [filter _]lock =>->/=.
-unlock. rewrite mem_filter.
-*)
 
 Lemma find_edge g x ns y :
   find x g = Some (GN ns) ->
@@ -481,61 +414,6 @@ case: n=>/= [|n] H; case: ifP=>// Hx; case: (links g x)=>// xs.
 move/negbT: Hx; rewrite negb_or; case/andP=>Hx _.
 by apply: uniq_dfs_foldl=>/=; rewrite H andbT.
 Qed.
-
-(*
-Definition p_val (p : pred A) (g : pregraph A) : applicative_pred ptr :=
-  [pred x | um_preim (p \o gn_val) g x].
-
-(* TODO umpreim_neg ? *)
-Lemma pvalNeg p g x :
-  x \in dom g ->
-  p_val p g x = ~~ p_val (negb \o p) g x.
-Proof.
-case: dom_find=>// n.
-rewrite /p_val /= /um_preim=>-> _ _ /=.
-by case: negPn=>// /negP/negbTE.
-Qed.
-
-Lemma pvalPtUn p x n g y :
-  valid (x &-> n \+ g) ->
-  p_val p (x &-> n \+ g) y = ((x == y) && p (gn_val n)) || p_val p g y.
-Proof.
-move=>V; rewrite /p_val /= umpreimUn //= umpreimPt /=; first by rewrite eq_sym.
-by move: V; rewrite validPtUn; case/and3P.
-Qed.
-
-Lemma plink_val p g x : p_val p g x = (plink p g x).1.
-Proof.
-by rewrite /plink /p_val /= /um_preim; case: (find x g)=>//=; case.
-Qed.
-
-Corollary pval_dom p g x : p_val p g x -> x \in dom g.
-Proof.
-apply/contraLR=>/(plinkF p).
-by rewrite (surjective_pairing (plink _ _ _)); case; rewrite -plink_val =>/negbT.
-Qed.
-
-Lemma plink_conn (p : pred A) g x l r :
-  find x (structure g) = Some (GN l tt r) ->
-  (plink p g x).2 = filter (fun x => x \in dom g) [::l;r].
-Proof.
-rewrite find_structure /plink.
-by case: (find x g)=>//=; case=>_ a _ [->->].
-Qed.
-
-Lemma plink_struct p g1 g2 x :
-  x \in dom g1 ->
-  structure g1 = structure g2 ->
-  (plink p g1 x).2 =i (plink p g2 x).2.
-Proof.
-move=>Hx Hs y.
-have: find x (structure g1) = find x (structure g2) by rewrite Hs.
-case E2: (find x (structure g2))=>[[l2 [] r2]|].
-- move/(plink_conn p)=>->.
-  by rewrite (plink_conn p E2) !mem_filter -!dom_structure Hs.
-by move/find_none; rewrite dom_structure Hx.
-Qed.
-*)
 
 Variant dfs_path (p : nodeset) g (v : seq ptr) x y : Prop :=
   DfsPath xs of
@@ -672,14 +550,6 @@ Qed.
 Lemma connect0 p g x : x \in dom g -> x \notin dom p -> connect p g x x.
 Proof. by move=>Hd Hp; apply/connectP; exists [::]; rewrite /= andbT. Qed.
 
-(*
-Lemma eq_connect0 p g x y : x = y -> p_val p g x -> connect p g x y.
-Proof. by move->; apply: connect0. Qed.
-
-Lemma connect1 p g x y : prel p g x y -> p_val p g y -> connect p g x y.
-Proof. by move=>/= Hp Hy; apply/connectP; exists [:: y]; rewrite /= Hp Hy. Qed.
-*)
-
 Lemma connect_dom p g x y :
   y \in connect p g x -> (x \in dom g) * (y \in dom g).
 Proof.
@@ -709,7 +579,6 @@ apply/connectP; exists xs; split=>//.
 by apply/sub_all/Ha=>z; apply/contra/Hp.
 Qed.
 
-(* TODO bigcup *)
 Lemma connect_links_sub p g x ns :
   find x g = Some (GN ns) ->
   forall y, y \in connect p g x -> (y == x) || has (fun n => y \in connect p g n) ns.
@@ -738,66 +607,6 @@ exists (n::xs)=>/=; rewrite Hp Hd Hn1 Ha /= andbT; split=>//.
 rewrite (find_edge _ Hx) Hn andbT.
 by case: {Ha}xs Hp H=>//= ??; case/andP; case/edge_dom.
 Qed.
-
-(*
-Definition upd_val (p : ptr) (v : A) (g : pregraph A) : pregraph A :=
-  match find p g with
-  | Some (GN l _ r) => upd p (GN l v r) g
-  | None => undef
-  end.
-
-Lemma struct_upd_val p (v : A) g :
-  p \in dom g ->
-  structure (upd_val p v g) = structure g.
-Proof.
-rewrite /upd_val; case/um_eta=>[[l a r][-> {2}->]].
-by rewrite upd_eta !structurePtUn.
-Qed.
-
-Lemma valid_upd_val p (v : A) g :
-  p \in dom g -> valid (upd_val p v g) = valid g.
-Proof.
-rewrite /upd_val=>/[dup]/dom_cond Hp; case/um_eta=>[[l a r][-> H]].
-by rewrite validU Hp.
-Qed.
-
-Lemma upd_val_eta (g : pregraph A) p (v : A) l r :
-  find p (structure g) = Some (GN l tt r) ->
-  upd_val p v g = p &-> GN l v r \+ free g p.
-Proof.
-rewrite find_structure /upd_val => Hs.
-case: (find p g) Hs=>[[_ x _]|] // [->->].
-by apply: upd_eta.
-Qed.
-
-(* TODO generalize to "frame"? *)
-Lemma pval_neq (g : pregraph A) p x y :
-  valid g ->
-  x \in dom g ->
-  x != y ->
-  p_val p (free g x) y = p_val p g y.
-Proof.
-move=>Vg + Nxy; case/um_eta=>[[l a r][E H]].
-rewrite {2}H pvalPtUn /=; last by rewrite H in Vg.
-by rewrite (negbTE Nxy).
-Qed.
-
-(* pval_neq baked in *)
-Lemma pval_upd_val (g : pregraph A) p (v : A) x y :
-  valid g ->
-  x \in dom g ->
-  p_val p (upd_val x v g) y =
-    if x == y then p v else p_val p g y.
-Proof.
-move=>Vg /[dup] Hx; case/um_eta=>[[l a r][E H]].
-have Es : find x (structure g) = Some (GN l tt r) by rewrite find_structure E.
-rewrite (upd_val_eta _ Es) pvalPtUn /=; last first.
-- by move: Vg; rewrite {1}H !validPtUn.
-case: eqP=>/= [{y}<-|/eqP]; last by apply: pval_neq.
-case: (p v)=>//=.
-by rewrite plink_val plinkF // domF inE eq_refl.
-Qed.
-*)
 
 End GraphOps.
 
@@ -852,20 +661,6 @@ move: Hz; rewrite inE; case/orP=>[/eqP->|Hz] //.
 by apply/negP=>/eqP E; rewrite E Hz in Nxs2.
 Qed.
 
-(*
-Lemma connectMPtUnSub p m g x :
-  valid m ->
-  p \notin dom m ->
-  forall z, z \in connect (#p \+ m) g x ->
-            z \in connect        m  g x.
-Proof.
-move=>Vm Npm z; case/connectP=>xs [Hp Ez Nxs] Ha.
-apply/connectP; exists xs; split=>//.
-apply/sub_all/Ha=>q; apply: contra.
-rewrite domPtUn inE => ->.
-by rewrite orbT andbT validPtUn Vm.
-Qed.
-*)
 Lemma connectMUnSub m1 m2 g x :
   valid (m1 \+ m2) ->
   forall z, z \in connect (m1 \+ m2) g x ->
@@ -962,32 +757,24 @@ End Marking.
 Section NGraph.
 
 Definition n_graph (n : nat) (g : pregraph) : bool :=
-  all (fun '(GN ns) => count (fun l => l != null) ns <= n) (range g).
+  all (fun '(GN ns) => size ns == n) (range g).
 
 Definition get_nth (ps : seq ptr) (n : nat) : ptr :=
-  nth null (filter (fun l => l != null) ps) n.
+  nth null ps n.
 
-Lemma mem_get_nth ps m :
-  (get_nth ps m \in ps) || (get_nth ps m == null).
-Proof.
-case/boolP: (m < count (fun l => l != null) ps).
-- rewrite -size_filter /get_nth=>H.
-  by move: (mem_nth null H); rewrite mem_filter; case/andP=>_ ->.
-rewrite -leqNgt -size_filter /get_nth => H.
-by rewrite nth_default // eq_refl orbT.
-Qed.
-
-Lemma all_good_get p g ps n :
+Lemma all_good_get p g ps m :
+  good_graph_b g ->
   find p g = Some (GN ps) ->
-  all (good_ptr g) ps -> good_ptr g (get_nth ps n).
+  good_ptr g (get_nth ps m).
 Proof.
-move=>Hf Ha.
-case: (ltnP n (count (fun l => l != null) ps))=>Hn; last first.
-- apply/orP; left; apply/eqP/nth_default.
-  by rewrite size_filter.
-have /allP : all (good_ptr g) (filter (fun l => l != null) ps).
-- by rewrite all_filter; apply/sub_all/Ha=>z Hz; apply/implyP.
-by apply; apply: mem_nth; rewrite size_filter.
+case/andP=>_ Hg Hf.
+case: (ltnP m (size ps))=>Hm; last first.
+- by apply/orP; left; rewrite /get_nth; rewrite nth_default.
+have /allP : all (good_ptr g) ps.
+- move/allP: Hg=>/(_ (GN ps)); apply.
+  apply/mem_rangeX; exists p.
+  by move/In_find: Hf.
+by apply; apply: mem_nth.
 Qed.
 
 End NGraph.
