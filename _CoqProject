@@ -5,6 +5,7 @@ core/interlude.v
 core/domain.v
 core/model.v
 core/heapauto.v
+pcm/graph.v
 examples/exploit.v
 examples/gcd.v
 examples/llist.v
@@ -18,5 +19,4 @@ examples/bst.v
 examples/kvmaps.v
 examples/hashtab.v
 examples/congmath.v
-examples/graphmark.v
-examples/bingraphmark.v
+examples/bingraph.v
