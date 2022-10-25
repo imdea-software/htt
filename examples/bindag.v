@@ -5,106 +5,6 @@ From fcsl Require Import pcm unionmap heap autopcm automap.
 From HTT Require Import interlude model heapauto.
 From HTT Require Import bintree graph.
 
-Section Acyclic.
-
-Definition symconnect p g x y := connect p g x y && connect p g y x.
-
-Lemma symconnect0 p g x : x \in dom g -> x \notin dom p -> symconnect p g x x.
-Proof. by move=>Hx Hp; apply/andP; split; apply/connect0. Qed.
-
-Lemma symconnectUn p g0 g x y :
-  valid (g0 \+ g) ->
-  symconnect p g x y -> symconnect p (g0 \+ g) x y.
-Proof. by move=>V; case/andP=>Hxy Hyx; apply/andP; split; apply: connectUn. Qed.
-
-(* TODO should probably generalize all of this to arbitrary boundary, not Unit *)
-Lemma connect_cycle g p : cycle (edge g) p -> {in p &, forall x y, connect Unit g x y}.
-Proof.
-move=>Hp x y /rot_to[i q Hr]; rewrite -(mem_rot i) Hr => Hy.
-have /= Hp1: cycle (edge g) (x :: q) by rewrite -Hr rot_cycle.
-have Hd: x \in dom g by move: Hp1; rewrite rcons_path; case/andP=>_ /edge_dom; case.
-move: Hp1; case/splitPl: Hy =>r s Hl; rewrite rcons_cat cat_path => /andP[Hxr Hlx].
-apply/connectP; exists r; split=>//; first by rewrite Hd implybT.
-by rewrite dom0 all_predT.
-Qed.
-
-Lemma symconnect_cycle g p : cycle (edge g) p ->
-   {in p &, forall x y, symconnect Unit g x y}.
-Proof. by move=>Hp x y Hx Hy; rewrite /symconnect !(connect_cycle Hp). Qed.
-
-Lemma symconnect_cycle2P g x y : x != y ->
-  reflect (exists2 p, y \in p & cycle (edge g) (x :: p)) (symconnect Unit g x y).
-Proof.
-move=> Nxy; apply: (iffP idP) => [|[p yp]]; last first.
-  by move=> /symconnect_cycle->//; rewrite inE ?eqxx ?yp ?orbT.
-move: Nxy =>/[swap]/andP [/connectP[p][Hp {y}-> Np _] /connectP[]].
-elim/last_ind => /= [[]_ <-|q z _]; first by rewrite eqxx.
-case; rewrite rcons_path last_rcons => /[swap]{z}<- /andP[gq gzq] _ _ Nxy.
-have := mem_last x p; rewrite in_cons eq_sym (negPf Nxy)/= => yp.
-exists (p ++ q); first by rewrite mem_cat yp.
-by rewrite rcons_path cat_path Hp gq last_cat gzq.
-Qed.
-
-Definition preacyclic g := all2rel (fun x y => symconnect Unit g x y ==> (x == y)) (dom g).
-
-Lemma preacyclicUn g0 g :
-  valid (g0 \+ g) ->
-  preacyclic (g0 \+ g) -> preacyclic g.
-Proof.
-move=>V /allrelP H; apply/allrelP=>x y Hx Hy; apply/implyP=>Hs.
-have Hx1: x \in dom (g0 \+ g) by rewrite domUn inE V Hx orbT.
-have Hy1: y \in dom (g0 \+ g) by rewrite domUn inE V Hy orbT.
-move/implyP: (H _ _ Hx1 Hy1); apply.
-by apply: symconnectUn.
-Qed.
-
-Definition acyclic g := all (fun x => ~~ edge g x x) (dom g) && preacyclic g.
-
-Lemma acyclicUn g0 g :
-  valid (g0 \+ g) ->
-  acyclic (g0 \+ g) -> acyclic g.
-Proof.
-move=>V; case/andP=>Ha Hp; apply/andP; split; last by apply: (preacyclicUn V Hp).
-apply/allP=>x Hx.
-suff: ~~ edge (g0 \+ g) x x by apply/contra/edgeUn.
-by move/allP: Ha; apply; rewrite domUn inE V Hx orbT.
-Qed.
-
-Lemma acyclic_cycleP g :
-  reflect (forall p, ~~ nilp p -> sorted (edge g) p -> all (fun x => x \in dom g) p -> ~~ cycle (edge g) p)
-          (acyclic g).
-Proof.
-rewrite /acyclic; apply: (iffP andP)=>[|Hn]; last first.
-- split; first by apply/allP=>x Hx; move: (Hn [::x])=>/=; rewrite !andbT; apply.
-  apply/allrelP=>x y Hx _; apply/implyP/contraLR => neqxy.
-  apply/symconnect_cycle2P => // -[p Hp] /[dup].
-  rewrite [X in X -> _]/= rcons_path => /andP[/[dup] /path_dom Hd Hg Ha].
-  by apply/negP/Hn=>//=; rewrite Hx.
-case=>/allP Ne /allrelP Ng.
-case=>//= x p _; rewrite rcons_path =>/[dup] E ->/=; case/andP=>Hx.
-case: p E=>/=; first by move=>_ _; apply: Ne.
-move=>y p; case/andP=>He Hp; case/andP=>Hy Ha.
-have: ~~ symconnect Unit g x y.
-- apply/negP=>Hs; move: (Ng _ _ Hx Hy); rewrite Hs /= =>/eqP Exy.
-  by rewrite Exy in He; move: (Ne _ Hy); rewrite He.
-apply: contra=>He1; apply: (symconnect_cycle (p:=x::y::p))=>/=; try by rewrite ?(in_cons, eqxx, orbT).
-by rewrite rcons_path  He Hp.
-Qed.
-
-Lemma acyclic_find g n ns :
-  acyclic g ->
-  find n g = Some ns ->
-  n \notin ns.
-Proof.
-case/andP=>Ha _ /[dup]Hf /find_some Hn.
-move/allP: Ha=>/(_ _ Hn).
-by rewrite (find_edge _ Hf) negb_and Hn.
-Qed.
-
-(*
-Lemma acyclic_range g p :
-  acyclic g -> p \in dom g -> all (fun s => p \notin s) (range g).
-*)
 Section Shape.
 Variable (f : ptrmap nat).
 
@@ -160,40 +60,17 @@ exists h1, Unit; split=>//; first by rewrite unitR.
 by rewrite IterStar.sepit0.
 Qed.
 
-(*
-Lemma shapeMPtUn g p :
-  valid m ->
-  p \notin dom m ->
-  p \notin dom g ->
-  shape g (#p \+ m) =p shape g m.
-Proof.
-move=>Vm Hm Hg h; rewrite /shape; apply: sepitF; case=>q ns /=.
-move/In_assocs/In_find=>Hq z.
-rewrite !InE /= domPtUn validPtUn /= inE /= Vm Hm /=.
-suff: p != q by move/negbTE=>->.
-apply/negP=>/eqP E; rewrite E in Hg.
-by move/In_findNE: Hg; rewrite Hq.
-Qed.
-*)
-
 End Shape.
 
 Section TIG.
 Variable (f : ptrmap nat).
-(*
-Fixpoint tree_in_graph (g : pregraph) (t : tree nat) (p : ptr) : Prop :=
-  if t is Node l a r then
-    exists pl pr,
-    [ /\ find p g = Some [::pl;pr],
-         find p f = Some a,
-         tree_in_graph g l pl &
-         tree_in_graph g r pr]
-  else p = null.
-*)
+
 Fixpoint tree_in_graph_b (g : pregraph) (t : tree nat) (p : ptr) : bool :=
   if t is Node l a r then
     match find p g with
-    | Some ns => [&& find p f == Some a, tree_in_graph_b g l (get_nth ns 0) & tree_in_graph_b g r (get_nth ns 1)]
+    | Some ns => [&& find p f == Some a,
+                     tree_in_graph_b g l (get_nth ns 0) &
+                     tree_in_graph_b g r (get_nth ns 1)]
     | None => false
     end
   else p == null.
@@ -224,6 +101,18 @@ move/all_nth/allP: H2; apply.
 by apply/(mem_range (k:=p))/In_find.
 Qed.
 
+Lemma tigUn g0 g t p :
+  valid (g0 \+ g) ->
+  tree_in_graph_b g t p ->
+  tree_in_graph_b (g0 \+ g) t p.
+Proof.
+move=>V; elim: t p=>//=l IHl a r IHr p.
+rewrite findUnR //; case: dom_find=>[|v]->// _.
+case/and3P=>->/= Hl Hr.
+by apply/andP; split; [apply: IHl | apply: IHr].
+Qed.
+
+(*
 Lemma tigPtUn q ns g t p :
   valid (q &-> ns \+ g) ->
   tree_in_graph_b g t p ->
@@ -237,7 +126,7 @@ rewrite findPtUn2 //; case/boolP: (p == q)=>Hp; last first.
 move/eqP: Hp=>{p}->.
 by move: V; rewrite validPtUn; case/and3P=>Nq Vg /In_findNE->.
 Qed.
-
+*)
 (*
 Inductive tree_in_graph (g: graph) : tree A -> ptr -> Prop :=
 | TIG_L: tree_in_graph g leaf null
@@ -338,7 +227,7 @@ Fixpoint sum_tree (t : tree nat) : nat :=
   if t is Node l n r
     then sum_tree l + n + sum_tree r
   else 0.
-(*
+
 Definition treesumT' : Type := forall (p : ptr),
   {(t : tree nat) (gr : pregraph) (f : ptrmap nat)},
   STsep (fun h => [/\ shape f gr h, n_graph 2 gr, good_graph gr & tree_in_graph_b f gr t p],
@@ -359,22 +248,23 @@ move=>go p [tn][gn][pn][] i /= [Hs H2 Hg Ht]; case: eqP Ht=>[{p}->|/eqP Ep] Ht.
 case/andP: (Hg)=>Hv Ha.
 case: (tree_in_graph_nonnull Ep H2 Ht)=>x[tl][pl][tr][pr][-> Hf Hx Hl Hr] /=.
 move/um_eta2: (Hf)=>Egn; rewrite Egn in Hv Hs.
-case/(shapePtUn _ Hv): (Hs)=>i1[i2][Ei Hi1 Hi2]; rewrite Ei Hi1 Hx /=.
+case/(shapePtUn _ Hv): (Hs)=>i1[i2][-> [v][Hx' ->] Hi2].
+move: (Hx); rewrite Hx'; case=>{v Hx'}->.
 do 3!step; apply: [stepE tl, gn, pn]=>//=.
 - split=>//; rewrite Egn; apply/shapePtUn=>//.
-  exists (p :-> pl \+ (p.+ 1 :-> x \+ p.+ 2 :-> pr)), i2; split=>//.
-  by rewrite -toPredE /= Hx.
+  by exists (p :-> pl \+ (p.+ 1 :-> x \+ p.+ 2 :-> pr)), i2; split=>//; exists x.
 move=>_ m [/eqP -> Hm].
 rewrite -Egn in Hs; rewrite (shapeK Hm Hs)=>{m Hm}.
 by apply: [stepE tr, gn, pn]=>//=_ m [/eqP -> Hm]; step.
 Qed.
-*)
+
 Definition treesumT : Type := forall (p : ptr),
   {(gr : pregraph) (f : ptrmap nat)},
   STsep (fun h => [/\ h \In shape f gr,
                       n_graph 2 gr, good_graph gr, acyclic gr,
-                      good_ptr gr p & out_node gr p],
-        [vfun n h => exists t, [/\ h \In shape f gr, tree_in_graph_b f gr t p & n == sum_tree t]]).
+                      good_ptr gr p & dom gr =i connect Unit gr p],
+        [vfun n h => exists t, [/\ h \In shape f gr, tree_in_graph_b f gr t p &
+                                   n == sum_tree t]]).
 
 Program Definition treesum : treesumT :=
   Fix (fun (go : treesumT) p =>
@@ -391,7 +281,7 @@ move=>go p [gn][fn][] i /= [Hs Hg2 Hg Ha Hp Ho]; case/orP: Hp.
 move/[dup]/dom_cond/[dup]=>Np /negbTE -> /[dup] Hpd.
 case/um_eta=>ns [Hp Egr].
 case/andP: (Hg)=>Vg Eg; rewrite Egr in Vg Hs.
-case/(shapePtUn _ Vg): Hs=>i1[i2][{i}->[v][Hf->] H2].
+case/(shapePtUn _ Vg): (Hs)=>i1[i2][E][v][Hf E1] H2; rewrite E E1.
 set l := get_nth ns 0.
 set r := get_nth ns 1.
 have /eqP Ens : ns == [::l; r].
@@ -402,50 +292,45 @@ have /andP [Npl Npr] : (p != l) && (p != r).
 have Hgl : good_ptr gn l by apply: (all_good_get (p:=p)).
 have Hgr : good_ptr gn r by apply: (all_good_get (p:=p)).
 do 3!step.
-apply: [stepX (free gn p), fn] @ i2=>//=.
+rewrite -E1 -E; have Egr2 := (connect_split l gn).
+rewrite -Egr Egr2 in Hs Vg.
+case/(shapeUn _ Vg): (Hs)=>i3[i4][E34 H3 H4].
+rewrite E34; apply: [stepX (subconnect l gn), fn] @ i3=>//=.
 - move=>V2; split=>//.
-  - by apply: n_graphF.
-  - by apply: good_graphF.
-  - by move: Ha; rewrite {1}Egr=>/acyclicUn; apply.
-  - move: Hgl; rewrite /good_ptr; case/orP=>[->|] //.
-    by rewrite domF inE (negbTE Npl)=>->; rewrite orbT.
-
-
-    by move: Hns; rewrite Ens !inE negb_or; case/andP.
-
-
-    apply/acyclic_cycleP=>xs nxs .
-    apply/allP=>s; rewrite Egr rangePtUn inE; case/andP=>_.
-    case/andP: Ha=>/allP/(_ _ Hpd) He Ha.
-    case/orP=>[/eqP{s}<-|].
-    - by move: He; rewrite (find_edge _ Hp) negb_and Hpd.
-    move/allrelP: Ha.
-
-    Hs.
-    suff: exists xs, [/\ ]
-  apply/andP; split; first by rewrite validF Egr.
-    apply/allP=>s /rangeF /[dup] Hs /(allP Eg).
-    move/allP=>Hsa; apply/allP=>q Hq; move: (Hsa _ Hq).
-    case/orP; first by move/eqP->; apply/orP; left.
-    move=>Hqd; apply/orP; right.
-    rewrite domF inE Hqd; case: eqP=>// Ep; exfalso.
-    rewrite -Ep in Hq.
-    move/acyclic_cycleP: Ha=>Ha. apply.
-    case/andP: Ha=>/allP/(_ _ Hqd) + _; move/negP; apply.
-    rewrite (find_edge _ Hp) Hqd /=.
-
-move=>_ i3 [lt][H3 T3 /eqP->].
-apply: [stepX (free gn p), fn] @ i3=>//=; last first.
-
-move=>_ i4 [rt][H4 T4 /eqP->].
-step=>V'; exists (Node lt v rt); split=>//.
-- rewrite Egr; apply/shapePtUn=>//.
-  by exists (p :-> l \+ (p.+ 1 :-> v \+ p.+ 2 :-> r)), i4; split=>//; [rewrite !joinA | exists v].
+  - by move: Hg2; case/andP: Hg; rewrite {1 4}Egr2=>V _ /(n_graphUnL V).
+  - by apply: good_subconnect.
+  - by move: Ha; rewrite {1}Egr2 joinC; apply/acyclicUn; rewrite joinC.
+  - move: Hgl; rewrite /good_ptr; case/boolP: (l == null)=>//= Hnl Hl.
+    rewrite dom_umfiltk inE /= Hl andbT.
+    by apply: connect0=>//; rewrite dom0.
+  move=>z; rewrite dom_umfiltk inE /=.
+  rewrite connect_subconnect; case/boolP: (z \in connect Unit gn l)=>//=.
+  by case/connect_dom.
+move=>_ i5 [lt][H5 T5 /eqP->]; move: (shapeK H5 H3)=>{H5 i5}->.
+rewrite -E34; have Egr3 := (connect_split r gn).
+rewrite -Egr2 Egr3 in Hs Vg.
+case/(shapeUn _ Vg): (Hs)=>i5[i6][E56 H5 H6].
+rewrite E56; apply: [stepX (subconnect r gn), fn] @ i5=>//=.
+- move=>V2; split=>//.
+  - by move: Hg2; case/andP: Hg; rewrite {1 4}Egr3=>V _ /(n_graphUnL V).
+  - by apply: good_subconnect.
+  - by move: Ha; rewrite {1}Egr3 joinC; apply/acyclicUn; rewrite joinC.
+  - move: Hgr; rewrite /good_ptr; case/boolP: (r == null)=>//= Hnr Hr.
+    rewrite dom_umfiltk inE /= Hr andbT.
+    by apply: connect0=>//; rewrite dom0.
+  move=>z; rewrite dom_umfiltk inE /=.
+  rewrite connect_subconnect; case/boolP: (z \in connect Unit gn r)=>//=.
+  by case/connect_dom.
+move=>_ i7 [rt][H7 T7 /eqP->]; move: (shapeK H7 H5)=>{H7 i7}->.
+rewrite -E56 E; step=>V'; exists (Node lt v rt); split=>//.
+- rewrite Egr; apply/shapePtUn; first by rewrite -Egr; case/andP: Hg.
+  by exists i1, i2; split=>//; rewrite E1; exists v.
 rewrite /= Hp Hf eqxx /=; apply/andP; split.
 - suff: tree_in_graph_b fn gn lt l by [].
-  by rewrite Egr; apply: tigPtUn.
+  rewrite Egr2 joinC; apply: tigUn=>//; rewrite joinC -Egr2.
+  by rewrite -Egr3 in Vg.
 suff: tree_in_graph_b fn gn rt r by [].
-by rewrite Egr; apply: tigPtUn.
+by rewrite Egr3 joinC; apply: tigUn=>//; rewrite joinC.
 Qed.
 
 End SumDag.

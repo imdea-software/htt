@@ -112,6 +112,18 @@ Qed.
 End FindLastEq.
 
 Section UM.
+Variables (K : ordType) (C : pred K) (V : Type) (U : union_map_class C V).
+
+Lemma umfilt_predC (f : U) (p : pred (K * V)): f = um_filter p f \+ um_filter (predC p) f.
+Proof.
+rewrite -umfilt_dpredU; last by move=>? /=; rewrite negbK.
+rewrite -[LHS]umfilt_predT; apply: eq_in_umfiltE=>kv /=.
+by rewrite orbN.
+Qed.
+
+End UM.
+
+Section UMEq.
 Variables (K : ordType) (C : pred K) (V : eqType) (U : union_map_class C V).
 
 Lemma rangeF k (f : U) : {subset range (free f k) <= range f}.
@@ -136,7 +148,7 @@ move=>Hk x; rewrite /um_preim /= findPt2.
 by case: eqP=>//= _; rewrite Hk.
 Qed.
 *)
-End UM.
+End UMEq.
 
 Section Sep.
 Variable U : pcm.
@@ -688,6 +700,64 @@ rewrite (find_edge _ Hx) Hn andbT.
 by case: {Ha}xs Hp H=>//= ??; case/andP; case/edge_dom.
 Qed.
 
+(* TODO generalize to arbitrary boundary? *)
+Definition subconnect p g := um_filterk (fun z => z \in connect Unit g p) g.
+
+Definition subdisconnect p g := um_filterk (fun z => z \notin connect Unit g p) g.
+
+Lemma connect_split p g : g = subconnect p g \+ subdisconnect p g.
+Proof. by apply: umfilt_predC. Qed.
+
+Lemma good_subconnect p g :
+  good_graph g -> good_graph (subconnect p g).
+Proof.
+have E := connect_split p g.
+case/andP=>V Ha; apply/andP; split; first by rewrite valid_umfilt.
+apply/allP=>ns Hns; move/allP: Ha=>/(_ ns).
+rewrite {1}E rangeUn inE -E V Hns /= => /(_ erefl) Ha.
+case/mem_rangeX: Hns=>k; case/In_umfilt=>/= Hk /In_find Hf.
+apply/allP=>n Hn; move/allP: Ha=>/(_ _ Hn).
+rewrite /good_ptr; case/boolP: (n == null)=>//= Hnn.
+rewrite /subconnect dom_umfiltk inE /= =>En; rewrite En andbT.
+apply: (connect_trans Hk); apply/connectP.
+exists [::n]; split=>//=; last by rewrite !dom0.
+by rewrite andbT (find_edge _ Hf) En.
+Qed.
+
+Lemma edge_subconnect p g : subrel (edge (subconnect p g)) (edge g).
+Proof.
+move=>x y; rewrite /edge /links find_umfiltk; case: ifP=>//= Hx.
+by case Ef: (find x g)=>[v|] //=; rewrite !mem_filter dom_umfiltk inE /= -andbA; case/andP.
+Qed.
+
+Lemma connect_subconnect p g : connect Unit (subconnect p g) p =i connect Unit g p.
+Proof.
+move=>z; apply/iffE; split.
+- case/connectP=>xs [Hxs {z}-> /implyP Nxs _].
+  apply/connectP; exists xs; split=>//=; last by rewrite dom0 /= all_predT.
+  - by apply/sub_path/Hxs/edge_subconnect.
+  by apply/implyP=>/Nxs; rewrite dom_umfiltk inE /=; case/andP.
+case/connectP=>xs [Hxs {z}-> /implyP Nxs _].
+have Hpd : p \in dom g.
+- case: xs Hxs Nxs=>/=; first by move=>_; apply.
+  by move=>h t; case/andP; case/edge_dom.
+apply/connectP; exists xs; split=>//=; last by rewrite dom0 /= all_predT.
+- apply/(sub_in_path (P:=fun q => q \in connect Unit g p))/Hxs.
+  - move=>x y; rewrite !inE=>Hx Hy.
+    rewrite /edge /links find_umfiltk Hx.
+    case Ef: (find x g)=>[v|] //=; rewrite !mem_filter dom_umfiltk inE /= -andbA =>->.
+    by rewrite andbT.
+  move=>/=; apply/andP; split; first by apply/connect0=>//; rewrite dom0.
+  apply/allP=>x Hx; case/splitPr: Hx Hxs Nxs=>xs1 xs2.
+  rewrite -cat1s catA cats1 cat_path /=; case/andP=>H1 H2 _.
+  apply/connectP; exists (rcons xs1 x); split=>//=.
+  - by rewrite last_rcons.
+  - by rewrite -cats1 cat_nilp andbF.
+  by rewrite dom0 /= all_predT.
+apply/implyP=>/Nxs; rewrite dom_umfiltk inE /==>->; rewrite andbT.
+by apply/connect0=>//; rewrite dom0.
+Qed.
+
 End GraphOps.
 
 Section Marking.
@@ -840,6 +910,14 @@ Section NGraph.
 Definition n_graph (n : nat) (g : pregraph) : bool :=
   all (fun ns => size ns == n) (range g).
 
+Lemma n_graphUnL n g0 g :
+  valid (g \+ g0) ->
+  n_graph n (g \+ g0) -> n_graph n g.
+Proof.
+by move=>V; apply/subset_all=>z; rewrite rangeUn inE V=>->.
+Qed.
+
+(* corollary? *)
 Lemma n_graphF n g p : n_graph n g -> n_graph n (free g p).
 Proof. by apply/subset_all/rangeF. Qed.
 
@@ -872,3 +950,103 @@ by rewrite Hns=>i Hi; rewrite map_nth_iota0 -Hns // take_size.
 Qed.
 
 End NGraph.
+
+
+Section Acyclic.
+
+Definition symconnect p g x y := connect p g x y && connect p g y x.
+
+Lemma symconnect0 p g x : x \in dom g -> x \notin dom p -> symconnect p g x x.
+Proof. by move=>Hx Hp; apply/andP; split; apply/connect0. Qed.
+
+Lemma symconnectUn p g0 g x y :
+  valid (g0 \+ g) ->
+  symconnect p g x y -> symconnect p (g0 \+ g) x y.
+Proof. by move=>V; case/andP=>Hxy Hyx; apply/andP; split; apply: connectUn. Qed.
+
+(* TODO should probably generalize all of this to arbitrary boundary, not Unit *)
+Lemma connect_cycle g p : cycle (edge g) p -> {in p &, forall x y, connect Unit g x y}.
+Proof.
+move=>Hp x y /rot_to[i q Hr]; rewrite -(mem_rot i) Hr => Hy.
+have /= Hp1: cycle (edge g) (x :: q) by rewrite -Hr rot_cycle.
+have Hd: x \in dom g by move: Hp1; rewrite rcons_path; case/andP=>_ /edge_dom; case.
+move: Hp1; case/splitPl: Hy =>r s Hl; rewrite rcons_cat cat_path => /andP[Hxr Hlx].
+apply/connectP; exists r; split=>//; first by rewrite Hd implybT.
+by rewrite dom0 all_predT.
+Qed.
+
+Lemma symconnect_cycle g p : cycle (edge g) p ->
+   {in p &, forall x y, symconnect Unit g x y}.
+Proof. by move=>Hp x y Hx Hy; rewrite /symconnect !(connect_cycle Hp). Qed.
+
+Lemma symconnect_cycle2P g x y : x != y ->
+  reflect (exists2 p, y \in p & cycle (edge g) (x :: p)) (symconnect Unit g x y).
+Proof.
+move=> Nxy; apply: (iffP idP) => [|[p yp]]; last first.
+  by move=> /symconnect_cycle->//; rewrite inE ?eqxx ?yp ?orbT.
+move: Nxy =>/[swap]/andP [/connectP[p][Hp {y}-> Np _] /connectP[]].
+elim/last_ind => /= [[] _ <-|q z _]; first by rewrite eqxx.
+case; rewrite rcons_path last_rcons => /[swap]{z}<- /andP[gq gzq] _ _ Nxy.
+have := mem_last x p; rewrite in_cons eq_sym (negPf Nxy)/= => yp.
+exists (p ++ q); first by rewrite mem_cat yp.
+by rewrite rcons_path cat_path Hp gq last_cat gzq.
+Qed.
+
+Definition preacyclic g := all2rel (fun x y => symconnect Unit g x y ==> (x == y)) (dom g).
+
+Lemma preacyclicUn g0 g :
+  valid (g0 \+ g) ->
+  preacyclic (g0 \+ g) -> preacyclic g.
+Proof.
+move=>V /allrelP H; apply/allrelP=>x y Hx Hy; apply/implyP=>Hs.
+have Hx1: x \in dom (g0 \+ g) by rewrite domUn inE V Hx orbT.
+have Hy1: y \in dom (g0 \+ g) by rewrite domUn inE V Hy orbT.
+move/implyP: (H _ _ Hx1 Hy1); apply.
+by apply: symconnectUn.
+Qed.
+
+Definition acyclic g := all (fun x => ~~ edge g x x) (dom g) && preacyclic g.
+
+Lemma acyclicUn g0 g :
+  valid (g0 \+ g) ->
+  acyclic (g0 \+ g) -> acyclic g.
+Proof.
+move=>V; case/andP=>Ha Hp; apply/andP; split; last by apply: (preacyclicUn V Hp).
+apply/allP=>x Hx.
+suff: ~~ edge (g0 \+ g) x x by apply/contra/edgeUn.
+by move/allP: Ha; apply; rewrite domUn inE V Hx orbT.
+Qed.
+
+(* TODO all is overkill here, we only need the head of the path in dom g (?) *)
+Lemma acyclic_cycleP g :
+  reflect (forall p, ~~ nilp p -> sorted (edge g) p -> all (fun x => x \in dom g) p -> ~~ cycle (edge g) p)
+          (acyclic g).
+Proof.
+rewrite /acyclic; apply: (iffP andP)=>[|Hn]; last first.
+- split; first by apply/allP=>x Hx; move: (Hn [::x])=>/=; rewrite !andbT; apply.
+  apply/allrelP=>x y Hx _; apply/implyP/contraLR => neqxy.
+  apply/symconnect_cycle2P => // -[p Hp] /[dup].
+  rewrite [X in X -> _]/= rcons_path => /andP[/[dup] /path_dom Hd Hg Ha].
+  by apply/negP/Hn=>//=; rewrite Hx.
+case=>/allP Ne /allrelP Ng.
+case=>//= x p _; rewrite rcons_path =>/[dup] E ->/=; case/andP=>Hx.
+case: p E=>/=; first by move=>_ _; apply: Ne.
+move=>y p; case/andP=>He Hp; case/andP=>Hy Ha.
+have: ~~ symconnect Unit g x y.
+- apply/negP=>Hs; move: (Ng _ _ Hx Hy); rewrite Hs /= =>/eqP Exy.
+  by rewrite Exy in He; move: (Ne _ Hy); rewrite He.
+apply: contra=>He1; apply: (symconnect_cycle (p:=x::y::p))=>/=; try by rewrite ?(in_cons, eqxx, orbT).
+by rewrite rcons_path  He Hp.
+Qed.
+
+Lemma acyclic_find g n ns :
+  acyclic g ->
+  find n g = Some ns ->
+  n \notin ns.
+Proof.
+case/andP=>Ha _ /[dup]Hf /find_some Hn.
+move/allP: Ha=>/(_ _ Hn).
+by rewrite (find_edge _ Hf) negb_and Hn.
+Qed.
+
+End Acyclic.
