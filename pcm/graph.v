@@ -6,6 +6,16 @@ From fcsl Require Import options axioms pred prelude seqperm.
 
 From fcsl Require Import pcm unionmap heap autopcm automap.
 
+Section All.
+Variables (T : eqType).
+
+Lemma subset_all a (s1 s2 : seq T) : {subset s1 <= s2} -> all a s2 -> all a s1.
+Proof.
+by move=>Hs /allP Ha1; apply/allP=>s /Hs /Ha1.
+Qed.
+
+End All.
+
 Section FindLast.
 
 Variables (T : Type).
@@ -100,10 +110,20 @@ by constructor.
 Qed.
 
 End FindLastEq.
-(*
-Section UM.
-Variables (K : ordType) (C : pred K) (V : Type) (U : union_map_class C V).
 
+Section UM.
+Variables (K : ordType) (C : pred K) (V : eqType) (U : union_map_class C V).
+
+Lemma rangeF k (f : U) : {subset range (free f k) <= range f}.
+Proof.
+case W: (valid f); last first.
+- by move/negbT/invalidE: W=>->; rewrite free_undef !range_undef.
+case D: (k \in dom f); last by move/negbT/dom_free: D=>->.
+case: (um_eta D) W=>x [_] {1 3}-> Vf p.
+by rewrite rangePtUn inE Vf=>->; rewrite orbT.
+Qed.
+
+(*
 Lemma umpreim_cond (p : pred V) f k : um_preim (C:=C) (U:=U) p f k -> C k.
 Proof.
 rewrite /um_preim; case E: (find k f)=>[v|] //= _.
@@ -115,9 +135,9 @@ Proof.
 move=>Hk x; rewrite /um_preim /= findPt2.
 by case: eqP=>//= _; rewrite Hk.
 Qed.
-
-End UM.
 *)
+End UM.
+
 Section Sep.
 Variable U : pcm.
 
@@ -156,6 +176,7 @@ Qed.
 
 End Sep.
 
+(* pointer map, a generic finite map keyed by non-null pointers *)
 Notation ptr_pred := (fun x : ptr => x != null).
 
 Module Type PMSig.
@@ -295,28 +316,84 @@ Fact no_null A (g : ptrmap A) :
   null \notin dom g.
 Proof. by apply/negP=>/dom_cond. Qed.
 
-(* pregraph as a union map `ptr :-> seq ptr` *)
-
+(* pregraph is a pointer map to `seq ptr`, a form of adjacency list *)
+(* technically it's a "prequiver", because it allows loops and parallel edges *)
 Definition pregraph := [pcm of ptrmap (seq ptr)].
 
+(* a finite set of nodes (can have nulls) *)
 Definition nodeset := [pcm of fset [ordType of ptr]].
 
 (* graph ops and properties *)
 Section GraphOps.
 
+(* TODO `(p != null) ==> p \in dom g` ? *)
 Definition good_ptr (g : pregraph) p : bool := (p == null) || (p \in dom g).
 
 Definition good_graph (g : pregraph) : bool :=
   valid g &&
   all (all (good_ptr g)) (range g).
 
+(* p has no incoming connections *)
+Definition out_node (g : pregraph) p : bool := all (fun s => p \notin s) (range g).
+
+Lemma good_graphF g p :
+  out_node g p ->
+  good_graph g ->
+  good_graph (free g p).
+Proof.
+move=>Hna; rewrite /good_graph /out_node.
+case/andP=>Va Ha; rewrite validF Va /=.
+apply/allP=>s /rangeF Hs.
+move/allP: Hna=>/(_ _ Hs) Hp.
+move/allP: Ha=>/(_ _ Hs) /allP {}Hs.
+apply/allP=>q Hq; move: (Hs _ Hq).
+rewrite /good_ptr; case/orP=>[->|] // Hqd.
+apply/orP; right; rewrite domF inE Hqd.
+by case: eqP=>// E; rewrite E Hq in Hp.
+Qed.
+
 Definition links (g : pregraph) (x : ptr) : option (seq ptr) :=
   ssrfun.omap (filter (fun x => x \in dom g)) (find x g).
 
+  (*
+Lemma linksPtUn g p ns x :
+  valid (p &-> ns \+ g) ->
+  links (p &-> ns \+ g) x = if x == p
+                             then Some (filter (fun x => (p == x) || (x \in dom g)) ns)
+                             else ssrfun.omap (fun xs => filter (fun x => p == x) ns ++ xs) (links g x).
+Proof.
+move=>V.
+rewrite /links findPtUn2 //; case: eqP=>/=.
+- by move=>{x}_; congr Some; apply: eq_filter=>z; rewrite domPtUn V inE.
+move=>H; case E: (find x g)=>[v|]//=; congr Some.
+rewrite -filter_cat.
+rewrite -filter_predI; apply: eq_in_filter=>z Hz /=; rewrite domPtUn V inE /=.
+  - rewrite domPtUn.
+  Unset Printing Notations.
+*)
 Definition edge (g : pregraph) x y :=
   oapp (fun ys => y \in ys) false (links g x).
 
+(*
+Lemma edgePtUn g p ns x y :
+  valid (p &-> ns \+ g) ->
+  edge (p &-> ns \+ g) x y = (x == p) || edge g x y.
+Proof.
+move=>V.
+rewrite /edge /links findPtUn2 //.
+case: eqP=>/=.
+*)
 Arguments edge g x y : simpl never.
+
+Lemma edgeUn g0 g x y :
+  valid (g0 \+ g) ->
+  edge g x y -> edge (g0 \+ g) x y.
+Proof.
+move=>V; rewrite /edge /links findUnR //.
+case: dom_find=>[|v] -> //= Hg.
+rewrite !mem_filter domUn inE.
+by case/andP=>->->; rewrite orbT !andbT.
+Qed.
 
 Fixpoint dfs (p : nodeset) (g : pregraph) n (v : seq ptr) x :=
   if x \in [predU v & (dom p)] then v else
@@ -542,6 +619,18 @@ Qed.
 Lemma connect0 p g x : x \in dom g -> x \notin dom p -> connect p g x x.
 Proof. by move=>Hd Hp; apply/connectP; exists [::]; rewrite /= andbT. Qed.
 
+Lemma connectUn p g0 g x y :
+  valid (g0 \+ g) ->
+  connect p g x y -> connect p (g0 \+ g) x y.
+Proof.
+move=>V; case/connectP=>xs [Hp {y}-> /implyP Nxs Ha].
+apply/connectP; exists xs; split=>//; last first.
+- rewrite domUn inE; rewrite V /=.
+  by apply/implyP=>/Nxs->; rewrite orbT.
+elim: xs {Nxs Ha}x Hp=>//= y xs IH x; case/andP=>Hxy Hxs.
+by apply/andP; split; [apply: edgeUn | apply: IH].
+Qed.
+
 Lemma connect_dom p g x y :
   y \in connect p g x -> (x \in dom g) * (y \in dom g).
 Proof.
@@ -750,6 +839,9 @@ Section NGraph.
 
 Definition n_graph (n : nat) (g : pregraph) : bool :=
   all (fun ns => size ns == n) (range g).
+
+Lemma n_graphF n g p : n_graph n g -> n_graph n (free g p).
+Proof. by apply/subset_all/rangeF. Qed.
 
 Definition get_nth (ps : seq ptr) (n : nat) : ptr :=
   nth null ps n.
