@@ -10,9 +10,7 @@ Section All.
 Variables (T : eqType).
 
 Lemma subset_all a (s1 s2 : seq T) : {subset s1 <= s2} -> all a s2 -> all a s1.
-Proof.
-by move=>Hs /allP Ha1; apply/allP=>s /Hs /Ha1.
-Qed.
+Proof. by move=>Hs /allP Ha1; apply/allP=>s /Hs /Ha1. Qed.
 
 End All.
 
@@ -188,7 +186,7 @@ Qed.
 
 End Sep.
 
-(* pointer map, a generic finite map keyed by non-null pointers *)
+(* pointer map, a generic finite map with non-null pointer keys and values in A *)
 Notation ptr_pred := (fun x : ptr => x != null).
 
 Module Type PMSig.

@@ -65,31 +65,31 @@ End Shape.
 Section TIG.
 Variable (f : ptrmap nat).
 
-Fixpoint tree_in_graph_b (g : pregraph) (t : tree nat) (p : ptr) : bool :=
+Fixpoint tree_in_graph (g : pregraph) (t : tree nat) (p : ptr) : bool :=
   if t is Node l a r then
     match find p g with
     | Some ns => [&& find p f == Some a,
-                     tree_in_graph_b g l (get_nth ns 0) &
-                     tree_in_graph_b g r (get_nth ns 1)]
+                     tree_in_graph g l (get_nth ns 0) &
+                     tree_in_graph g r (get_nth ns 1)]
     | None => false
     end
   else p == null.
 
 Lemma tree_in_graph_null g t :
-  tree_in_graph_b g t null -> t = leaf.
+  tree_in_graph g t null -> t = leaf.
 Proof.
 case: t=>//=l a r.
 by move: (no_null g)=>/find_none->.
 Qed.
 
 Lemma tree_in_graph_nonnull g t p :
-  p != null -> n_graph 2 g -> tree_in_graph_b g t p ->
+  p != null -> n_graph 2 g -> tree_in_graph g t p ->
   exists (x : nat) tl (pl : ptr) tr (pr: ptr),
   [ /\ t = Node tl x tr,
        find p g = Some [::pl;pr],
        find p f = Some x,
-       tree_in_graph_b g tl pl &
-       tree_in_graph_b g tr pr ].
+       tree_in_graph g tl pl &
+       tree_in_graph g tr pr ].
 Proof.
 move=>Hp H2; case: t; first by move=>/= Ep; rewrite Ep in Hp.
 move=>tl x tr /=; case El: (find p g)=>[ns|] //.
@@ -103,8 +103,8 @@ Qed.
 
 Lemma tigUn g0 g t p :
   valid (g0 \+ g) ->
-  tree_in_graph_b g t p ->
-  tree_in_graph_b (g0 \+ g) t p.
+  tree_in_graph g t p ->
+  tree_in_graph (g0 \+ g) t p.
 Proof.
 move=>V; elim: t p=>//=l IHl a r IHr p.
 rewrite findUnR //; case: dom_find=>[|v]->// _.
@@ -115,8 +115,8 @@ Qed.
 (*
 Lemma tigPtUn q ns g t p :
   valid (q &-> ns \+ g) ->
-  tree_in_graph_b g t p ->
-  tree_in_graph_b (q &-> ns \+ g) t p.
+  tree_in_graph g t p ->
+  tree_in_graph (q &-> ns \+ g) t p.
 Proof.
 move=>V; elim: t p=>//=l IHl a r IHr p.
 rewrite findPtUn2 //; case/boolP: (p == q)=>Hp; last first.
@@ -187,7 +187,7 @@ Definition tree1 : tree nat :=
               3
               (Node leaf 2 leaf)).
 
-Lemma tree1_in_graph1 : tree_in_graph_b v graph1 tree1 p3.
+Lemma tree1_in_graph1 : tree_in_graph v graph1 tree1 p3.
 Proof.
 rewrite /graph1 /=.
 exists p1, p2; split=>//.
@@ -230,7 +230,7 @@ Fixpoint sum_tree (t : tree nat) : nat :=
 
 Definition treesumT' : Type := forall (p : ptr),
   {(t : tree nat) (gr : pregraph) (f : ptrmap nat)},
-  STsep (fun h => [/\ shape f gr h, n_graph 2 gr, good_graph gr & tree_in_graph_b f gr t p],
+  STsep (fun h => [/\ shape f gr h, n_graph 2 gr, good_graph gr & tree_in_graph f gr t p],
         [vfun n h => n == sum_tree t /\ shape f gr h]).
 
 Program Definition treesum' : treesumT' :=
@@ -261,10 +261,14 @@ Qed.
 Definition treesumT : Type := forall (p : ptr),
   {(gr : pregraph) (f : ptrmap nat)},
   STsep (fun h => [/\ h \In shape f gr,
+                      (* gr is a well-formed binary DAG *)
                       n_graph 2 gr, good_graph gr, acyclic gr,
+                      (* p is a "root" - everything in gr is reachable from it *)
                       good_ptr gr p & dom gr =i connect Unit gr p],
-        [vfun n h => exists t, [/\ h \In shape f gr, tree_in_graph_b f gr t p &
-                                   n == sum_tree t]]).
+        [vfun n h => exists t,
+                     [/\ h \In shape f gr,
+                         (* the tree is constructed! *)
+                         tree_in_graph f gr t p & n == sum_tree t]]).
 
 Program Definition treesum : treesumT :=
   Fix (fun (go : treesumT) p =>
@@ -326,10 +330,10 @@ rewrite -E56 E; step=>V'; exists (Node lt v rt); split=>//.
 - rewrite Egr; apply/shapePtUn; first by rewrite -Egr; case/andP: Hg.
   by exists i1, i2; split=>//; rewrite E1; exists v.
 rewrite /= Hp Hf eqxx /=; apply/andP; split.
-- suff: tree_in_graph_b fn gn lt l by [].
+- suff: tree_in_graph fn gn lt l by [].
   rewrite Egr2 joinC; apply: tigUn=>//; rewrite joinC -Egr2.
   by rewrite -Egr3 in Vg.
-suff: tree_in_graph_b fn gn rt r by [].
+suff: tree_in_graph fn gn rt r by [].
 by rewrite Egr3 joinC; apply: tigUn=>//; rewrite joinC.
 Qed.
 
