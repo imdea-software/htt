@@ -73,12 +73,12 @@ move=>H; apply/negP=>/eqP E.
 by rewrite E irr in H.
 Qed.
 
-Lemma sorted_rconsE {T : ordType} (xs : seq T) x :
-  sorted ord (rcons xs x) = all (ord^~ x) xs && sorted ord xs.
+Lemma sorted_rconsE {T} (leT : rel T) (xs : seq T) x :
+  transitive leT ->
+  sorted leT (rcons xs x) = all (leT^~ x) xs && sorted leT xs.
 Proof.
-rewrite -(revK (rcons _ _)) rev_rcons rev_sorted /= path_sortedE; last first.
-- by move=>a b c Hab /trans; apply.
-by rewrite all_rev rev_sorted.
+move/rev_trans=>Ht; rewrite -(revK (rcons _ _)) rev_rcons rev_sorted /=.
+by rewrite path_sortedE // all_rev rev_sorted.
 Qed.
 
 Lemma sorted_cat_cons_cat {T : ordType} (l r : seq T) x :

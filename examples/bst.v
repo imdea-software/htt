@@ -48,7 +48,7 @@ Lemma bst_to_sorted (t : tree T) :
         bst t = sorted ord (inorder t).
 Proof.
 elim: t=>//=l -> a r ->.
-by rewrite sorted_cat_cons_cat /= cats1 sorted_rconsE
+by rewrite sorted_cat_cons_cat /= cats1 sorted_rconsE //
   (path_sortedE (@trans T)) andbACA -andbA.
 Qed.
 
