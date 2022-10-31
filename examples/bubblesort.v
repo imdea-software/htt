@@ -19,11 +19,6 @@ Proof. by []. Qed.
 Lemma ord_indx n (i : 'I_n) : heap.indx i = i.
 Proof. by exact: index_enum_ord. Qed.
 
-Lemma size_take_codom T n (i : 'I_n) (f: {ffun 'I_n.+1 -> T}) : size (take i (codom f)) = i.
-Proof.
-by rewrite size_take size_codom card_ord ltnS leq_eqVlt ltn_ord orbT.
-Qed.
-
 Section FindLast.
 
 Variables (T : Type).
@@ -158,8 +153,13 @@ rewrite /Wo /widen_ord.
 by congr Ordinal; apply: pf_irr.
 Qed.
 
-Section swap.
+Section codom.
 Variable (n : nat).
+
+Lemma size_take_codom T (i : 'I_n) (f: {ffun 'I_n.+1 -> T}) : size (take i (codom f)) = i.
+Proof.
+by rewrite size_take size_codom card_ord ltnS leq_eqVlt ltn_ord orbT.
+Qed.
 
 Lemma ffun_split2 A (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
   let i0 := Wo i in let i1 := So i in
@@ -170,6 +170,30 @@ rewrite {1}codomE (enum_split i0) /= {2}(enum_split i1) (ord_indx i0) (ord_indx 
 rewrite drop_cat size_take size_enum_ord ltn_ord So_eq ltnn subnn /=.
 by rewrite map_cat /= map_take map_drop -codomE.
 Qed.
+
+Lemma take_codom_rcons A (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
+  take i.+1 (codom f) = rcons (take i (codom f)) (f (Wo i)).
+Proof.
+by rewrite {1}(ffun_split2 f i) take_cat size_take_codom leqNgt ltnS leqnSn /= subSnn /= cats1.
+Qed.
+
+Lemma drop_codom_cons A (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
+  drop i.+1 (codom f) = f (So i) :: drop i.+2 (codom f).
+Proof.
+by rewrite {1}(ffun_split2 f i) drop_cat size_take_codom leqNgt ltnS leqnSn /= subSnn /= So_eq.
+Qed.
+
+Lemma take_codom_rcons2 A (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
+  take i.+2 (codom f) = rcons (rcons (take i (codom f)) (f (Wo i))) (f (So i)).
+Proof.
+rewrite {1}(ffun_split2 f i) take_cat size_take_codom leqNgt ltnS -addn2 leq_addr /=.
+by rewrite -addnBAC // subnn /= take0 -cat1s catA !cats1.
+Qed.
+
+End codom.
+
+Section swap.
+Variable (n : nat).
 
 Definition swap T n (i : 'I_n) (f: {ffun 'I_n.+1 -> T}) : {ffun 'I_n.+1 -> T} :=
   let i0 := Wo i in let i1 := So i in
@@ -218,6 +242,38 @@ rewrite take_cat drop_cat size_take size_enum_ord ltn_ord So_eq ltnS leqnn ltnn 
 rewrite subnn drop0 map_cat /= !ffunE /= !eqxx.
 rewrite (_ : i1 == i0 = false); last by apply/negbTE/So_WoN.
 by rewrite map_take map_drop swap_take swap_drop.
+Qed.
+
+Lemma drop_swap_cons A (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
+  drop i.+1 (fgraph (swap i f)) = f (Wo i) :: drop i.+2 (fgraph f).
+Proof.
+rewrite fgraph_codom /= swap_split2 drop_cat size_take size_codom /= card_ord.
+rewrite !ltnS (leq_eqVlt i) ltn_ord orbT (leqNgt i.+2) ltnS leqnSn /= subSnn /=.
+by rewrite So_eq.
+Qed.
+
+Lemma take_swap_rcons A (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
+  take i.+1 (codom (swap i f)) = rcons (take i (codom f)) (f (So i)).
+Proof.
+by rewrite swap_split2 take_cat size_take_codom (leqNgt i.+2) ltnS leqnSn /= subSnn /= cats1.
+Qed.
+
+Lemma perm_swap {A : eqType} (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
+  perm_eq (codom f) (codom (swap i f)).
+Proof.
+rewrite (ffun_split2 f i) swap_split2 /=.
+by apply/permEl/perm_catl; rewrite !cat2s -perm_catCA.
+Qed.
+
+Lemma perm_take_swap_gt {A : eqType} (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) k :
+  i <= k ->
+  perm_eq (take k.+2 (codom f)) (take k.+2 (codom (swap i f))).
+Proof.
+move=>H.
+rewrite (ffun_split2 f i) swap_split2 /= !take_cat size_take_codom leqNgt ltnS.
+have ->/= : i <= k.+2 by apply: (leq_trans H); rewrite -addn2; apply: leq_addr.
+rewrite -(addn2 k) -addnBAC // addn2 /=.
+by apply/permPl/perm_catl; rewrite !cat2s perm_catCA.
 Qed.
 
 End swap.
@@ -298,54 +354,44 @@ Program Definition bubble_pass (a : {array 'I_n.+2 -> nat}) :
 Next Obligation.
 move=>a loop _ i sw [f][] h /= [E V].
 set i0 := Wo i; set i1 := So i.
-apply: [stepE f]=>//= sw0 m [f'][Hm Hsw]; case: decP=>H.
+apply: [stepE f]=>//= sw0 m [f'][Hm Hsw]; case: decP=>Hin.
 - (* i < n, recursive call *)
   apply: [gE f']=>//=.
   - split=>//; rewrite negb_or; case: sw0 Hsw=>/=; first by rewrite andbF.
     (* swap didn't happen *)
-    rewrite andbT; case=>-> Hf01; apply/(implyb_trans V)/implyP=>Hs.
-    rewrite So_lower_eq; move: Hs.
-    rewrite (ffun_split2 f i) -/i0 -/i1 !take_cat size_take_codom.
-    rewrite (leqNgt i.+2) (leqNgt i.+3) !ltnS leqnSn -(addn2 i) leq_addr /=.
-    rewrite subSnn -addnBAC // subnn /= take0 cats1=>Hs.
-    rewrite -cat1s catA !cats1 sorted_rconsE; last by apply: leq_trans.
-    rewrite Hs andbT all_rcons Hf01 /=.
-    move: Hs; rewrite sorted_rconsE; last by apply: leq_trans.
-    by case/andP=>+ _; apply: sub_all=>z Hz; apply/leq_trans/Hf01.
+    rewrite andbT; case=>-> Hf01; apply/(implyb_trans V)/implyP.
+    rewrite So_lower_eq take_codom_rcons take_codom_rcons2.
+    rewrite !sorted_rconsE; try by apply: leq_trans.
+    case/andP=>Ha ->; rewrite Ha /= andbT all_rcons Hf01 /=.
+    by apply/sub_all/Ha=>z Hz; apply/leq_trans/Hf01.
   move=>v m0; case: sw0 Hsw=>/=; last by case=>-> Hf; rewrite orbF.
   (* swap happened *)
   case=>Hf' Hf; rewrite orbT /=; case=>{v}-> [f''][Hm0 Hf''] Vm0.
   rewrite implybT; split=>//; exists f''; split=>//.
-  apply/perm_trans/Hf''; rewrite (ffun_split2 f i) -/i0 -/i1 Hf' swap_split2 /=.
-  by apply/permEl/perm_catl; rewrite !cat2s -perm_catCA.
+  by apply/perm_trans/Hf''; rewrite Hf'; apply: perm_swap.
 (* i = n *)
-have {}H : nat_of_ord i = n.
+have {}Hin : nat_of_ord i = n.
 - apply/eqP; rewrite eqn_leq; move: (ltn_ord i); rewrite ltnS=>->/=.
-  by move/negP: H; rewrite -leqNgt.
+  by move/negP: Hin; rewrite -leqNgt.
 step=>Vm; split; first by apply/implyP=>->.
 case: sw0 Hsw=>/=; case=>Ef' Hf.
 - (* swap happened on last iteration *)
-  rewrite orbT; exists f'; split=>//.
-  rewrite (ffun_split2 f i) -/i0 -/i1 Ef' swap_split2 /=.
-  by apply/permEl/perm_catl; rewrite !cat2s -perm_catCA.
+  by rewrite orbT; exists f'; split=>//; rewrite Ef'; exact: perm_swap.
 (* swap didn't happen on last iteration *)
 rewrite orbF; case: sw V=>/=.
 - (* flag was set *)
   by move=>_; exists f'; split=>//; rewrite Ef'.
 (* flag wasn't set, so the pass didn't swap anything - the array is sorted *)
 move=>Hs; split; first by rewrite -Ef'.
-move: Hs; rewrite (ffun_split2 f i) /= So_eq H !take_cat size_take size_codom /= card_ord.
-rewrite ltnS leqnSn leqNgt ltnS leqnSn /= subSnn /= cats1=>Hs.
-rewrite [X in drop X _](_ : n.+2 = size (codom f)); last by rewrite size_codom /= card_ord.
-rewrite drop_size -cat1s catA !cats1 sorted_rconsE; last by apply: leq_trans.
-rewrite Hs andbT all_rcons Hf /=.
-move: Hs; rewrite sorted_rconsE; last by apply: leq_trans.
-by case/andP=>+ _; apply: sub_all=>z Hz; apply/leq_trans/Hf.
+rewrite -(take_size (codom f)) size_codom /= card_ord -[X in take X.+2 _]Hin.
+move: Hs; rewrite take_codom_rcons take_codom_rcons2 !sorted_rconsE; try by apply: leq_trans.
+case/andP=>Ha ->; rewrite Ha /= andbT all_rcons Hf /=.
+by apply/sub_all/Ha=>z Hz; apply/leq_trans/Hf.
 Qed.
 Next Obligation.
-move=>a [f][] h /= [E V].
-apply: [gE f]=>//=; first by split=>//; rewrite (ffun_split2 f ord0) /= take0.
-by move=>v m; case.
+move=>a [f][] h /= H.
+apply: [gE f]=>//=; last by move=>v m [].
+by split=>//; rewrite (ffun_split2 f ord0) /= take0.
 Qed.
 
 Opaque bubble_pass.
@@ -436,37 +482,26 @@ apply: [stepE f]=>//= sw0 m [f'][Hm Hsw]; case: decP=>H.
         have ->/= : i < k.+3 by apply: (ltn_trans H); rewrite ltnS -addn2 leq_addr.
         by rewrite -(addn2 k) -addnBAC // addn2 /= drop_drop So_eq !addnS subnK // addn0.
       rewrite andbF /= Hf'; split=>//.
-      - rewrite (@allrel_in_l _ _ _ _ (take k.+2 (codom f))) // => q.
-        rewrite Ef swap_split2 [in RHS](ffun_split2 f i) -/i0 -/i1 !take_cat size_take_codom (leqNgt k.+3).
-        have ->/= : i < k.+3 by apply: (ltn_trans H); rewrite ltnS -addn2 leq_addr.
-        rewrite -(addn2 k) -addnBAC // addn2 /= subn2 /=.
-        by rewrite !mem_cat !inE; case: eqP=>//=; rewrite !orbT.
+      - rewrite (@allrel_in_l _ _ _ _ (take k.+2 (codom f))) // Ef.
+        by apply/perm_mem; rewrite perm_sym; apply: perm_take_swap_gt.
       - by rewrite So_lower_eq.
       rewrite So_lower_eq Wo_So_lower_eq; rewrite -/i0 -/i1 in Hia *.
-      rewrite Ef swap_split2 -/i0 -/i1 take_cat size_take_codom.
-      rewrite (leqNgt i.+2) ltnS leqnSn /= subSnn /= cats1 all_rcons.
+      rewrite Ef take_swap_rcons all_rcons.
       suff: (swap i f) i1 = f i0 by move=>->; rewrite Hia andbT; apply: ltnW.
       by rewrite swapE.
     (* swap didn't happen before the call *)
     rewrite andbT Ef in Hm *; split=>//; first by rewrite So_lower_eq.
-    - rewrite So_lower_eq Wo_So_lower_eq (ffun_split2 f i); rewrite -/i0 -/i1 in Hia *.
-      rewrite !take_cat size_take size_codom /= card_ord.
-      rewrite !ltnS (leq_eqVlt i) ltn_ord orbT (leqNgt i.+2) !ltnS.
-      rewrite leqnSn /= subSnn /= cats1 all_rcons H01 /=.
+    - rewrite So_lower_eq Wo_So_lower_eq; rewrite -/i0 -/i1 in Hia *.
+      rewrite take_codom_rcons all_rcons H01 /=.
       by apply/sub_all/Hia=>z Hz; apply/leq_trans/H01.
-    apply/(implyb_trans Hi)/implyP=>Hs1.
-    rewrite So_lower_eq; move: Hs1.
-    rewrite (ffun_split2 f i) -/i0 -/i1 !take_cat size_take size_codom /= card_ord.
-    rewrite !ltnS (leq_eqVlt i) ltn_ord orbT (leqNgt i.+2) !ltnS.
-    rewrite leqnSn /= subSnn ltnn subnn /= cats0 cats1=>Hs2.
-    rewrite sorted_rconsE; last by apply: leq_trans.
-    by rewrite Hs2 andbT.
+    rewrite So_lower_eq; apply/(implyb_trans Hi)/implyP.
+    rewrite take_codom_rcons sorted_rconsE; try by apply: leq_trans.
+    by move=>->; rewrite andbT.
   move=>v m0; case: sw0 Hsw=>/=; last by case=>-> Hf; rewrite orbF.
   (* swap happened *)
   case=>Hf' Hf; rewrite orbT /=; case=>{v}-> [f''][Hm0 Hf''] Vm0.
   rewrite implybT; split=>//; exists f''; split=>//.
-  apply/perm_trans/Hf''; rewrite (ffun_split2 f i) -/i0 -/i1 Hf' swap_split2 /=.
-  by apply/permEl/perm_catl; rewrite !cat2s -perm_catCA.
+  by apply/perm_trans/Hf''; rewrite Hf'; exact: perm_swap.
 (* i = k, exit *)
 have {}Hik : nat_of_ord i = k.
 - apply/eqP; rewrite eqn_leq Hik /=.
@@ -474,56 +509,35 @@ have {}Hik : nat_of_ord i = k.
 step=>Vm; split; first by apply/implyP=>->.
 case: sw0 Hsw=>/=; case=>Ef' Hf.
 - (* swap happened on last iteration *)
-  rewrite -{H loop k}Hik in Ha He *.
-  rewrite orbT; exists f'; split=>//.
-  - rewrite (ffun_split2 f i) -/i0 -/i1 Ef' swap_split2 /=.
-    by apply/permEl/perm_catl; rewrite !cat2s -perm_catCA.
-  - move: Ha; rewrite (ffun_split2 f i) -/i0 -/i1 take_cat drop_cat size_take size_codom /= card_ord.
-    rewrite So_eq !ltnS (leq_eqVlt i) ltn_ord orbT (leqNgt i.+3) ltnS.
-    rewrite -addn2 leq_addr /= -addnBAC // subnn /= take0 drop0 addn2.
-    rewrite -cat1s catA !cats1 !allrel_rconsl /= -andbA; case/and3P => H1' H2' H3'.
-    rewrite Ef' swap_split2 take_cat drop_cat size_take size_codom /= card_ord.
-    rewrite !ltnS (leq_eqVlt i) ltn_ord orbT (leqNgt i.+2) ltnS leqnSn /= subSnn /= cats1.
-    by rewrite So_eq allrel_rconsl allrel_consr /= (ltnW Hf) /= H1' H3' !andbT.
-  rewrite Ef' swap_split2 drop_cat size_take_codom ltnNge leqnSn /= subSnn /= So_eq.
-  rewrite path_sortedE; last by exact: leq_trans.
+  rewrite -{H loop k}Hik in Ha He *; rewrite orbT; exists f'.
+  split=>//; rewrite Ef'; first by exact: perm_swap.
+  - rewrite take_swap_rcons drop_swap_cons allrel_rconsl allrel_consr /=.
+    move: Ha; rewrite take_codom_rcons2 !allrel_rconsl -/i0 -/i1 -andbA.
+    by case/and3P=>-> _ ->; rewrite (ltnW Hf) /= !andbT.
+  rewrite drop_swap_cons /= path_sortedE; last by exact: leq_trans.
   rewrite He andbT; apply/allP=>z Hz; move/allrelP: Ha; apply=>//.
-  rewrite (ffun_split2 f i) -/i0 -/i1 take_cat size_take_codom ltnNge -(addn2 i) leq_addr /=.
-  by rewrite -addnBAC // subnn /= take0 mem_cat !inE eqxx orbT.
+  by rewrite take_codom_rcons2 4!(mem_rcons, inE) eqxx /= orbT.
 (* swap didn't happen on last iteration *)
 rewrite orbF; case: sw Hi=>/=.
 - (* flag was set *)
   move=>_; exists f'; split=>//; rewrite Ef' //.
-  - move: Ha; rewrite (ffun_split2 f i) -/i0 -/i1 !take_cat !drop_cat size_take size_codom /= card_ord.
-    rewrite So_eq !ltnS (leq_eqVlt i) ltn_ord orbT Hik (leqNgt k.+2) (leqNgt k.+3) !ltnS.
-    rewrite leqnSn -addn2 leq_addr /= -addnBAC // subnn /= take0 drop0 addn2 subSnn /=.
-    rewrite -cat1s catA !cats1 !allrel_rconsl /= -andbA; case/and3P => H1' H2' H3'.
-    rewrite allrel_consr Hf /= -andbA H1' H2' !andbT.
-    by rewrite -/i0 Hik in Hia; apply/sub_all/Hia=>z Hz; apply/leq_trans/Hf.
-  move: He; rewrite (ffun_split2 f i) -/i0 -/i1 !drop_cat size_take size_codom /= card_ord.
-  rewrite So_eq !ltnS (leq_eqVlt i) ltn_ord orbT Hik (leqNgt k.+2) (leqNgt k.+3) !ltnS.
-  rewrite leqnSn -addn2 leq_addr /= -addnBAC // subnn /= drop0 addn2 subSnn /= => Hs2.
-  rewrite path_sortedE; last by exact: leq_trans.
-  rewrite Hs2 andbT; apply/allP=>z Hz; move/allrelP: Ha; apply=>//.
-  rewrite (ffun_split2 f i) -/i0 -/i1 take_cat size_take_codom ltnNge Hik -(addn2 k) leq_addr /=.
-  by rewrite -addnBAC // subnn /= take0 mem_cat !inE eqxx !orbT.
+  - rewrite -Hik in Ha *.
+    rewrite take_codom_rcons drop_codom_cons allrel_rconsl allrel_consr /=.
+    move: Ha; rewrite take_codom_rcons2 !allrel_rconsl -andbA -/i0 -/i1.
+    case/and3P=>->-> _; rewrite Hf /= !andbT.
+    by apply/sub_all/Hia=>z Hz; apply/leq_trans/Hf.
+  rewrite drop_codom_cons /= path_sortedE; last by exact: leq_trans.
+  rewrite He andbT.
+  by move: Ha; rewrite take_codom_rcons2 !allrel_rconsl -andbA; case/and3P.
 (* flag wasn't set, so the pass didn't swap anything - the array is sorted *)
 move=>Hs2; split; first by rewrite -Ef'.
 rewrite (ffun_split2 f i) -/i0 -/i1 /= So_eq; rewrite Hik in Hia Hs2 *.
 rewrite sorted_pairwise; last by exact: leq_trans.
 rewrite pairwise_cat /= -!sorted_pairwise; try by exact: leq_trans.
 rewrite Hf He Hs2 /= andbT !allrel_consr -!andbA Hia /=.
-apply/and4P; split.
-- by apply/sub_all/Hia=>z Hz; apply/leq_trans/Hf.
-- apply/allrel_sub_l/Ha=>z Hz.
-  rewrite (ffun_split2 f i) -/i0 -/i1 /= So_eq Hik take_cat size_take_codom leqNgt ltnS.
-  by rewrite -(addn2 k) leq_addr /= mem_cat Hz.
-- apply/allP=>z Hz; move/allrelP: Ha; apply=>//.
-  rewrite (ffun_split2 f i) -/i0 -/i1 take_cat size_take_codom ltnNge Hik -(addn2 k) leq_addr /=.
-  by rewrite -addnBAC // subnn /= take0 mem_cat !inE eqxx !orbT.
-apply/allP=>z Hz; move/allrelP: Ha; apply=>//.
-rewrite (ffun_split2 f i) -/i0 -/i1 take_cat size_take_codom ltnNge Hik -(addn2 k) leq_addr /=.
-by rewrite -addnBAC // subnn /= take0 mem_cat !inE eqxx !orbT.
+move: Ha; rewrite -Hik take_codom_rcons2 !allrel_rconsl -andbA; case/and3P=>H1 H2 H3.
+apply/and4P; split=>//.
+by rewrite Hik; apply/sub_all/Hia=>z Hz; apply/leq_trans/Hf.
 Qed.
 Next Obligation.
 move=>a k [f][] h /= [H Ha Hs].
