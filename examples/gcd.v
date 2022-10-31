@@ -26,7 +26,7 @@ Program Definition gcd_loop (p q : ptr) :=
                         go tt
                    else p ::= x - y;;
                         go tt
-        else ret tt)).
+        else skip)).
 Next Obligation.
 (* pull out ghosts + precondition (the shape of the heap) *)
 move=>p q go _ [x [y _]] /= _ [h' ->].
