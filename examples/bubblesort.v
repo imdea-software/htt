@@ -5,16 +5,120 @@ From fcsl Require Import pcm unionmap heap.
 From HTT Require Import interlude model heapauto.
 From HTT Require Import array.
 
+Lemma allrel_rconsl (T S : Type) (r : T -> S -> bool)
+                    x xs ys : allrel r (rcons xs x) ys = allrel r xs ys && all (r x) ys.
+Proof. by rewrite -cats1 allrel_catl allrel1l. Qed.
+
 Lemma implyb_trans a b c : a ==> b -> b ==> c -> a ==> c.
 Proof. by case: a=>//=->. Qed.
+
 
 Lemma cat2s {T} (a b : T) xs : [:: a, b & xs] = [::a] ++ [::b] ++ xs.
 Proof. by []. Qed.
 
-(* TODO use fintype.lift instead ? *)
-
 Lemma ord_indx n (i : 'I_n) : heap.indx i = i.
 Proof. by exact: index_enum_ord. Qed.
+
+Lemma size_take_codom T n (i : 'I_n) (f: {ffun 'I_n.+1 -> T}) : size (take i (codom f)) = i.
+Proof.
+by rewrite size_take size_codom card_ord ltnS leq_eqVlt ltn_ord orbT.
+Qed.
+
+Section FindLast.
+
+Variables (T : Type).
+Implicit Types (x : T) (p : pred T) (s : seq T).
+
+Definition find_last p s :=
+  let i := seq.find p (rev s) in
+  if i == size s then size s else (size s - i).-1.
+
+Lemma find_last_size p s : find_last p s <= size s.
+Proof.
+rewrite /find_last; case: ifP=>// _.
+by rewrite -subnS; apply: leq_subr.
+Qed.
+
+Lemma has_find_last p s : has p s = (find_last p s < size s).
+Proof.
+rewrite /find_last -has_rev has_find -(size_rev s); case: ltngtP=>/=.
+- move=>H; case/posnP: (size (rev s))=>[/eqP/nilP|] E.
+  - by rewrite E /= in H.
+  by rewrite -subnS ltn_subrL E.
+- by rewrite ltnNge find_size.
+by rewrite ltnn.
+Qed.
+
+Lemma hasNfind_last p s : ~~ has p s -> find_last p s = size s.
+Proof. by rewrite has_find_last; case: ltngtP (find_last_size p s). Qed.
+
+Lemma has_drop p s i : has p s -> has p (drop i.+1 s) = (i < find_last p s).
+Proof.
+rewrite /find_last -has_rev -(size_rev s) => /[dup] E.
+rewrite has_find =>/[dup] H.
+rewrite ltn_neqAle; case/andP=>/negbTE -> _.
+move/(has_take (size s - i).-1): E.
+rewrite take_rev has_rev -subnS.
+case/boolP: (i < size s)=>[Hi|].
+- rewrite subKn // =>->; rewrite size_rev in H *.
+  by rewrite ltn_subCr -[RHS]ltnS prednK // subn_gt0.
+rewrite -ltnNge ltnS => Hi _.
+rewrite drop_oversize /=; last by apply: (leq_trans Hi).
+symmetry; apply/negbTE; rewrite size_rev -ltnNge ltnS.
+by apply/leq_trans/Hi; rewrite -subnS; exact: leq_subr.
+Qed.
+
+Lemma find_gtn p s i : has p (drop i.+1 s) -> i < find_last p s.
+Proof.
+case/boolP: (has p s)=>Hp; first by rewrite (has_drop _ Hp).
+suff: ~~ has p (drop i.+1 s) by move/negbTE=>->.
+move: Hp; apply: contra; rewrite -{2}(cat_take_drop i.+1 s) has_cat=>->.
+by rewrite orbT.
+Qed.
+
+End FindLast.
+
+Section FindLastEq.
+
+Variables (T : eqType).
+Implicit Type p : seq T.
+
+Definition index_last (x : T) := find_last (pred1 x).
+
+Lemma memNindex_last x s : x \notin s -> index_last x s = size s.
+Proof. by rewrite -has_pred1=>/hasNfind_last. Qed.
+
+Lemma index_last_cons x y t : index_last x (y::t) =
+  if x \in t then (index_last x t).+1 else if y == x then 0 else (size t).+1.
+Proof.
+rewrite /index_last /find_last /= rev_cons -cats1 find_cat /= has_rev has_pred1.
+case/boolP: (x \in t)=>H; last first.
+- rewrite size_rev; case/boolP: (y == x)=>/= _; last by rewrite addn1 eqxx.
+  by rewrite addn0 eqn_leq leqnSn /= ltnn subSnn.
+rewrite -mem_rev -has_pred1 has_find in H; rewrite -(size_rev t).
+case: ltngtP H=>//= H _.
+case: ifP=>[/eqP E|_]; first by rewrite E ltnNge leqnSn in H.
+by rewrite predn_sub /= prednK // subn_gt0.
+Qed.
+
+Lemma index_gtn x s i : x \in drop i.+1 s -> i < index_last x s.
+Proof. by rewrite -has_pred1; apply: find_gtn. Qed.
+
+Lemma index_last_uniq x s : uniq s -> index_last x s = index x s.
+Proof.
+move=>H; case/boolP: (x \in s)=>Hx; last first.
+- by rewrite (memNindex_last Hx) (memNindex Hx).
+elim: s x H Hx=>//= h t IH x.
+rewrite index_last_cons.
+case/andP=>Hh Ht; rewrite inE eq_sym; case/orP.
+- by move/eqP=>{x}<-; rewrite (negbTE Hh) eqxx.
+move=>Hx; rewrite Hx; case: eqP=>[E|_]; last by congr S; apply: IH.
+by rewrite E Hx in Hh.
+Qed.
+
+End FindLastEq.
+
+(* TODO use fintype.lift instead ? *)
 
 (* widen by 1 *)
 Definition Wo n : 'I_n -> 'I_n.+1 :=
@@ -27,6 +131,12 @@ Definition So n : 'I_n -> 'I_n.+1 :=
 Lemma So_eq n (i : 'I_n) : nat_of_ord (So i) = i.+1.
 Proof. by case: i. Qed.
 
+Lemma So_WoN n (i : 'I_n) : So i != Wo i.
+Proof.
+case: i=>/= m prf; rewrite /Wo /widen_ord /=; apply/negP=>/eqP; case=>/eqP.
+by rewrite eqn_leq leqnSn andbT ltnn.
+Qed.
+
 (* increase within the bound *)
 Definition So_lower n (i : 'I_n) (prf : i.+1 < n) : 'I_n.
 Proof. case: i prf=>/= m Hm; apply: Ordinal. Defined.
@@ -34,14 +144,17 @@ Proof. case: i prf=>/= m Hm; apply: Ordinal. Defined.
 Lemma So_lower_eq n (i : 'I_n) (prf : i.+1 < n) : nat_of_ord (So_lower prf) = i.+1.
 Proof. by case: i prf. Qed.
 
-Opaque Array.write Array.read.
+Lemma Wo_So_lower_eq n (i : 'I_n) (prf : i.+1 < n) : Wo (So_lower prf) = So i.
+Proof.
+case: i prf=>/= m prf0 prf1.
+rewrite /Wo /widen_ord.
+by congr Ordinal; apply: pf_irr.
+Qed.
 
-Section bubble.
+Section swap.
 Variable (n : nat).
 
-(* TODO ordType! *)
-
-Lemma ffun_split2 A (f : {ffun 'I_n.+2 -> A}) (i : 'I_n.+1) :
+Lemma ffun_split2 A (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
   let i0 := Wo i in let i1 := So i in
   codom f = take i0 (codom f) ++ [:: f i0; f i1] ++ drop i1.+1 (codom f).
 Proof.
@@ -51,6 +164,64 @@ rewrite drop_cat size_take size_enum_ord ltn_ord So_eq ltnn subnn /=.
 by rewrite map_cat /= map_take map_drop -codomE.
 Qed.
 
+Definition swap T n (i : 'I_n) (f: {ffun 'I_n.+1 -> T}) : {ffun 'I_n.+1 -> T} :=
+  let i0 := Wo i in let i1 := So i in
+  finfun [eta f with i0 |-> f i1, i1 |-> f i0].
+
+Lemma swapE A (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
+  ((swap i f) (Wo i) = f (So i)) * ((swap i f) (So i) = f (Wo i)).
+Proof.
+rewrite /swap !ffunE /= !eqxx; split=>//.
+by case: eqP=>//->.
+Qed.
+
+(* TODO generalize to k <= i *)
+Lemma swap_take A (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
+  take i (fgraph (swap i f)) = take i (fgraph f).
+Proof.
+rewrite /swap; set f' := (finfun _).
+suff E: {in take i (enum 'I_n.+1), f =1 f'}.
+- by rewrite !fgraph_codom /= !codomE -2!map_take; move/eq_in_map: E.
+move=>/= y /index_ltn; rewrite /f' /= !ffunE /=; case: eqP.
+- by move=>->; rewrite index_enum_ord ltnn.
+by case: eqP=>//->_; rewrite index_enum_ord So_eq ltnNge leqnSn.
+Qed.
+
+Lemma swap_drop A (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
+  drop i.+2 (fgraph (swap i f)) = drop i.+2 (fgraph f).
+Proof.
+rewrite /swap; set f' := (finfun _).
+suff E: {in drop i.+2 (enum 'I_n.+1), f =1 f'}.
+- by rewrite /= !codomE -2!map_drop /=; move/eq_in_map: E.
+move=>/= y /index_gtn; rewrite /f' /= !ffunE /=; case: eqP.
+- move=>->; rewrite index_last_uniq; last by apply: enum_uniq.
+  by rewrite index_enum_ord /= ltnNge leqnSn.
+case: eqP=>//->_; rewrite index_last_uniq; last by apply: enum_uniq.
+by rewrite index_enum_ord So_eq ltnn.
+Qed.
+
+Lemma swap_split2 A (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
+  let i0 := Wo i in let i1 := So i in
+  codom (swap i f) = take i0 (codom f) ++ [:: f i1; f i0] ++ drop i1.+1 (codom f).
+Proof.
+rewrite /swap; set i0 := Wo i; set i1 := So i.
+rewrite codomE (enum_split i0) (enum_split i1) !ord_indx /=.
+rewrite take_cat drop_cat size_take size_enum_ord ltn_ord So_eq ltnS leqnn ltnn take_take;
+  last by exact: leqnSn.
+rewrite subnn drop0 map_cat /= !ffunE /= !eqxx.
+rewrite (_ : i1 == i0 = false); last by apply/negbTE/So_WoN.
+by rewrite map_take map_drop swap_take swap_drop.
+Qed.
+
+End swap.
+
+Opaque Array.write Array.read.
+
+Section bubble.
+Variable (n : nat).
+
+(* TODO ordType! *)
+
 Program Definition cas_next (a : {array 'I_n.+2 -> nat}) (i : 'I_n.+1) :
   {f : {ffun 'I_n.+2 -> nat}},
   STsep (Array.shape a f,
@@ -58,13 +229,9 @@ Program Definition cas_next (a : {array 'I_n.+2 -> nat}) (i : 'I_n.+1) :
           let i0 := Wo i in let i1 := So i in
           exists (f' : {ffun 'I_n.+2 -> nat}),
             h \In Array.shape a f' /\
-            if b then
-              codom f' =
-                take i0 (codom f) ++
-                [:: f i1; f i0] ++
-                drop i1.+1 (codom f)
-              /\ f i1 < f i0
-            else f' = f /\ f i0 <= f i1]) :=
+            if b
+              then f' = swap i f /\ f i1 < f i0
+              else f' = f /\ f i0 <= f i1]) :=
   let i0 := Wo i in let i1 := So i in
   Do (prev <-- Array.read a i0;
       next <-- Array.read a i1;
@@ -81,33 +248,25 @@ case: leqP=>H; first by step=>_; exists f.
 apply: [stepE f]=>//= _ _ [-> Vs]; set fs := finfun [eta f with i0 |-> f i1].
 apply: [stepE fs]=>//= _ _ [-> Vsw]; set fsw := finfun [eta fs with i1 |-> f i0].
 step=>_; exists fsw; do!split=>//.
-(* TODO streamline *)
-rewrite /fsw codomE (enum_split i1) /= map_cat /= map_take map_drop takeord dropord /=.
-rewrite /fs codomE (enum_split i0) /= map_cat /= map_take map_drop takeord dropord /=.
-rewrite !ffunE /= !eqxx take_cat size_take.
-rewrite {1 3}(ord_indx i1) {1 2 5 6}(ord_indx i0) size_codom card_ord ltn_ord So_eq /=.
-rewrite leqNgt ltnS leqnSn /= subSnn /= take0.
-rewrite drop_cat size_take size_codom card_ord.
-rewrite {1 3}(ord_indx i1) {2 3 6 7}(ord_indx i0) ltn_ord So_eq /=.
-rewrite leqNgt ltnS -[X in _ <= X]addn2 leq_addr /=.
-rewrite -[X in drop (X - _)]addn2 -addnBAC // subnn /= drop_drop add1n.
-by rewrite {2}(ord_indx i0) -(So_eq i) -(ord_indx i1) -catA ord_indx.
+rewrite /fsw /fs /swap -/i0 -/i1.
+apply/ffunP=>/= x; rewrite !ffunE /= ffunE /=.
+by case: eqP; case: eqP=>// ->->.
 Qed.
 
 Opaque cas_next.
 
 Definition bubble_loopT (a : {array 'I_n.+2 -> nat}) :=
-  forall isw : ('I_n.+1 * bool),
+  forall isw : 'I_n.+1 * bool,
   {f : {ffun 'I_n.+2 -> nat}},
   STsep (fun h => h \In Array.shape a f
-               /\ (~~ isw.2) ==> sorted leq (take isw.1.+1 (fgraph f)),
+               /\ ~~ isw.2 ==> sorted leq (take isw.1.+1 (fgraph f)),
         [vfun (b : bool) h =>
           isw.2 ==> b /\
           if b then
             exists f',
               h \In Array.shape a f' /\
               perm_eq (fgraph f) (fgraph f')
-            else h \In Array.shape a f /\ sorted leq (codom f)]).
+            else h \In Array.shape a f /\ sorted leq (fgraph f)]).
 
 Program Definition bubble_pass (a : {array 'I_n.+2 -> nat}) :
   {f : {ffun 'I_n.+2 -> nat}},
@@ -117,7 +276,7 @@ Program Definition bubble_pass (a : {array 'I_n.+2 -> nat}) :
               exists f',
                 h \In Array.shape a f' /\
                 perm_eq (fgraph f) (fgraph f')
-              else h \In Array.shape a f /\ sorted leq (codom f)]) :=
+              else h \In Array.shape a f /\ sorted leq (fgraph f)]) :=
   Do (let go := Fix (fun (loop : bubble_loopT a) '(i, sw) =>
                   Do (sw0 <-- cas_next a i;
                       let sw1 := sw || sw0 in
@@ -135,9 +294,9 @@ apply: [stepE f]=>//= sw0 m [f'][Hm Hsw]; case: decP=>H.
     (* swap didn't happen *)
     rewrite andbT; case=>-> Hf01; apply/(implyb_trans V)/implyP=>Hs.
     rewrite So_lower_eq; move: Hs.
-    rewrite (ffun_split2 f i) -/i0 -/i1 !take_cat size_take size_codom /= card_ord.
-    rewrite !ltnS (leq_eqVlt i) ltn_ord orbT (leqNgt i.+2) (leqNgt i.+3) !ltnS.
-    rewrite leqnSn -(addn2 i) leq_addr /= subSnn -addnBAC // subnn /= take0 cats1=>Hs.
+    rewrite (ffun_split2 f i) -/i0 -/i1 !take_cat size_take_codom.
+    rewrite (leqNgt i.+2) (leqNgt i.+3) !ltnS leqnSn -(addn2 i) leq_addr /=.
+    rewrite subSnn -addnBAC // subnn /= take0 cats1=>Hs.
     rewrite -cat1s catA !cats1 sorted_rconsE; last by apply: leq_trans.
     rewrite Hs andbT all_rcons Hf01 /=.
     move: Hs; rewrite sorted_rconsE; last by apply: leq_trans.
@@ -146,31 +305,31 @@ apply: [stepE f]=>//= sw0 m [f'][Hm Hsw]; case: decP=>H.
   (* swap happened *)
   case=>Hf' Hf; rewrite orbT /=; case=>{v}-> [f''][Hm0 Hf''] Vm0.
   rewrite implybT; split=>//; exists f''; split=>//.
-  apply/perm_trans/Hf''; rewrite (ffun_split2 f i) -/i0 -/i1 Hf' /=.
+  apply/perm_trans/Hf''; rewrite (ffun_split2 f i) -/i0 -/i1 Hf' swap_split2 /=.
   by apply/permEl/perm_catl; rewrite !cat2s -perm_catCA.
 (* i = n *)
 have {}H : nat_of_ord i = n.
 - apply/eqP; rewrite eqn_leq; move: (ltn_ord i); rewrite ltnS=>->/=.
   by move/negP: H; rewrite -leqNgt.
 step=>Vm; split; first by apply/implyP=>->.
-case: sw0 Hsw=>/=; case=>Ef' Hf; last first.
-- (* swap didn't happen on last iteration *)
-  rewrite orbF; case: sw V=>/=.
-  - (* flag was set *)
-    by move=>_; exists f'; split=>//; rewrite Ef'.
-  (* flag wasn't set, so the pass didn't swap anything *)
-  move=>Hs; split; first by rewrite -Ef'.
-  move: Hs; rewrite (ffun_split2 f i) /= So_eq H !take_cat size_take size_codom /= card_ord.
-  rewrite ltnS leqnSn leqNgt ltnS leqnSn /= subSnn /= cats1=>Hs.
-  rewrite [X in drop X _](_ : n.+2 = size (codom f)); last by rewrite size_codom /= card_ord.
-  rewrite drop_size -cat1s catA !cats1 sorted_rconsE; last by apply: leq_trans.
-  rewrite Hs andbT all_rcons Hf /=.
-  move: Hs; rewrite sorted_rconsE; last by apply: leq_trans.
-  by case/andP=>+ _; apply: sub_all=>z Hz; apply/leq_trans/Hf.
-(* swap happened on last iteration *)
-rewrite orbT; exists f'; split=>//.
-rewrite (ffun_split2 f i) -/i0 -/i1 Ef' /=.
-by apply/permEl/perm_catl; rewrite !cat2s -perm_catCA.
+case: sw0 Hsw=>/=; case=>Ef' Hf.
+- (* swap happened on last iteration *)
+  rewrite orbT; exists f'; split=>//.
+  rewrite (ffun_split2 f i) -/i0 -/i1 Ef' swap_split2 /=.
+  by apply/permEl/perm_catl; rewrite !cat2s -perm_catCA.
+(* swap didn't happen on last iteration *)
+rewrite orbF; case: sw V=>/=.
+- (* flag was set *)
+  by move=>_; exists f'; split=>//; rewrite Ef'.
+(* flag wasn't set, so the pass didn't swap anything - the array is sorted *)
+move=>Hs; split; first by rewrite -Ef'.
+move: Hs; rewrite (ffun_split2 f i) /= So_eq H !take_cat size_take size_codom /= card_ord.
+rewrite ltnS leqnSn leqNgt ltnS leqnSn /= subSnn /= cats1=>Hs.
+rewrite [X in drop X _](_ : n.+2 = size (codom f)); last by rewrite size_codom /= card_ord.
+rewrite drop_size -cat1s catA !cats1 sorted_rconsE; last by apply: leq_trans.
+rewrite Hs andbT all_rcons Hf /=.
+move: Hs; rewrite sorted_rconsE; last by apply: leq_trans.
+by case/andP=>+ _; apply: sub_all=>z Hz; apply/leq_trans/Hf.
 Qed.
 Next Obligation.
 move=>a [f][] h /= [E V].
@@ -193,8 +352,175 @@ Program Definition bubble_sort (a : {array 'I_n.+2 -> nat}) :=
   Fix (fun (go : bubble_sortT a) _ =>
        Do (sw <-- bubble_pass a;
            if sw
-             then go tt;; skip  (* hmm *)
-             else ret tt)).
+             then skip;; go tt   (* hmm *)
+             else skip)).
+Next Obligation.
+move=>a go _ [f][] h /= [E V].
+apply: [stepE f]=>//=; case=>m.
+- case=>f' [Hm Hp]; step.
+  apply: [gE f']=>//= _ m2 [f''][H2 Hp' Hs']; exists f''.
+  by split=>//; apply/perm_trans/Hp'.
+by case=>Hm Hs; step=>_; exists f.
+Qed.
+
+(*******************)
+(* optimization #1 *)
+(*******************)
+
+Definition bubble_loop_optT (a : {array 'I_n.+2 -> nat}) (k : 'I_n.+1) :=
+  forall isw : 'I_n.+1 * bool,
+  {f : {ffun 'I_n.+2 -> nat}},
+  STsep (fun h => [/\ h \In Array.shape a f,
+                      allrel leq (take k.+2 (fgraph f)) (drop k.+2 (fgraph f)),
+                      sorted leq (drop k.+2 (fgraph f)),
+                      isw.1 <= k,
+                      (* more detailed property *)
+                      all (leq^~ (f (Wo isw.1))) (take isw.1 (fgraph f)) &
+                      ~~ isw.2 ==> sorted leq (take isw.1 (fgraph f))],
+        [vfun (b : bool) h =>
+          isw.2 ==> b /\
+          if b then
+            exists f',
+              [/\ h \In Array.shape a f',
+                  perm_eq (fgraph f) (fgraph f'),
+                  allrel leq (take k.+1 (fgraph f')) (drop k.+1 (fgraph f')) &
+                  sorted leq (drop k.+1 (fgraph f'))]
+            else h \In Array.shape a f /\ sorted leq (fgraph f)]).
+
+Program Definition bubble_pass_opt (a : {array 'I_n.+2 -> nat}) (k : 'I_n.+1) :
+  {f : {ffun 'I_n.+2 -> nat}},
+  STsep (fun h => [ /\ h \In Array.shape a f /\
+                       allrel leq (take k.+2 (fgraph f)) (drop k.+2 (fgraph f)) &
+                       sorted leq (drop k.+2 (fgraph f)) ],
+          [vfun (b : bool) h =>
+            if b then
+              exists f',
+              [/\ h \In Array.shape a f',
+                  perm_eq (fgraph f) (fgraph f'),
+                  allrel leq (take k.+1 (fgraph f')) (drop k.+1 (fgraph f')) &
+                  sorted leq (drop k.+1 (fgraph f'))]
+              else h \In Array.shape a f /\ sorted leq (fgraph f)]) :=
+  Do (let go := Fix (fun (loop : bubble_loop_optT a k) '(i, sw) =>
+                  Do (sw0 <-- cas_next a i;
+                      let sw1 := sw || sw0 in
+                      if decP (b := i < k) idP is left pf
+                        then loop (So_lower (i:=i) pf, sw1)
+                        else ret sw1))
+      in go (ord0, false)).
+Next Obligation.
+move=>_ k _ _ i _ _ /= E; rewrite E ltnS; symmetry.
+by apply: (leq_trans E); rewrite -ltnS; apply: (ltn_ord k).
+Qed.
+Next Obligation.
+move=>a k loop _ i sw [f][] h /= [Hs Ha He Hik Hia Hi].
+set i0 := Wo i; set i1 := So i.
+apply: [stepE f]=>//= sw0 m [f'][Hm Hsw]; case: decP=>H.
+- (* i < k, recursive call *)
+  apply: [gE f']=>//=.
+  - (* precondition *)
+    rewrite negb_or; case: sw0 Hsw=>/=; case=>Ef H01.
+    - (* swap happened before the call *)
+      have Hf' : drop k.+2 (codom f') = drop k.+2 (codom f).
+      - rewrite Ef swap_split2 drop_cat size_take_codom (leqNgt k.+3).
+        have ->/= : i < k.+3 by apply: (ltn_trans H); rewrite ltnS -addn2 leq_addr.
+        by rewrite -(addn2 k) -addnBAC // addn2 /= drop_drop So_eq !addnS subnK // addn0.
+      rewrite andbF /= Hf'; split=>//.
+      - rewrite (@allrel_in_l _ _ _ _ (take k.+2 (codom f))) // => q.
+        rewrite Ef swap_split2 [in RHS](ffun_split2 f i) -/i0 -/i1 !take_cat size_take_codom (leqNgt k.+3).
+        have ->/= : i < k.+3 by apply: (ltn_trans H); rewrite ltnS -addn2 leq_addr.
+        rewrite -(addn2 k) -addnBAC // addn2 /= subn2 /=.
+        by rewrite !mem_cat !inE; case: eqP=>//=; rewrite !orbT.
+      - by rewrite So_lower_eq.
+      rewrite So_lower_eq Wo_So_lower_eq; rewrite -/i0 -/i1 in Hia *.
+      rewrite Ef swap_split2 -/i0 -/i1 take_cat size_take_codom.
+      rewrite (leqNgt i.+2) ltnS leqnSn /= subSnn /= cats1 all_rcons.
+      suff: (swap i f) i1 = f i0 by move=>->; rewrite Hia andbT; apply: ltnW.
+      by rewrite swapE.
+    (* swap didn't happen before the call *)
+    rewrite andbT Ef in Hm *; split=>//; first by rewrite So_lower_eq.
+    - rewrite So_lower_eq Wo_So_lower_eq (ffun_split2 f i); rewrite -/i0 -/i1 in Hia *.
+      rewrite !take_cat size_take size_codom /= card_ord.
+      rewrite !ltnS (leq_eqVlt i) ltn_ord orbT (leqNgt i.+2) !ltnS.
+      rewrite leqnSn /= subSnn /= cats1 all_rcons H01 /=.
+      by apply/sub_all/Hia=>z Hz; apply/leq_trans/H01.
+    apply/(implyb_trans Hi)/implyP=>Hs1.
+    rewrite So_lower_eq; move: Hs1.
+    rewrite (ffun_split2 f i) -/i0 -/i1 !take_cat size_take size_codom /= card_ord.
+    rewrite !ltnS (leq_eqVlt i) ltn_ord orbT (leqNgt i.+2) !ltnS.
+    rewrite leqnSn /= subSnn ltnn subnn /= cats0 cats1=>Hs2.
+    rewrite sorted_rconsE; last by apply: leq_trans.
+    by rewrite Hs2 andbT.
+  move=>v m0; case: sw0 Hsw=>/=; last by case=>-> Hf; rewrite orbF.
+  (* swap happened *)
+  case=>Hf' Hf; rewrite orbT /=; case=>{v}-> [f''][Hm0 Hf''] Vm0.
+  rewrite implybT; split=>//; exists f''; split=>//.
+  apply/perm_trans/Hf''; rewrite (ffun_split2 f i) -/i0 -/i1 Hf' swap_split2 /=.
+  by apply/permEl/perm_catl; rewrite !cat2s -perm_catCA.
+(* i = k, exit *)
+have {}Hik : nat_of_ord i = k.
+- apply/eqP; rewrite eqn_leq Hik /=.
+  by move/negP: H; rewrite -leqNgt.
+step=>Vm; split; first by apply/implyP=>->.
+case: sw0 Hsw=>/=; case=>Ef' Hf.
+- (* swap happened on last iteration *)
+  rewrite -{H loop k}Hik in Ha He *.
+  rewrite orbT; exists f'; split=>//.
+  - rewrite (ffun_split2 f i) -/i0 -/i1 Ef' swap_split2 /=.
+    by apply/permEl/perm_catl; rewrite !cat2s -perm_catCA.
+  - move: Ha; rewrite (ffun_split2 f i) -/i0 -/i1 take_cat drop_cat size_take size_codom /= card_ord.
+    rewrite So_eq !ltnS (leq_eqVlt i) ltn_ord orbT (leqNgt i.+3) ltnS.
+    rewrite -addn2 leq_addr /= -addnBAC // subnn /= take0 drop0 addn2.
+    rewrite -cat1s catA !cats1 !allrel_rconsl /= -andbA; case/and3P => H1' H2' H3'.
+    rewrite Ef' swap_split2 take_cat drop_cat size_take size_codom /= card_ord.
+    rewrite !ltnS (leq_eqVlt i) ltn_ord orbT (leqNgt i.+2) ltnS leqnSn /= subSnn /= cats1.
+    by rewrite So_eq allrel_rconsl allrel_consr /= (ltnW Hf) /= H1' H3' !andbT.
+  rewrite Ef' swap_split2 drop_cat size_take_codom ltnNge leqnSn /= subSnn /= So_eq.
+  rewrite path_sortedE; last by exact: leq_trans.
+  rewrite He andbT.
+
+
+  rewrite -addn2. -addnBAC; last by apply: ltnW.
+  rewrite addn2 /= drop_drop So_eq !addnS subnK //.
+  by apply: ltnW.
+
+(* swap didn't happen on last iteration *)
+rewrite orbF; case: sw V=>/=.
+- (* flag was set *)
+  by move=>_; exists f'; split=>//; rewrite Ef'.
+(* flag wasn't set, so the pass didn't swap anything - the array is sorted *)
+move=>Hs; split; first by rewrite -Ef'.
+move: Hs; rewrite (ffun_split2 f i) /= So_eq H !take_cat size_take size_codom /= card_ord.
+rewrite ltnS leqnSn leqNgt ltnS leqnSn /= subSnn /= cats1=>Hs.
+rewrite [X in drop X _](_ : n.+2 = size (codom f)); last by rewrite size_codom /= card_ord.
+rewrite drop_size -cat1s catA !cats1 sorted_rconsE; last by apply: leq_trans.
+rewrite Hs andbT all_rcons Hf /=.
+move: Hs; rewrite sorted_rconsE; last by apply: leq_trans.
+by case/andP=>+ _; apply: sub_all=>z Hz; apply/leq_trans/Hf.
+Qed.
+Next Obligation.
+move=>a [f][] h /= [E V].
+apply: [gE f]=>//=; first by split=>//; rewrite (ffun_split2 f ord0) /= take0.
+by move=>v m; case.
+Qed.
+
+Opaque bubble_pass.
+
+Definition bubble_sort_optT (a : {array 'I_n.+2 -> nat}) : Type :=
+  forall (k : nat),
+  {f : {ffun 'I_n.+2 -> nat}},
+  STsep (Array.shape a f,
+        [vfun (_ : unit) h => exists f',
+          [/\ h \In Array.shape a f',
+              perm_eq (fgraph f) (fgraph f') &
+              sorted leq (fgraph f')]]).
+
+Program Definition bubble_sort_opt (a : {array 'I_n.+2 -> nat}) :=
+  Do (let go := Fix (fun (loop : bubble_sortT a) k =>
+                     Do (sw <-- bubble_pass a k;
+                         if sw
+                           then skip;; loop tt k.-1 (* hmm *)
+                           else skip))
+      in go n).
 Next Obligation.
 move=>a go _ [f][] h /= [E V].
 apply: [stepE f]=>//=; case=>m.
@@ -203,3 +529,5 @@ apply: [stepE f]=>//=; case=>m.
   by split=>//; apply/perm_trans/Hp'.
 by case=>Hm Hs; step=>_; exists f.
 Qed.
+
+End bubble.
