@@ -42,6 +42,14 @@ Proof.
 by move=>H; rewrite !allrel_allpairsE; apply/eq_all_r/mem_allpairs_dep.
 Qed.
 
+Lemma allrel_sub_l {S T : eqType} (r : T -> S -> bool) (xs xs' : seq T) (ys : seq S) :
+  {subset xs' <= xs} ->
+  allrel r xs ys -> allrel r xs' ys.
+Proof.
+move=>H Ha; apply/allrelP=>x y Hx Hy.
+by move/allrelP: Ha; apply=>//; apply: H.
+Qed.
+
 Lemma allrel_sub_r {S T : eqType} (r : T -> S -> bool) (xs : seq T) (ys ys' : seq S) :
   {subset ys' <= ys} ->
   allrel r xs ys -> allrel r xs ys'.
