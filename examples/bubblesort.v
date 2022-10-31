@@ -289,6 +289,29 @@ Variable (n : nat).
 (* unoptimized *)
 (***************)
 
+(*****************************************************)
+(* pseudocode in idealized ML-like language,         *)
+(* assuming size a >= 2                              *)
+(*                                                   *)
+(* let cas_next (a : array nat) (i : nat) : bool =   *)
+(*   let prev = array.read a i;                      *)
+(*   let next = array.read a i+1;                    *)
+(*   if next < prev then                             *)
+(*     array.write a  i    next;                     *)
+(*     array.write a (i+1) prev;                     *)
+(*     true                                          *)
+(*   else false                                      *)
+(*                                                   *)
+(* let bubble_pass (a : array nat) : bool =          *)
+(*   let go (i : nat) (sw : bool) : bool =           *)
+(*     let sw1 = sw || cas_next a i;                 *)
+(*     if i < (size a)-2 then go (i+1) sw1 else sw1; *)
+(*   go 0 false                                      *)
+(*                                                   *)
+(* let bubble_sort (a : array nat) : unit =          *)
+(*   if bubble_pass a then bubble_sort a else ().    *)
+(*****************************************************)
+
 Program Definition cas_next (a : {array 'I_n.+2 -> nat}) (i : 'I_n.+1) :
   {f : {ffun 'I_n.+2 -> nat}},
   STsep (Array.shape a f,
@@ -423,6 +446,21 @@ Qed.
 (*******************)
 (* optimization #1 *)
 (*******************)
+
+(**********************************************************)
+(* pseudocode, reusing cas_next:                          *)
+(*                                                        *)
+(* let bubble_pass_opt (a : array nat) (k : nat) : bool = *)
+(*   let go (i : nat) (sw : bool) : bool =                *)
+(*     let sw1 = sw || cas_next a i;                      *)
+(*     if i < k then go (i+1) sw1 else sw1;               *)
+(*   go 0 false                                           *)
+(*                                                        *)
+(* let bubble_sort_opt (a : array nat) : unit =           *)
+(*   let go (k : nat) : unit =                            *)
+(*     if bubble_pass a k then go (k-1) else ();          *)
+(*   go ((size a)-2).                                     *)
+(**********************************************************)
 
 Definition bubble_loop_optT (a : {array 'I_n.+2 -> nat}) (k : 'I_n.+1) :=
   forall isw : 'I_n.+1 * bool,
