@@ -155,28 +155,18 @@ Proof. by case: i prf. Qed.
 Lemma Wo_So_lower_eq n (i : 'I_n) (prf : i.+1 < n) : Wo (So_lower prf) = So i.
 Proof. by case: i prf=>/= m prf0 prf1; apply/ord_inj. Qed.
 
-(* decrease bound by 1 *)
-Definition Po_lower n (i : 'I_n) (pi : i.+1 < n) : 'I_n.-1.
+(* subtract 2 and decrease bound by 1 *)
+Definition Po_lower2 n (i : 'I_n) (pi : 1 < i) : 'I_n.-1.
 Proof.
 case: i pi=>m prf /= Hm.
-apply: (Ordinal (n:=n.-1) (m:=m)).
-by rewrite ltn_predRL.
+apply: (Ordinal (n:=n.-1) (m:=m.-2)).
+rewrite ltn_predRL; case: m prf Hm=>//=; case=>//= m Hm _.
+by apply: ltnW.
 Defined.
 
-Lemma Po_lower_eq n (i : 'I_n) (prf : i.+1 < n) : nat_of_ord (Po_lower prf) = i.
+Lemma Po_lower_eq2 n (i : 'I_n) (prf : 1 < i) : nat_of_ord (Po_lower2 prf) = i.-2.
 Proof. by case: i prf. Qed.
-(*
-(* decrease bound by 1 *)
-Definition Po_lower n (i : 'I_n) (pi : 0 < i) : 'I_n.-1.
-Proof.
-case: i pi=>m prf /= Hm.
-apply: (Ordinal (n:=n.-1) (m:=m.-1)).
-by rewrite ltn_predRL prednK.
-Defined.
 
-Lemma Po_lower_eq n (i : 'I_n) (prf : 0 < i) : nat_of_ord (Po_lower prf) = i.-1.
-Proof. by case: i prf. Qed.
-*)
 Section CodomWS.
 Variable (n : nat).
 
@@ -687,7 +677,7 @@ Qed.
 (* let bubble_sort_opt2 (a : array nat) : unit =          *)
 (*   let go (k : nat) : unit =                            *)
 (*     let k1 = bubble_pass_opt2 a k;                     *)
-(*     if 1 < k1 then go (k1-1) else ();                  *)
+(*     if 1 < k1 then go (k1-2) else ();                  *)
 (*   go ((size a)-2).                                     *)
 (**********************************************************)
 
@@ -699,7 +689,6 @@ Definition bubble_loop_opt2T (a : {array 'I_n.+2 -> nat}) (k : 'I_n.+1) :=
                       sorted leq (drop k.+2 (fgraph f)),
                       ils.2 <= ils.1,
                       ils.1 <= k,
-                      (* ? *)
                       allrel leq (take ils.2 (fgraph f)) (drop ils.2 (take ils.1.+1 (codom f)))&
                       sorted leq (drop ils.2 (take ils.1.+1 (fgraph f)))],
         [vfun (j : 'I_n.+2) h =>
@@ -890,13 +879,9 @@ Program Definition bubble_sort_opt2 (a : {array 'I_n.+2 -> nat}) :
   Do (let go := Fix (fun (loop : bubble_sort_opt2T a) k =>
                      Do (k1 <-- bubble_pass_opt2 a k;
                          if decP (b := 1 < k1) idP is left pf
-                           then skip;; loop (Po_lower (i:=k1) pf) (* hmm *)
+                           then skip;; loop (Po_lower2 (i:=k1) pf) (* hmm *)
                            else skip))
       in go ord_max).
-Next Obligation.
-move=>_ _ _ k1 E _; rewrite E; symmetry.
-by apply/ltn_trans/E.
-Qed.
 Next Obligation.
 move=>a go k [f][] h /= [H Ha Hs].
 apply: [stepE f]=>{Ha Hs}//= x m [Hxk][p][Hm Hx].
@@ -914,33 +899,8 @@ rewrite Hx0 in Hx.
 step; apply: [gE (pffun p f)]=>//=; last first.
 - move=> _ m2 [p'][H2 Hs'] _; exists (p' * p)%g.
   by rewrite pffunEM.
-move: (Po_lower_eq (eq_rect (1 < x) (eq^~ true) Ex (0 < x) (bubble_sort_opt2_obligation_1 Ex)))=>->.
-rewrite prednK //; split=>//.
-- rewrite take_codom_rcons.
-
-case: (posnP x). by move=>Ex'; rewrite Ex' in Hx0.
-case: {Ex}x Hx0 Hx.
-
-move: (Po_lower_eq).
-
-
-case: (0 < x). case=>m; last first.
-- case=>p [Hm /andP [/eqP Ep Hsm]]; rewrite {p}Ep in Hm.
-  by step=>_; exists 1%g; split=>//; rewrite pffunE1.
-case=>p [Hm /andP [Ham Hsm]]; step.
-apply: [gE (pffun p f)]=>//=; last first.
-- move=> _ m2 [p'][H2 Hs'] _; exists (p' * p)%g.
-  by rewrite pffunEM.
-rewrite Po_eq; split=>//; last first.
-- case: (posnP k)=>Hk; last by rewrite (prednK Hk).
-  move: Hsm; rewrite Hk /= (ffun_split2 (pffun p f) ord0) /= take0 /= drop0.
-  rewrite path_sortedE; last by exact: leq_trans.
-  by case/andP.
-case: (posnP k)=>Hk; last by rewrite (prednK Hk).
-move: Ham Hsm; rewrite Hk /= (ffun_split2 (pffun p f) ord0) /= take0 /= take0 drop0.
-rewrite allrel1l /=; case/andP=>H1 H2.
-rewrite allrel_consl allrel1l H2 /= path_sortedE; last by exact: leq_trans.
-by case/andP.
+move: (Po_lower_eq2 Ex)=>->.
+by case: (nat_of_ord x) Ex Hx=>//; case=>//= y _; case/andP.
 Qed.
 Next Obligation.
 move=>a [f][] h /= [E V].
@@ -949,4 +909,3 @@ by apply: [gE f]=>//=; split=>//; rewrite drop_oversize // allrel0r.
 Qed.
 
 End Bubble.
-
