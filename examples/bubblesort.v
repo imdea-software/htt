@@ -22,6 +22,9 @@ Proof. by []. Qed.
 Lemma ord_indx n (i : 'I_n) : heap.indx i = i.
 Proof. by exact: index_enum_ord. Qed.
 
+Lemma sorted1 {T: Type} (r : rel T) xs : size xs == 1 -> sorted r xs.
+Proof. by case: xs=>// x; case. Qed.
+
 Section FindLast.
 
 Variables (T : Type).
@@ -309,10 +312,10 @@ Qed.
 
 End SwapNext.
 
-Opaque Array.write Array.read.
-
 Section Bubble.
 Variable (n : nat).
+
+Opaque Array.write Array.read.
 
 (* TODO ordType! *)
 
@@ -415,9 +418,8 @@ apply: [stepE f]=>//= sw0 m [p][Hm Hsw]; case: decP=>Hin.
     rewrite andbT; case=>{p Hm}-> Hf; rewrite pffunE1.
     apply/(implyb_trans V)/implyP.
     rewrite So_lower_eq take_codom_rcons take_codom_rcons2 => H.
-    rewrite sorted_rconsE; last by apply: leq_trans.
-    rewrite H andbT all_rcons Hf /=.
-    move: H; rewrite sorted_rconsE; last by apply: leq_trans.
+    rewrite (sorted_rconsE _ _ leq_trans) H andbT all_rcons Hf /=.
+    move: H; rewrite (sorted_rconsE _ _  leq_trans).
     by case/andP=>+ _; apply/sub_all=>z Hz; apply/leq_trans/Hf.
   move=>v m0; case: sw0 Hsw=>/=; last by case=>-> _; rewrite orbF pffunE1.
   (* swap happened *)
@@ -438,15 +440,14 @@ rewrite orbF; case: sw V=>/=; first by move=>_; exists p.
 move=>Hs; exists p; split=>//; rewrite Ep eqxx /=.
 rewrite -(take_size (codom f)) size_codom /= card_ord -[X in take X.+2 _]Hin.
 rewrite take_codom_rcons in Hs.
-rewrite take_codom_rcons2 sorted_rconsE; try by apply: leq_trans.
-rewrite Hs andbT all_rcons Hf /=.
-move: Hs; rewrite sorted_rconsE; last by apply: leq_trans.
+rewrite take_codom_rcons2 (sorted_rconsE _ _ leq_trans) Hs andbT all_rcons Hf /=.
+move: Hs; rewrite (sorted_rconsE _ _ leq_trans).
 by case/andP=>+ _; apply/sub_all=>z Hz; apply/leq_trans/Hf.
 Qed.
 Next Obligation.
 move=>a [f][] h /= H.
 apply: [gE f]=>//=; last by move=>v m [].
-by split=>//; rewrite (ffun_split2 f ord0) /= take0.
+by split=>//; apply: sorted1; rewrite size_take size_codom card_ord.
 Qed.
 
 Opaque bubble_pass.
@@ -560,7 +561,7 @@ apply: [stepE f]=>//= sw0 m [p][Hm Hsw]; case: decP=>H.
     - rewrite take_codom_rcons all_rcons Hf /=.
       by apply/sub_all/Hia=>z Hz; apply/leq_trans/Hf.
     apply/(implyb_trans Hi)/implyP.
-    rewrite take_codom_rcons sorted_rconsE; last by apply: leq_trans.
+    rewrite take_codom_rcons (sorted_rconsE _ _ leq_trans).
     by move=>->; rewrite andbT.
   move=>v m0; case: sw0 Hsw=>/= [_|[-> _]]; last by rewrite orbF pffunE1.
   (* swap happened *)
@@ -578,8 +579,8 @@ case: sw0 Hsw=>/=; case=>Ep Hf.
   - rewrite take_swap_rcons drop_swap_cons allrel_rconsl allrel_consr /=.
     move: Ha; rewrite take_codom_rcons2 !allrel_rconsl -/i0 -/i1 -andbA.
     by case/and3P=>-> _ ->; rewrite (ltnW Hf) /= !andbT.
-  rewrite drop_swap_cons /= path_sortedE; last by exact: leq_trans.
-  rewrite He andbT; apply/allP=>z Hz; move/allrelP: Ha; apply=>//.
+  rewrite drop_swap_cons /= (path_sortedE leq_trans) He andbT.
+  apply/allP=>z Hz; move/allrelP: Ha; apply=>//.
   by rewrite take_codom_rcons2 4!(mem_rcons, inE) eqxx /= orbT.
 (* swap didn't happen on last iteration *)
 rewrite orbF; case: sw Hi=>/=.
@@ -590,14 +591,12 @@ rewrite orbF; case: sw Hi=>/=.
     move: Ha; rewrite take_codom_rcons2 !allrel_rconsl -andbA -/i0 -/i1.
     case/and3P=>->-> _; rewrite Hf /= !andbT.
     by apply/sub_all/Hia=>z Hz; apply/leq_trans/Hf.
-  rewrite drop_codom_cons /= path_sortedE; last by exact: leq_trans.
-  rewrite He andbT.
+  rewrite drop_codom_cons /= (path_sortedE leq_trans) He andbT.
   by move: Ha; rewrite take_codom_rcons2 !allrel_rconsl -andbA; case/and3P.
 (* flag wasn't set, so the pass didn't swap anything - the array is sorted *)
 move=>Hs2; rewrite {p}Ep in Hm; exists 1%g; rewrite pffunE1 in Hm *; split=>//.
 rewrite eqxx /= (ffun_split2 f i) -/i0 -/i1 /=; rewrite Hik in Hia Hs2 *.
-rewrite sorted_pairwise; last by exact: leq_trans.
-rewrite pairwise_cat /= -!sorted_pairwise; try by exact: leq_trans.
+rewrite (sorted_pairwise leq_trans) pairwise_cat /= -!(sorted_pairwise leq_trans).
 rewrite Hf He Hs2 /= andbT !allrel_consr -!andbA Hia /=.
 move: Ha; rewrite -Hik take_codom_rcons2 !allrel_rconsl -andbA; case/and3P=>H1 H2 H3.
 apply/and4P; split=>//.
@@ -647,12 +646,12 @@ apply: [gE (pffun p f)]=>//=; last first.
 rewrite Po_eq; split=>//; last first.
 - case: (posnP k)=>Hk; last by rewrite (prednK Hk).
   move: Hsm; rewrite Hk /= (ffun_split2 (pffun p f) ord0) /= take0 /= drop0.
-  rewrite path_sortedE; last by exact: leq_trans.
+  rewrite (path_sortedE leq_trans).
   by case/andP.
 case: (posnP k)=>Hk; last by rewrite (prednK Hk).
 move: Ham Hsm; rewrite Hk /= (ffun_split2 (pffun p f) ord0) /= take0 /= take0 drop0.
 rewrite allrel1l /=; case/andP=>H1 H2.
-rewrite allrel_consl allrel1l H2 /= path_sortedE; last by exact: leq_trans.
+rewrite allrel_consl allrel1l H2 /= (path_sortedE leq_trans).
 by case/andP.
 Qed.
 Next Obligation.
@@ -694,11 +693,9 @@ Definition bubble_loop_opt2T (a : {array 'I_n.+2 -> nat}) (k : 'I_n.+1) :=
           ils.2 <= j /\
           exists (p : 'S_n.+2),
             let f' := pffun p f in
-            h \In Array.shape a f' /\
-            if 0 < j then
-              allrel leq (take j (fgraph f')) (drop j (fgraph f')) &&
-              sorted leq (drop j (fgraph f'))
-            else (p == 1%g) && sorted leq (fgraph f)]).
+            [/\ h \In Array.shape a f',
+                allrel leq (take j (fgraph f')) (drop j (fgraph f')) &
+                sorted leq (drop j (fgraph f'))]]).
 
 Program Definition bubble_pass_opt2 (a : {array 'I_n.+2 -> nat}) (k : 'I_n.+1) :
   {f : {ffun 'I_n.+2 -> nat}},
@@ -708,11 +705,9 @@ Program Definition bubble_pass_opt2 (a : {array 'I_n.+2 -> nat}) (k : 'I_n.+1) :
           [vfun (j : 'I_n.+2) h =>
             exists (p : 'S_n.+2),
               let f' := pffun p f in
-              h \In Array.shape a f' /\
-              if 0 < j then
-                allrel leq (take j (fgraph f')) (drop j (fgraph f')) &&
-                sorted leq (drop j (fgraph f'))
-            else (p == 1%g) && sorted leq (fgraph f)]) :=
+              [/\ h \In Array.shape a f',
+                  allrel leq (take j (fgraph f')) (drop j (fgraph f')) &
+                  sorted leq (drop j (fgraph f'))]]) :=
   Do (let go := Fix (fun (loop : bubble_loop_opt2T a k) '(i, ls) =>
                   Do (sw <-- cas_next a i;
                       let ls1 := if sw then (So i) else ls in
@@ -748,7 +743,7 @@ apply: [stepE f]=>//= sw m [p][Hm Hsw]; case: decP=>H.
       - by rewrite ltnS leqnn.
       rewrite allrel1r take_swap_rcons all_rcons (ltnW Hf) /=.
       move: Hls; rewrite take_codom_rcons drop_rcons; last by rewrite size_take_codom.
-      rewrite sorted_rconsE; last by exact: leq_trans.
+      rewrite (sorted_rconsE _ _ leq_trans).
       case/andP=>Ha1 Hs1; rewrite -(cat_take_drop ls (take i (codom f))) all_cat Ha1 andbT.
       rewrite take_take //.
       apply/sub_all/Hia=>z /= /allP; apply.
@@ -765,18 +760,16 @@ apply: [stepE f]=>//= sw m [p][Hm Hsw]; case: decP=>H.
       rewrite take_codom_rcons drop_rcons; last by rewrite size_take_codom.
       by rewrite mem_rcons inE eqxx.
     rewrite take_codom_rcons2 drop_rcons; last by rewrite size_rcons size_take_codom; apply: ltnW.
-    rewrite sorted_rconsE; last by exact: leq_trans.
-    rewrite -{2}take_codom_rcons Hls andbT.
+    rewrite (sorted_rconsE _ _ leq_trans) -{2}take_codom_rcons Hls andbT.
     rewrite drop_rcons; last by rewrite size_take_codom.
     rewrite all_rcons Hf /=.
     move: Hls; rewrite take_codom_rcons drop_rcons; last by rewrite size_take_codom.
-    rewrite sorted_rconsE; last by exact: leq_trans.
+    rewrite (sorted_rconsE _ _ leq_trans).
     by case/andP=>+ _; apply/sub_all=>z Hz; apply/leq_trans/Hf.
   move=>j m0; case: sw Hsw=>/= [_|[-> _]]; last by rewrite pffunE1.
   (* swap happened *)
-  case=>Hji [p'][Hm0].
-  have->/= : 0 < j by apply/leq_trans/Hji; rewrite lt0n So_eq.
-  move=>H' _; split; first by apply/leq_trans/Hji; rewrite So_eq; apply: ltnW.
+  case=>Hji [p'][Hm0 Ha' Hs'] _.
+  split; first by apply/leq_trans/Hji; rewrite So_eq; apply: ltnW.
   by exists (p' * p)%g; rewrite pffunEM.
 (* i = k, exit *)
 have {H}Hik : nat_of_ord i = k.
@@ -786,14 +779,13 @@ step=>Vm; case: sw Hsw=>/=; case=>Ep Hf.
 - (* swap happened on last iteration *)
   rewrite -{loop k}Hik in Ha He *; rewrite So_eq; split=>/=.
   - by apply: ltnW.
-  exists p; split=>//; rewrite Ep; apply/andP; split.
+  exists p; rewrite Ep in Hm *; split=>//.
   - rewrite take_swap_rcons drop_swap_cons allrel_rconsl allrel_consr /=.
     move: Ha; rewrite take_codom_rcons2 !allrel_rconsl -/i0 -/i1 -andbA.
     case/and3P=>-> _ ->; rewrite (ltnW Hf) /= !andbT.
     rewrite -(cat_take_drop ls (take i (codom f))) all_cat take_take //.
     move: Hls; rewrite take_codom_rcons drop_rcons; last by rewrite size_take_codom.
-    rewrite sorted_rconsE; last by exact: leq_trans.
-    case/andP=>-> ?; rewrite andbT.
+    rewrite (sorted_rconsE _ _ leq_trans); case/andP=>-> _; rewrite andbT.
     apply/sub_all/Hia=>z /= /allP; apply.
     rewrite take_codom_rcons drop_rcons; last by rewrite size_take_codom.
     by rewrite mem_rcons inE eqxx.
@@ -803,45 +795,39 @@ step=>Vm; case: sw Hsw=>/=; case=>Ep Hf.
 (* swap didn't happen on last iteration *)
 split=>//; case: (posnP ls); last first.
 - (* swap happened previously *)
-  move=>Nls; exists p; split=>//; rewrite Ep pffunE1.
+  move=>Nls; exists p=>/=; rewrite Ep pffunE1 in Hm *.
   rewrite -{k loop}Hik in Ha He *.
   have El2 : ls <= i.+2 by apply/ltnW/ltnW.
-  set q := i.+2 - ls.
-  have E1 : i.+2 = ls + q by rewrite subnKC.
-  have E2 : nat_of_ord ls = i.+2 - q by rewrite subnA // subnn.
-  (* TODO streamline *)
-  apply/andP; split; last first.
-  - rewrite -(cat_take_drop q (drop ls (codom f))) drop_drop addnC -E1.
-    rewrite sorted_pairwise; last by exact: leq_trans.
-    rewrite pairwise_cat -!sorted_pairwise; try by exact: leq_trans.
-    rewrite He andbT take_drop addnC -E1.
-    apply/andP; split.
-    - apply/allrel_sub_l/Ha=>z Hz.
-      by rewrite -{1}(cat_take_drop ls ((take i.+2 (codom f)))) mem_cat Hz orbT.
-    rewrite take_codom_rcons2 drop_rcons; last by rewrite size_rcons size_take_codom; apply: ltnW.
-    rewrite sorted_rconsE; last by exact: leq_trans.
-    rewrite -{2}take_codom_rcons Hls andbT.
-    rewrite drop_rcons; last by rewrite size_take_codom.
-    rewrite all_rcons Hf /=.
-    move: Hls; rewrite take_codom_rcons drop_rcons; last by rewrite size_take_codom.
-    rewrite sorted_rconsE; last by exact: leq_trans.
-    by case/andP=>+ _; apply/sub_all=>z Hz; apply/leq_trans/Hf.
-  rewrite -{2}(cat_take_drop i.+1 (codom f)) drop_cat size_take size_codom card_ord ltnS ltn_ord ltnS Hils.
-  rewrite allrel_catr Hia /=.
-  rewrite drop_codom_cons allrel_consr; apply/andP; split.
-  - suff: all (leq^~ (f (Wo i))) (take ls (codom f)).
-    - by apply/sub_all=>z Hz; apply/leq_trans/Hf.
-    apply/sub_all/Hia=>z /allP; apply.
-    rewrite take_codom_rcons drop_rcons; last by rewrite size_take_codom.
-    by rewrite mem_rcons inE eqxx.
-  apply/allrel_sub_l/Ha=>z Hz.
-  by rewrite -(cat_take_drop ls (take i.+2 (codom f))) take_take // mem_cat Hz.
-move=>Els; exists 1%g; rewrite {p}Ep in Hm; rewrite pffunE1 in Hm *; split=>//.
-rewrite eqxx /= (ffun_split2 f i) -/i0 -/i1 /=; rewrite Hik Els drop0 in Hls *.
-rewrite sorted_pairwise; last by exact: leq_trans.
-rewrite pairwise_cat /= -!sorted_pairwise; try by exact: leq_trans.
-rewrite Hf He !allrel_consr -!andbA andbT.
-move: Hls; rewrite -Hik take_codom_rcons sorted_rconsE; last by exact: leq_trans.
+  set q := i.+2 - ls; have E1 : i.+2 = ls + q by rewrite subnKC.
+  split=>//.
+  - rewrite -{2}(cat_take_drop i.+1 (codom f)) drop_cat size_take size_codom card_ord ltnS ltn_ord ltnS Hils.
+    rewrite allrel_catr Hia /=.
+    rewrite drop_codom_cons allrel_consr; apply/andP; split.
+    - suff: all (leq^~ (f (Wo i))) (take ls (codom f)).
+      - by apply/sub_all=>z Hz; apply/leq_trans/Hf.
+      apply/sub_all/Hia=>z /allP; apply.
+      rewrite take_codom_rcons drop_rcons; last by rewrite size_take_codom.
+      by rewrite mem_rcons inE eqxx.
+    apply/allrel_sub_l/Ha=>z Hz.
+    by rewrite -(cat_take_drop ls (take i.+2 (codom f))) take_take // mem_cat Hz.
+  rewrite -(cat_take_drop q (drop ls (codom f))) drop_drop addnC -E1.
+  rewrite (sorted_pairwise leq_trans) pairwise_cat -!(sorted_pairwise leq_trans).
+  rewrite He andbT take_drop addnC -E1; apply/andP; split.
+  - apply/allrel_sub_l/Ha=>z Hz.
+    by rewrite -{1}(cat_take_drop ls ((take i.+2 (codom f)))) mem_cat Hz orbT.
+  rewrite take_codom_rcons2 drop_rcons; last by rewrite size_rcons size_take_codom; apply: ltnW.
+  rewrite (sorted_rconsE _ _ leq_trans) -{2}take_codom_rcons Hls andbT.
+  rewrite drop_rcons; last by rewrite size_take_codom.
+  rewrite all_rcons Hf /=.
+  move: Hls; rewrite take_codom_rcons drop_rcons; last by rewrite size_take_codom.
+  rewrite (sorted_rconsE _ _ leq_trans).
+  by case/andP=>+ _; apply/sub_all=>z Hz; apply/leq_trans/Hf.
+move=>Els; exists 1%g; rewrite {p}Ep in Hm; rewrite pffunE1 /= in Hm *.
+rewrite  Els !take0 !drop0 in Hls *; rewrite allrel0l; split=>//.
+rewrite (ffun_split2 f i) -/i0 -/i1 /=; rewrite Hik in Hls *.
+rewrite (sorted_pairwise leq_trans) pairwise_cat /= -!(sorted_pairwise leq_trans).
+rewrite Hf He !allrel_consr -!andbA /= andbT.
+move: Hls; rewrite -Hik take_codom_rcons (sorted_rconsE _ _ leq_trans).
 case/andP=>Ha' -> /=.
 move: Ha; rewrite -Hik take_codom_rcons2 !allrel_rconsl -andbA; case/and3P=>H1 H2 H3.
 apply/and5P; split=>//.
@@ -851,7 +837,7 @@ Next Obligation.
 move=>a k [f][] h /= [H Ha Hs].
 apply: [gE f]=>//=; last by move=>v m [].
 rewrite take0 drop0 allrel0l; split=>//.
-by rewrite (ffun_split2 f ord0) /= take0.
+by apply: sorted1; rewrite size_take size_codom card_ord.
 Qed.
 
 Opaque bubble_pass_opt2.
@@ -882,23 +868,20 @@ Program Definition bubble_sort_opt2 (a : {array 'I_n.+2 -> nat}) :
       in go ord_max).
 Next Obligation.
 move=>a go k [f][] h /= [H Ha Hs].
-apply: [stepE f]=>{Ha Hs}//= x m [p][Hm Hx].
-case: decP=>Ex; last first.
+apply: [stepE f]=>{Ha Hs}//= x m [p][Hm Ha Hs].
+case: decP=>Hx; last first.
 - step=>Vm; exists p; split=>//.
-  move/negP: Ex; rewrite -leqNgt; case: (posnP x).
-  - move=>Ex _; move: Hx; rewrite Ex ltnn.
-    by case/andP=>/eqP->; rewrite pffunE1.
-  case: (nat_of_ord x) Hx=>//; case=>//=; case/andP=>Ha1 Hs1 _ _.
-  rewrite -(cat_take_drop 1 (codom (pffun p f))) sorted_pairwise; last by exact: leq_trans.
-  rewrite pairwise_cat -!sorted_pairwise; try by exact: leq_trans.
-  by rewrite Ha1 Hs1 /= andbT (ffun_split2 (pffun p f) ord0) /= take0.
-have Hx0 : (0 < x) by apply/ltn_trans/Ex.
-rewrite Hx0 in Hx.
+  move/negP: Hx; rewrite -leqNgt; case: (posnP x).
+  - by move=>Hx _; rewrite Hx drop0 in Hs.
+  case: (nat_of_ord x) Ha Hs=>//; case=>//= Ha1 Hs1 _ _.
+  rewrite -(cat_take_drop 1 (codom (pffun p f))).
+  rewrite (sorted_pairwise leq_trans) pairwise_cat -!(sorted_pairwise leq_trans).
+  by rewrite Ha1 Hs1 /= andbT; apply: sorted1; rewrite size_take size_codom card_ord.
 step; apply: [gE (pffun p f)]=>//=; last first.
 - move=> _ m2 [p'][H2 Hs'] _; exists (p' * p)%g.
   by rewrite pffunEM.
-move: (Po_lower_eq2 Ex)=>->.
-by case: (nat_of_ord x) Ex Hx=>//; case=>//= y _; case/andP.
+rewrite (Po_lower_eq2 Hx); suff: x.-2.+2 = x by move=>->.
+by rewrite -subn2 -addn2 addnBAC // addnK.
 Qed.
 Next Obligation.
 move=>a [f][] h /= [E V].
