@@ -687,12 +687,11 @@ Definition bubble_loop_opt2T (a : {array 'I_n.+2 -> nat}) (k : 'I_n.+1) :=
   STsep (fun h => [/\ h \In Array.shape a f,
                       allrel leq (take k.+2 (fgraph f)) (drop k.+2 (fgraph f)),
                       sorted leq (drop k.+2 (fgraph f)),
-                      ils.2 <= ils.1,
-                      ils.1 <= k,
+                      ils.2 <= ils.1 <= k,
                       allrel leq (take ils.2 (fgraph f)) (drop ils.2 (take ils.1.+1 (codom f)))&
                       sorted leq (drop ils.2 (take ils.1.+1 (fgraph f)))],
         [vfun (j : 'I_n.+2) h =>
-          ils.2 <= j < k.+2 /\
+          ils.2 <= j /\
           exists (p : 'S_n.+2),
             let f' := pffun p f in
             h \In Array.shape a f' /\
@@ -707,7 +706,6 @@ Program Definition bubble_pass_opt2 (a : {array 'I_n.+2 -> nat}) (k : 'I_n.+1) :
                        allrel leq (take k.+2 (fgraph f)) (drop k.+2 (fgraph f)) &
                        sorted leq (drop k.+2 (fgraph f)) ],
           [vfun (j : 'I_n.+2) h =>
-            j < k.+2 /\
             exists (p : 'S_n.+2),
               let f' := pffun p f in
               h \In Array.shape a f' /\
@@ -728,7 +726,7 @@ move=>_ k _ _ i _ _ /= E; rewrite E ltnS; symmetry.
 by apply: (leq_trans E); rewrite -ltnS; apply: ltn_ord.
 Qed.
 Next Obligation.
-move=>a k loop _ i ls [f][] h /= [Hs Ha He Hils Hik Hia Hls].
+move=>a k loop _ i ls [f][] h /= [Hs Ha He /andP [Hils Hik] Hia Hls].
 set i0 := Wo i; set i1 := So i.
 apply: [stepE f]=>//= sw m [p][Hm Hsw]; case: decP=>H.
 - (* i < k, recursive call *)
@@ -747,6 +745,7 @@ apply: [stepE f]=>//= sw m [p][Hm Hsw]; case: decP=>H.
       split=>//.
       - rewrite (@allrel_in_l _ _ _ _ (take k.+2 (codom f))) //.
         by apply/perm_mem; rewrite perm_sym; apply: perm_take_swap_gt.
+      - by rewrite ltnS leqnn.
       rewrite allrel1r take_swap_rcons all_rcons (ltnW Hf) /=.
       move: Hls; rewrite take_codom_rcons drop_rcons; last by rewrite size_take_codom.
       rewrite sorted_rconsE; last by exact: leq_trans.
@@ -757,7 +756,7 @@ apply: [stepE f]=>//= sw m [p][Hm Hsw]; case: decP=>H.
       by rewrite mem_rcons inE eqxx.
     (* swap didn't happen before the call *)
     split=>//.
-    - by apply: ltnW.
+    - by apply/andP; split=>//; apply: ltnW.
     - rewrite take_codom_rcons2 drop_rcons; last by rewrite size_rcons size_take_codom; apply: ltnW.
       rewrite -take_codom_rcons allrel_rconsr Hia /=.
       suff: all (leq^~ (f (Wo i))) (take ls (codom f)).
@@ -775,9 +774,9 @@ apply: [stepE f]=>//= sw m [p][Hm Hsw]; case: decP=>H.
     by case/andP=>+ _; apply/sub_all=>z Hz; apply/leq_trans/Hf.
   move=>j m0; case: sw Hsw=>/= [_|[-> _]]; last by rewrite pffunE1.
   (* swap happened *)
-  case=>/andP [Hji Hjk] [p'][Hm0].
+  case=>Hji [p'][Hm0].
   have->/= : 0 < j by apply/leq_trans/Hji; rewrite lt0n So_eq.
-  move=>H' _; split; first by rewrite Hjk andbT; apply/leq_trans/Hji; rewrite So_eq; apply: ltnW.
+  move=>H' _; split; first by apply/leq_trans/Hji; rewrite So_eq; apply: ltnW.
   by exists (p' * p)%g; rewrite pffunEM.
 (* i = k, exit *)
 have {H}Hik : nat_of_ord i = k.
@@ -786,7 +785,7 @@ have {H}Hik : nat_of_ord i = k.
 step=>Vm; case: sw Hsw=>/=; case=>Ep Hf.
 - (* swap happened on last iteration *)
   rewrite -{loop k}Hik in Ha He *; rewrite So_eq; split=>/=.
-  - by rewrite ltnS leqnn andbT; apply: ltnW.
+  - by apply: ltnW.
   exists p; split=>//; rewrite Ep; apply/andP; split.
   - rewrite take_swap_rcons drop_swap_cons allrel_rconsl allrel_consr /=.
     move: Ha; rewrite take_codom_rcons2 !allrel_rconsl -/i0 -/i1 -andbA.
@@ -802,8 +801,7 @@ step=>Vm; case: sw Hsw=>/=; case=>Ep Hf.
   rewrite He andbT; apply/allP=>z Hz; move/allrelP: Ha; apply=>//.
   by rewrite take_codom_rcons2 4!(mem_rcons, inE) eqxx /= orbT.
 (* swap didn't happen on last iteration *)
-split; first by rewrite leqnn /= -Hik ltnS; apply: ltnW.
-case: (posnP ls); last first.
+split=>//; case: (posnP ls); last first.
 - (* swap happened previously *)
   move=>Nls; exists p; split=>//; rewrite Ep pffunE1.
   rewrite -{k loop}Hik in Ha He *.
@@ -851,7 +849,7 @@ by apply/sub_all/Ha'=>z Hz; apply/leq_trans/Hf.
 Qed.
 Next Obligation.
 move=>a k [f][] h /= [H Ha Hs].
-apply: [gE f]=>//=.
+apply: [gE f]=>//=; last by move=>v m [].
 rewrite take0 drop0 allrel0l; split=>//.
 by rewrite (ffun_split2 f ord0) /= take0.
 Qed.
@@ -884,7 +882,7 @@ Program Definition bubble_sort_opt2 (a : {array 'I_n.+2 -> nat}) :
       in go ord_max).
 Next Obligation.
 move=>a go k [f][] h /= [H Ha Hs].
-apply: [stepE f]=>{Ha Hs}//= x m [Hxk][p][Hm Hx].
+apply: [stepE f]=>{Ha Hs}//= x m [p][Hm Hx].
 case: decP=>Ex; last first.
 - step=>Vm; exists p; split=>//.
   move/negP: Ex; rewrite -leqNgt; case: (posnP x).
