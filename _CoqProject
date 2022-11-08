@@ -1,6 +1,7 @@
 -Q . HTT
 -arg "-w -notation-overridden,-local-declaration,-redundant-canonical-projection,-projection-no-head-constant"
 
+options.v
 core/interlude.v
 core/domain.v
 core/model.v
