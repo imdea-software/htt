@@ -9,6 +9,7 @@ examples/exploit.v
 examples/gcd.v
 examples/llist.v
 examples/array.v
+examples/bubblesort.v
 examples/stack.v
 examples/dlist.v
 examples/queue.v
