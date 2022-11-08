@@ -5,122 +5,7 @@ From fcsl Require Import pcm unionmap heap.
 From HTT Require Import interlude model heapauto.
 From HTT Require Import array.
 
-Lemma allrel_rconsl (T S : Type) (r : T -> S -> bool)
-                    x xs ys : allrel r (rcons xs x) ys = allrel r xs ys && all (r x) ys.
-Proof. by rewrite -cats1 allrel_catl allrel1l. Qed.
-
-Lemma allrel_rconsr (T S : Type) (r : T -> S -> bool)
-                    y xs ys : allrel r xs (rcons ys y) = allrel r xs ys && all (r^~ y) xs.
-Proof. by rewrite -cats1 allrel_catr allrel1r. Qed.
-
-Lemma implyb_trans a b c : a ==> b -> b ==> c -> a ==> c.
-Proof. by case: a=>//=->. Qed.
-
-Lemma cat2s {T} (a b : T) xs : [:: a, b & xs] = [::a] ++ [::b] ++ xs.
-Proof. by []. Qed.
-
-Lemma ord_indx n (i : 'I_n) : heap.indx i = i.
-Proof. by exact: index_enum_ord. Qed.
-
-Lemma sorted1 {T: Type} (r : rel T) xs : size xs == 1 -> sorted r xs.
-Proof. by case: xs=>// x; case. Qed.
-
-Section FindLast.
-
-Variables (T : Type).
-Implicit Types (x : T) (p : pred T) (s : seq T).
-
-Definition find_last p s :=
-  let i := seq.find p (rev s) in
-  if i == size s then size s else (size s - i).-1.
-
-Lemma find_last_size p s : find_last p s <= size s.
-Proof.
-rewrite /find_last; case: ifP=>// _.
-by rewrite -subnS; apply: leq_subr.
-Qed.
-
-Lemma has_find_last p s : has p s = (find_last p s < size s).
-Proof.
-rewrite /find_last -has_rev has_find -(size_rev s); case: ltngtP=>/=.
-- move=>H; case/posnP: (size (rev s))=>[/eqP/nilP|] E.
-  - by rewrite E /= in H.
-  by rewrite -subnS ltn_subrL E.
-- by rewrite ltnNge find_size.
-by rewrite ltnn.
-Qed.
-
-Lemma hasNfind_last p s : ~~ has p s -> find_last p s = size s.
-Proof. by rewrite has_find_last; case: ltngtP (find_last_size p s). Qed.
-
-Lemma has_drop p s i : has p s -> has p (drop i.+1 s) = (i < find_last p s).
-Proof.
-rewrite /find_last -has_rev -(size_rev s) => /[dup] E.
-rewrite has_find =>/[dup] H.
-rewrite ltn_neqAle; case/andP=>/negbTE -> _.
-move/(has_take (size s - i).-1): E.
-rewrite take_rev has_rev -subnS.
-case/boolP: (i < size s)=>[Hi|].
-- rewrite subKn // =>->; rewrite size_rev in H *.
-  by rewrite ltn_subCr -[RHS]ltnS prednK // subn_gt0.
-rewrite -ltnNge ltnS => Hi _.
-rewrite drop_oversize /=; last by apply: (leq_trans Hi).
-symmetry; apply/negbTE; rewrite size_rev -ltnNge ltnS.
-by apply/leq_trans/Hi; rewrite -subnS; exact: leq_subr.
-Qed.
-
-Lemma find_gtn p s i : has p (drop i.+1 s) -> i < find_last p s.
-Proof.
-case/boolP: (has p s)=>Hp; first by rewrite (has_drop _ Hp).
-suff: ~~ has p (drop i.+1 s) by move/negbTE=>->.
-move: Hp; apply: contra; rewrite -{2}(cat_take_drop i.+1 s) has_cat=>->.
-by rewrite orbT.
-Qed.
-
-End FindLast.
-
-Section FindLastEq.
-
-Variables (T : eqType).
-Implicit Type p : seq T.
-
-Definition index_last (x : T) := find_last (pred1 x).
-
-Lemma memNindex_last x s : x \notin s -> index_last x s = size s.
-Proof. by rewrite -has_pred1=>/hasNfind_last. Qed.
-
-Lemma index_last_cons x y t : index_last x (y::t) =
-  if x \in t then (index_last x t).+1 else if y == x then 0 else (size t).+1.
-Proof.
-rewrite /index_last /find_last /= rev_cons -cats1 find_cat /= has_rev has_pred1.
-case/boolP: (x \in t)=>H; last first.
-- rewrite size_rev; case/boolP: (y == x)=>/= _; last by rewrite addn1 eqxx.
-  by rewrite addn0 eqn_leq leqnSn /= ltnn subSnn.
-rewrite -mem_rev -has_pred1 has_find in H; rewrite -(size_rev t).
-case: ltngtP H=>//= H _.
-case: ifP=>[/eqP E|_]; first by rewrite E ltnNge leqnSn in H.
-by rewrite predn_sub /= prednK // subn_gt0.
-Qed.
-
-Lemma index_gtn x s i : x \in drop i.+1 s -> i < index_last x s.
-Proof. by rewrite -has_pred1; apply: find_gtn. Qed.
-
-Lemma index_last_uniq x s : uniq s -> index_last x s = index x s.
-Proof.
-move=>H; case/boolP: (x \in s)=>Hx; last first.
-- by rewrite (memNindex_last Hx) (memNindex Hx).
-elim: s x H Hx=>//= h t IH x.
-rewrite index_last_cons.
-case/andP=>Hh Ht; rewrite inE eq_sym; case/orP.
-- by move/eqP=>{x}<-; rewrite (negbTE Hh) eqxx.
-move=>Hx; rewrite Hx; case: eqP=>[E|_]; last by congr S; apply: IH.
-by rewrite E Hx in Hh.
-Qed.
-
-End FindLastEq.
-
 (* TODO use fintype.lift instead ? *)
-
 Section OrdArith.
 
 (* widen by 1 *)
@@ -175,44 +60,49 @@ Proof. by case: i prf. Qed.
 End OrdArith.
 
 Section CodomWS.
-Variable (n : nat).
+Variable (n : nat) (A : Type).
 
-Lemma size_take_codom T (i : 'I_n) (f: {ffun 'I_n.+1 -> T}) : size (take i (codom f)) = i.
+Lemma size_take_codom (i : 'I_n) (f: {ffun 'I_n.+1 -> A}) : size (take i (codom f)) = i.
 Proof.
 by rewrite size_take size_codom card_ord ltnS leq_eqVlt ltn_ord orbT.
 Qed.
 
-Lemma ffun_split2 A (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
+Lemma ffun_split2 (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
   codom f = take i (codom f) ++
             [:: f (Wo i); f (So i)] ++
             drop i.+2 (codom f).
 Proof.
 set i0 := Wo i; set i1 := So i.
-rewrite {1}codomE (enum_split i0) /= {2}(enum_split i1) (ord_indx i0) (ord_indx i1).
-rewrite drop_cat size_take size_enum_ord ltn_ord So_eq ltnn subnn /=.
-by rewrite map_cat /= map_take map_drop -codomE.
+by rewrite {1}codomE (enum_split i0) /= {2}(enum_split i1) /= /heap.indx
+  (index_enum_ord i0) (index_enum_ord i1) drop_cat size_take
+  size_enum_ord ltn_ord So_eq ltnn subnn /= map_cat /= map_take map_drop -codomE.
 Qed.
 
-Lemma take_codom_rcons A (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
+Lemma take_codom_rcons (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
   take i.+1 (codom f) = rcons (take i (codom f)) (f (Wo i)).
 Proof.
 by rewrite {1}(ffun_split2 f i) take_cat size_take_codom leqNgt ltnS leqnSn /= subSnn /= cats1.
 Qed.
 
-Lemma drop_codom_cons A (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
+Lemma drop_codom_cons (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
   drop i.+1 (codom f) = f (So i) :: drop i.+2 (codom f).
 Proof.
 by rewrite {1}(ffun_split2 f i) drop_cat size_take_codom leqNgt ltnS leqnSn /= subSnn.
 Qed.
 
-Lemma take_codom_rcons2 A (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
+Lemma take_codom_rcons2 (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
   take i.+2 (codom f) = rcons (rcons (take i (codom f)) (f (Wo i))) (f (So i)).
 Proof.
 rewrite {1}(ffun_split2 f i) take_cat size_take_codom leqNgt ltnS -addn2 leq_addr /=.
 by rewrite -addnBAC // subnn /= take0 -cat1s catA !cats1.
 Qed.
 
-Lemma sorted_codom_rcons2 {A : ordType} (f: {ffun 'I_n.+1 -> A}) (i : 'I_n) :
+End CodomWS.
+
+Section CodomWSOrd.
+Variable (n : nat) (A : ordType).
+
+Lemma sorted_codom_rcons2 (f: {ffun 'I_n.+1 -> A}) (i : 'I_n) :
    oleq (f (Wo i)) (f (So i)) ->
    sorted oleq (take i.+1 (codom f)) -> sorted oleq (take i.+2 (codom f)).
 Proof.
@@ -222,38 +112,42 @@ move: Hs; rewrite (sorted_rconsE _ _ (@otrans A)).
 by case/andP=>+ _; apply/sub_all=>z Hz; apply/otrans/Hf.
 Qed.
 
-End CodomWS.
+End CodomWSOrd.
 
-Section SwapNext.
-Variable (n : nat).
+Section PermFfun.
+Variables (I : finType) (A : Type).
 
-Definition pffun {I : finType} {A} (p : {perm I}) (f : {ffun I -> A}) :=
+Definition pffun (p : {perm I}) (f : {ffun I -> A}) :=
   [ffun i => f (p i)].
 
-Lemma pffunE1 {I : finType} {A} (f : {ffun I -> A}) :
+Lemma pffunE1 (f : {ffun I -> A}) :
   pffun 1%g f = f.
-Proof. by apply/ffunP => i; rewrite !ffunE permE. Qed.
+Proof. by apply/ffunP=>i; rewrite !ffunE permE. Qed.
 
-Lemma pffunEM {I : finType} {A}
-              (p p' : {perm I}) (f : {ffun I -> A}) :
+Lemma pffunEM (p p' : {perm I}) (f : {ffun I -> A}) :
   pffun (p * p') f = pffun p (pffun p' f).
 Proof. by apply/ffunP => i; rewrite !ffunE permM. Qed.
 
+End PermFfun.
+
+Section SwapNext.
+Variable (n : nat) (A : Type).
+
 Definition pswnx (i : 'I_n) : 'S_n.+1 := tperm (Wo i) (So i).
 
-Lemma swapnxE1 A (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
+Lemma swapnxE1 (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
   pffun (pswnx i) f (Wo i) = f (So i).
 Proof.
 by rewrite /pswnx ffunE; case: tpermP=>// /eqP; rewrite eq_sym (negbTE (So_WoN i)).
 Qed.
 
-Lemma swapnxE2 A (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
+Lemma swapnxE2 (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
   pffun (pswnx i) f (So i) = f (Wo i).
 Proof.
 by rewrite /pswnx ffunE; case: tpermP=>// /eqP; rewrite (negbTE (So_WoN i)).
 Qed.
 
-Lemma swapnx_take A (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) k :
+Lemma swapnx_take (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) k :
   k <= i ->
   take k (fgraph (pffun (pswnx i) f)) = take k (fgraph f).
 Proof.
@@ -266,7 +160,7 @@ case: tpermP=>//; move: (leq_trans Hy Hk)=>/[swap]->/=.
 by rewrite So_eq ltnNge leqnSn.
 Qed.
 
-Lemma swapnx_drop A (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) k :
+Lemma swapnx_drop (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) k :
   i.+2 <= k ->
   drop k (fgraph (pffun (pswnx i) f)) = drop k (fgraph f).
 Proof.
@@ -283,7 +177,7 @@ case: tpermP=>//; move: Hy=>/[swap]->/=.
 by rewrite So_eq ltnn.
 Qed.
 
-Lemma swap_split2 A (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
+Lemma swap_split2 (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
   codom (pffun (pswnx i) f) = take i (codom f) ++
                               [:: f (So i); f (Wo i)] ++
                               drop i.+2 (codom f).
@@ -292,28 +186,42 @@ rewrite /= (ffun_split2 _ i) /=; set i0 := Wo i; set i1 := So i.
 by rewrite swapnx_take // swapnx_drop //= swapnxE1 swapnxE2.
 Qed.
 
-Lemma take_swap_rcons A (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
+Lemma take_swap_rcons (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
   take i.+1 (fgraph (pffun (pswnx i) f)) = rcons (take i (fgraph f)) (f (So i)).
 Proof.
 by rewrite !fgraph_codom /= swap_split2 take_cat size_take_codom
   (leqNgt i.+2) ltnS leqnSn /= subSnn /= cats1.
 Qed.
 
-Lemma take_swap_rcons2 A (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
+Lemma take_swap_rcons2 (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
   take i.+2 (fgraph (pffun (pswnx i) f)) = rcons (rcons (take i (fgraph f)) (f (So i))) (f (Wo i)).
 Proof.
 by rewrite !fgraph_codom /= swap_split2 take_cat size_take_codom
   leqNgt ltnS -addn2 leq_addr /= -addnBAC // subnn /= take0 -cat1s catA !cats1.
 Qed.
 
-Lemma drop_swap_cons A (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
+Lemma drop_swap_cons (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
   drop i.+1 (fgraph (pffun (pswnx i) f)) = f (Wo i) :: drop i.+2 (fgraph f).
 Proof.
 by rewrite fgraph_codom /= swap_split2 drop_cat size_take size_codom /= card_ord
   !ltnS (leq_eqVlt i) ltn_ord orbT (leqNgt i.+2) ltnS leqnSn /= subSnn.
 Qed.
 
-Lemma perm_take_swap_gt {A : eqType} (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) k :
+Lemma swap_drop_take (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
+  drop i.+1 (take i.+2 (codom (pffun (pswnx i) f))) = [:: f (Wo i)].
+Proof.
+have Ei: size (rcons (take i (codom f)) (f (So i))) = i.+1.
+- by rewrite size_rcons size_take_codom.
+rewrite take_swap_rcons2 drop_rcons; last by rewrite Ei.
+by rewrite -Ei drop_size.
+Qed.
+
+End SwapNext.
+
+Section SwapNextEq.
+Variable (n : nat) (A : eqType).
+
+Lemma perm_take_swap_gt (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) k :
   i <= k ->
   perm_eq (take k.+2 (codom f)) (take k.+2 (codom (pffun (pswnx i) f))).
 Proof.
@@ -321,23 +229,31 @@ move=>H.
 rewrite (ffun_split2 f i) swap_split2 /= !take_cat size_take_codom leqNgt ltnS.
 have ->/= : i <= k.+2 by apply: (leq_trans H); rewrite -addn2; apply: leq_addr.
 rewrite -(addn2 k) -addnBAC // addn2 /=.
-by apply/permPl/perm_catl; rewrite !cat2s perm_catCA.
+by apply/permPl/perm_catl/perm_cons2.
 Qed.
 
-End SwapNext.
+End SwapNextEq.
 
 Section Bubble.
 Variable (n : nat) (A : ordType).
 
 Opaque Array.write Array.read.
 
+(* We verify 3 versions of the algorithm.                              *)
+(*                                                                     *)
+(* The flag/swapped index is threaded through as a functional argument *)
+(* instead of storing and reading it from the heap. This would be      *)
+(* straightforward to implement - just make it a logical variable and  *)
+(* add corresponding heap bureacracy.                                  *)
+
 (***************)
 (* unoptimized *)
 (***************)
 
 (*****************************************************)
-(* pseudocode in idealized ML-like language,         *)
-(* assuming size a >= 2                              *)
+(* pseudocode in idealized effectful ML-like lang    *)
+(* assuming size a >= 2 and decidable total ordering *)
+(* on A                                              *)
 (*                                                   *)
 (* let cas_next (a : array A) (i : nat) : bool =     *)
 (*   let prev = array.read a  i;                     *)
@@ -484,6 +400,7 @@ Qed.
 (*******************)
 
 (**********************************************************)
+(* making each pass smaller by dropping 1 last element    *)
 (* pseudocode, reusing cas_next:                          *)
 (*                                                        *)
 (* let bubble_pass_opt (a : array A) (k : nat) : bool =   *)
@@ -654,6 +571,7 @@ Qed.
 (*******************)
 
 (********************************************************)
+(* ignoring all unswapped end elements on each pass     *)
 (* pseudocode, reusing cas_next:                        *)
 (*                                                      *)
 (* let bubble_pass_opt2 (a : array A) (k : nat) : nat = *)
@@ -716,23 +634,17 @@ apply: [stepE f]=>//= sw m [p][Hm Hsw]; case: decP=>H.
 - (* i < k, recursive call *)
   apply: [gE (pffun p f)]=>//=.
   - (* precondition *)
-    rewrite So_lower_eq; case: sw Hsw=>/=;
-    case=>Ep Hf; rewrite {p}Ep ?pffunE1 in Hm *.
+    rewrite So_lower_eq.
+    case: sw Hsw=>/=; case=>Ep Hf; rewrite {p}Ep ?pffunE1 in Hm *.
     - (* swap happened before the call *)
       rewrite So_eq swapnx_drop; last by rewrite ltnS; apply: ltnW.
-      have Ei: size (rcons (take i (codom f)) (f (So i))) = i.+1.
-      - by rewrite size_rcons size_take_codom.
-      have ->: drop i.+1 (take i.+2 (codom (pffun (pswnx i) f))) = [:: f (Wo i)].
-      - rewrite swap_split2 take_cat size_take_codom leqNgt ltnS -(addn2 i) leq_addr /=.
-        rewrite -addnBAC // subnn /= take0 /= -cat1s catA !cats1 drop_rcons; last by rewrite Ei.
-        by rewrite -Ei drop_size.
-      split=>//.
+      rewrite swap_drop_take /=; split=>//.
       - rewrite (@allrel_in_l _ _ _ _ (take k.+2 (codom f))) //.
         by apply/perm_mem; rewrite perm_sym; apply: perm_take_swap_gt.
       - by rewrite ltnS leqnn.
       rewrite allrel1r take_swap_rcons all_rcons (ordW Hf) /=.
       move: Hsi; rewrite take_codom_rcons drop_rcons; last by rewrite size_take_codom.
-      rewrite (sorted_rconsE _ _ (@otrans A)); case/andP=>Ha1 Hs1.
+      rewrite (sorted_rconsE _ _ (@otrans A)); case/andP=>Ha1 _.
       rewrite -(cat_take_drop ls (take i (codom f))) all_cat Ha1 andbT take_take //.
       apply/sub_all/Hai=>z /= /allP; apply.
       rewrite take_codom_rcons drop_rcons; last by rewrite size_take_codom.
@@ -766,8 +678,7 @@ have {H}Hik : nat_of_ord i = k.
 rewrite -{loop k}Hik in Hak Hsk *.
 step=>Vm; exists p; case: sw Hsw=>/=; case=>Ep Hf.
 - (* swap happened on last iteration *)
-  rewrite So_eq; split=>//=.
-  - by apply: ltnW.
+  rewrite So_eq; split=>//=; first by apply: ltnW.
   - rewrite Ep take_swap_rcons drop_swap_cons allrel_rconsl allrel_consr /=.
     move: Hak; rewrite take_codom_rcons2 !allrel_rconsl -/i0 -/i1 -andbA.
     case/and3P=>-> _ ->; rewrite (ordW Hf) /= !andbT.
@@ -785,10 +696,10 @@ rewrite {p}Ep pffunE1 /= in Hm *.
 have El2 : ls <= i.+2 by apply/ltnW/ltnW.
 set q := i.+2 - ls; have E1 : i.+2 = ls + q by rewrite subnKC.
 split=>//.
-- rewrite -{2}(cat_take_drop i.+1 (codom f)) drop_cat size_take size_codom card_ord ltnS ltn_ord ltnS Hils.
-  rewrite allrel_catr Hai /= drop_codom_cons allrel_consr; apply/andP; split.
+- rewrite -{2}(cat_take_drop i.+1 (codom f)) drop_cat size_take size_codom card_ord ltnS
+    ltn_ord ltnS Hils allrel_catr Hai /= drop_codom_cons allrel_consr; apply/andP; split.
   - suff: all (oleq^~ (f (Wo i))) (take ls (codom f)).
-    - by apply/sub_all=>z Hz; apply/otrans/Hf.
+    - by apply/sub_all=>z /otrans; apply.
     apply/sub_all/Hai=>z /allP; apply.
     rewrite take_codom_rcons drop_rcons; last by rewrite size_take_codom.
     by rewrite mem_rcons inE eqxx.
