@@ -4,11 +4,8 @@
 
 From Coq Require Import Recdef ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype choice ssrnat seq bigop fintype finfun.
-From fcsl Require Import prelude ordtype finmap pred.
-From HTT Require Import interlude.
-Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
+From pcm Require Import options prelude ordtype finmap pred.
+From htt Require Import interlude.
 
 Ltac add_morphism_tactic := SetoidTactics.add_morphism_tactic.
 

@@ -1,8 +1,8 @@
 
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq.
-From fcsl Require Import options axioms pred.
-From fcsl Require Import pcm unionmap heap autopcm automap.
-From HTT Require Import model heapauto.
+From pcm Require Import options axioms pred.
+From pcm Require Import pcm unionmap heap autopcm automap.
+From htt Require Import options model heapauto.
 
 (* Linked lists, storing a value and next pointer in consecutive locations. *)
 (* We start with a more general "segment" definition, where the last node's *)

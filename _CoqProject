@@ -1,11 +1,11 @@
--Q . HTT
+-Q . htt
 -arg "-w -notation-overridden,-local-declaration,-redundant-canonical-projection,-projection-no-head-constant"
 
-core/interlude.v
-core/domain.v
-core/model.v
-core/heapauto.v
-pcm/graph.v
+options.v
+htt/interlude.v
+htt/domain.v
+htt/model.v
+htt/heapauto.v
 examples/exploit.v
 examples/gcd.v
 examples/llist.v

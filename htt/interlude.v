@@ -1,6 +1,6 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat seq eqtype path.
-From fcsl Require Import options prelude ordtype.
+From pcm Require Import options prelude ordtype.
 
 Lemma implyb_trans a b c : a ==> b -> b ==> c -> a ==> c.
 Proof. by case: a=>//=->. Qed.
@@ -9,22 +9,22 @@ Section Seq.
 Variable (A : Type).
 
 Lemma rcons_nseq n (x : A) :
-  rcons (nseq n x) x = nseq n.+1 x.
+        rcons (nseq n x) x = nseq n.+1 x.
 Proof. by elim: n=>//=n ->. Qed.
 
 Lemma behead_rcons (xs : seq A) x :
-  0 < size xs ->
-  behead (rcons xs x) = rcons (behead xs) x.
+        0 < size xs ->
+        behead (rcons xs x) = rcons (behead xs) x.
 Proof. by case: xs. Qed.
 
 Lemma path_all (xs : seq A) x r :
-  transitive r ->
-  path r x xs -> all (r x) xs.
+        transitive r ->
+        path r x xs -> all (r x) xs.
 Proof. by move=>Ht; rewrite path_sortedE; [case/andP | exact: Ht]. Qed.
 
 Lemma sorted_rconsE (leT : rel A) xs x :
-  transitive leT ->
-  sorted leT (rcons xs x) = all (leT^~ x) xs && sorted leT xs.
+        transitive leT ->
+        sorted leT (rcons xs x) = all (leT^~ x) xs && sorted leT xs.
 Proof.
 move/rev_trans=>Ht; rewrite -(revK (rcons _ _)) rev_rcons rev_sorted /=.
 by rewrite path_sortedE // all_rev rev_sorted.
@@ -63,7 +63,7 @@ by rewrite H uniq_catCA cons_uniq; case/andP.
 Qed.
 
 Lemma all_notin (p : pred A) xs y :
-  all p xs -> ~~ p y -> y \notin xs.
+        all p xs -> ~~ p y -> y \notin xs.
 Proof. by move/allP=>Ha; apply/contra/Ha. Qed.
 
 Lemma subset_all a (s1 s2 : seq A) : {subset s1 <= s2} -> all a s2 -> all a s1.
@@ -74,12 +74,12 @@ End SeqEq.
 Section Allrel.
 Variables (S T : Type).
 
-Lemma allrel_rconsl (r : T -> S -> bool)
-                    x xs ys : allrel r (rcons xs x) ys = allrel r xs ys && all (r x) ys.
+Lemma allrel_rconsl (r : T -> S -> bool) x xs ys :
+        allrel r (rcons xs x) ys = allrel r xs ys && all (r x) ys.
 Proof. by rewrite -cats1 allrel_catl allrel1l. Qed.
 
-Lemma allrel_rconsr (r : T -> S -> bool)
-                    y xs ys : allrel r xs (rcons ys y) = allrel r xs ys && all (r^~ y) xs.
+Lemma allrel_rconsr (r : T -> S -> bool) y xs ys :
+        allrel r xs (rcons ys y) = allrel r xs ys && all (r^~ y) xs.
 Proof. by rewrite -cats1 allrel_catr allrel1r. Qed.
 
 End Allrel.
@@ -88,38 +88,38 @@ Section AllrelEq.
 Variables (S T : eqType).
 
 Lemma allrel_in_l (r : T -> S -> bool) (xs xs' : seq T) (ys : seq S) :
-  xs =i xs' ->
-  allrel r xs ys = allrel r xs' ys.
+        xs =i xs' ->
+        allrel r xs ys = allrel r xs' ys.
 Proof.
 by move=>H; rewrite !allrel_allpairsE; apply/eq_all_r/mem_allpairs_dep.
 Qed.
 
 Lemma allrel_in_r (r : T -> S -> bool) (xs : seq T) (ys ys' : seq S) :
-  ys =i ys' ->
-  allrel r xs ys = allrel r xs ys'.
+        ys =i ys' ->
+        allrel r xs ys = allrel r xs ys'.
 Proof.
 by move=>H; rewrite !allrel_allpairsE; apply/eq_all_r/mem_allpairs_dep.
 Qed.
 
 Lemma allrel_sub_l (r : T -> S -> bool) (xs xs' : seq T) (ys : seq S) :
-  {subset xs' <= xs} ->
-  allrel r xs ys -> allrel r xs' ys.
+        {subset xs' <= xs} ->
+        allrel r xs ys -> allrel r xs' ys.
 Proof.
 move=>H Ha; apply/allrelP=>x y Hx Hy.
 by move/allrelP: Ha; apply=>//; apply: H.
 Qed.
 
 Lemma allrel_sub_r (r : T -> S -> bool) (xs : seq T) (ys ys' : seq S) :
-  {subset ys' <= ys} ->
-  allrel r xs ys -> allrel r xs ys'.
+        {subset ys' <= ys} ->
+        allrel r xs ys -> allrel r xs ys'.
 Proof.
 move=>H Ha; apply/allrelP=>x y Hx Hy.
 by move/allrelP: Ha; apply=>//; apply: H.
 Qed.
 
 Lemma allrel_trans (xs ys : seq S) z r :
-  transitive r ->
-  all (r^~ z) xs -> all (r z) ys -> allrel r xs ys.
+        transitive r ->
+        all (r^~ z) xs -> all (r z) ys -> allrel r xs ys.
 Proof.
 move=>Ht /allP Ha /allP Hp; apply/allrelP=>x y + Hy.
 by move/Ha/Ht; apply; apply: Hp.
@@ -137,7 +137,7 @@ by rewrite E irr in H.
 Qed.
 
 Lemma sorted_cat_cons_cat (l r : seq A) x :
-  sorted ord (l ++ x :: r) = sorted ord (l ++ [::x]) && sorted ord (x::r).
+        sorted ord (l ++ x :: r) = sorted ord (l ++ [::x]) && sorted ord (x::r).
 Proof.
 rewrite !(sorted_pairwise (@trans A)) cats1 pairwise_cat pairwise_rcons allrel_consr !pairwise_cons.
 case/boolP: (all (ord^~ x) l)=>//= Hl; case/boolP: (all (ord x) r)=>/= [Hr|_]; last by rewrite !andbF.
@@ -156,9 +156,10 @@ Definition find_last_aux oi0 p s :=
   foldl (fun '(o,i) x => (if p x then Some i else o, i.+1)) oi0 s.
 
 Lemma find_last_auxE oi0 p s :
-  find_last_aux oi0 p s =
-    let k := seq.find p (rev s) in
-    (if k == size s then oi0.1 else Some (oi0.2 + (size s - k).-1), oi0.2 + size s).
+        find_last_aux oi0 p s =
+        let k := seq.find p (rev s) in
+        (if k == size s then oi0.1
+           else Some (oi0.2 + (size s - k).-1), oi0.2 + size s).
 Proof.
 rewrite /find_last_aux; elim: s oi0=>/= [|x s IH] [o0 i0] /=; first by rewrite addn0.
 rewrite IH /= rev_cons -cats1 find_cat /= has_find.
@@ -173,27 +174,27 @@ Qed.
 Definition find_last p s :=
   let '(o, i) := find_last_aux (None, 0) p s in odflt i o.
 
-(* finding last is finding first in reversed list *)
+(* finding last is finding first in reversed list and flipping indices *)
 Corollary find_lastE p s :
-  find_last p s =
-    let i := seq.find p (rev s) in
-    if i == size s then size s else (size s - i).-1.
-Proof. by rewrite /find_last find_last_auxE /= !add0n; case: ifP. Qed.
+            find_last p s =
+            if has p s then (size s - seq.find p (rev s)).-1
+                       else size s.
+Proof.
+rewrite /find_last find_last_auxE /= !add0n -has_rev; case/boolP: (has p (rev s)).
+- by rewrite has_find size_rev; case: ltngtP.
+by move/hasNfind=>->; rewrite size_rev eqxx.
+Qed.
 
 Lemma find_last_size p s : find_last p s <= size s.
 Proof.
-rewrite find_lastE /=; case: ifP=>// _.
+rewrite find_lastE; case: ifP=>// _.
 by rewrite -subnS; apply: leq_subr.
 Qed.
 
 Lemma has_find_last p s : has p s = (find_last p s < size s).
 Proof.
-rewrite find_lastE /= -has_rev has_find -(size_rev s); case: ltngtP=>/=.
-- move=>H; case/posnP: (size (rev s))=>[/eqP/nilP|] E.
-  - by rewrite E /= in H.
-  by rewrite -subnS ltn_subrL E.
-- by rewrite ltnNge find_size.
-by rewrite ltnn.
+symmetry; rewrite find_lastE; case: ifP=>H /=; last by rewrite ltnn.
+by rewrite -subnS /= ltn_subrL /=; case: s H.
 Qed.
 
 Lemma hasNfind_last p s : ~~ has p s -> find_last p s = size s.
@@ -201,25 +202,22 @@ Proof. by rewrite has_find_last; case: ltngtP (find_last_size p s). Qed.
 
 Lemma nth_find_last x0 p s : has p s -> p (nth x0 s (find_last p s)).
 Proof.
-rewrite find_lastE /= -has_rev -(size_rev s) => /[dup] E.
-rewrite has_find ltn_neqAle; case/andP=>/negbTE H _; rewrite H.
-move/(@nth_find _ x0): E; rewrite nth_rev; first by rewrite subnS size_rev.
-by move: (find_size p (rev s)); rewrite leq_eqVlt H -(size_rev s).
+rewrite find_lastE=>/[dup] E ->; rewrite -has_rev in E.
+rewrite -subnS -nth_rev; last by rewrite -size_rev -has_find.
+by apply: nth_find.
 Qed.
 
 Lemma has_drop p s i : has p s -> has p (drop i.+1 s) = (i < find_last p s).
 Proof.
-rewrite find_lastE /= -has_rev -(size_rev s) => /[dup] E.
-rewrite has_find =>/[dup] H.
-rewrite ltn_neqAle; case/andP=>/negbTE -> _.
-move/(has_take (size s - i).-1): E.
-rewrite take_rev has_rev -subnS.
+rewrite find_lastE=>/[dup] E ->; rewrite -has_rev in E.
+rewrite -(size_rev s); move/(has_take (size s - i).-1): E.
+rewrite take_rev -subnS size_rev.
 case/boolP: (i < size s)=>[Hi|].
-- rewrite subKn // =>->; rewrite size_rev in H *.
-  by rewrite ltn_subCr -[RHS]ltnS prednK // subn_gt0.
+- rewrite subnA // subnn add0n has_rev => ->.
+  by rewrite -subnS ltn_subRL addnC -addSnnS -ltn_subRL.
 rewrite -ltnNge ltnS => Hi _.
 rewrite drop_oversize /=; last by apply: (leq_trans Hi).
-symmetry; apply/negbTE; rewrite size_rev -ltnNge ltnS.
+symmetry; apply/negbTE; rewrite -ltnNge ltnS.
 by apply/leq_trans/Hi; rewrite -subnS; exact: leq_subr.
 Qed.
 
@@ -236,7 +234,8 @@ Variant split_find_last_nth_spec p : seq T -> seq T -> seq T -> T -> Type :=
     split_find_last_nth_spec p (rcons s1 x ++ s2) s1 s2 x.
 
 Lemma split_find_last_nth x0 p s (i := find_last p s) :
-  has p s -> split_find_last_nth_spec p s (take i s) (drop i.+1 s) (nth x0 s i).
+        has p s ->
+        split_find_last_nth_spec p s (take i s) (drop i.+1 s) (nth x0 s i).
 Proof.
 move=> p_s; rewrite -[X in split_find_last_nth_spec _ X](cat_take_drop i s).
 rewrite (drop_nth x0 _); last by rewrite -has_find_last.
@@ -249,9 +248,10 @@ Variant split_find_last_spec p : seq T -> seq T -> seq T -> Type :=
     split_find_last_spec p (rcons s1 x ++ s2) s1 s2.
 
 Lemma split_find_last p s (i := find_last p s) :
-  has p s -> split_find_last_spec p s (take i s) (drop i.+1 s).
+        has p s ->
+        split_find_last_spec p s (take i s) (drop i.+1 s).
 Proof.
-by case: s => // x ? in i * => ?; case: split_find_last_nth => //; constructor.
+by case: s => // x ? in i * =>?; case: split_find_last_nth=>//; constructor.
 Qed.
 
 End FindLast.
@@ -267,16 +267,14 @@ Lemma memNindex_last x s : x \notin s -> index_last x s = size s.
 Proof. by rewrite -has_pred1=>/hasNfind_last. Qed.
 
 Lemma index_last_cons x y t : index_last x (y::t) =
-  if x \in t then (index_last x t).+1 else if y == x then 0 else (size t).+1.
+        if x \in t then (index_last x t).+1
+          else if y == x then 0 else (size t).+1.
 Proof.
 rewrite /index_last !find_lastE /= rev_cons -cats1 find_cat /= has_rev has_pred1.
 case/boolP: (x \in t)=>H; last first.
-- rewrite size_rev; case/boolP: (y == x)=>/= _; last by rewrite addn1 eqxx.
-  by rewrite addn0 eqn_leq leqnSn /= ltnn subSnn.
-rewrite -mem_rev -has_pred1 has_find in H; rewrite -(size_rev t).
-case: ltngtP H=>//= H _.
-case: ifP=>[/eqP E|_]; first by rewrite E ltnNge leqnSn in H.
-by rewrite predn_sub /= prednK // subn_gt0.
+- rewrite size_rev orbF; case/boolP: (y == x)=>//= _.
+  by rewrite addn0 subSnn.
+by rewrite orbT predn_sub /= prednK // subn_gt0 -size_rev -has_find has_rev has_pred1.
 Qed.
 
 Lemma index_gtn x s i : x \in drop i.+1 s -> i < index_last x s.
@@ -298,7 +296,8 @@ Variant splitLast x : seq T -> seq T -> seq T -> Type :=
   SplitLast p1 p2 of x \notin p2 : splitLast x (rcons p1 x ++ p2) p1 p2.
 
 Lemma splitLastP s x (i := index_last x s) :
-  x \in s -> splitLast x s (take i s) (drop i.+1 s).
+        x \in s ->
+        splitLast x s (take i s) (drop i.+1 s).
 Proof.
 case: s => // y s in i * => H.
 case: split_find_last_nth=>//; first by rewrite has_pred1.

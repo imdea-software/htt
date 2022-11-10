@@ -41,8 +41,9 @@ that HTT implements Separation logic as a shallow embedding in Coq.
 - Compatible Coq versions: Coq 8.14 to 8.16
 - Additional dependencies:
   - [MathComp ssreflect 1.13 to 1.15](https://math-comp.github.io)
+  - [MathComp fingroup](https://math-comp.github.io)
   - [FCSL-PCM 1.6](https://github.com/imdea-software/fcsl-pcm)
-- Coq namespace: `HTT`
+- Coq namespace: `htt`
 - Related publication(s):
   - [Structuring the verification of heap-manipulating programs](https://software.imdea.org/~aleks/papers/reflect/reflect.pdf) doi:[10.1145/1706299.1706331](https://doi.org/10.1145/1706299.1706331)
 
