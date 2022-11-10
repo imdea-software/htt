@@ -1,9 +1,7 @@
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype seq ssrfun.
-From fcsl Require Import axioms pred prelude.
-From fcsl Require Import pcm autopcm unionmap heap.
-From HTT Require Import model.
-Set Implicit Arguments.
-Unset Strict Implicit.
+From pcm Require Import options axioms pred prelude.
+From pcm Require Import pcm autopcm unionmap heap.
+From htt Require Import model.
 Import Prenex Implicits.
 
 (**************************************************************************)

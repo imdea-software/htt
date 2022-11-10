@@ -1,9 +1,9 @@
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq.
-From fcsl Require Import axioms pred.
-From fcsl Require Import pcm unionmap heap autopcm.
-From HTT Require Import options model heapauto.
+From pcm Require Import options axioms pred.
+From pcm Require Import pcm unionmap heap autopcm.
+From htt Require Import options model heapauto.
 
 (* Doubly linked lists, follows the same structure as singly-linked *)
 (* ones, adding a second pointer pointing backwards. *)

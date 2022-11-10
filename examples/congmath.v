@@ -4,11 +4,8 @@
 
 From Coq Require Import Recdef ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype choice ssrnat seq bigop fintype finfun.
-From fcsl Require Import prelude ordtype finmap pred.
-From HTT Require Import interlude.
-Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
+From pcm Require Import options prelude ordtype finmap pred.
+From htt Require Import interlude.
 
 Ltac add_morphism_tactic := SetoidTactics.add_morphism_tactic.
 
@@ -529,9 +526,9 @@ Lemma join_use_metric (D : data) (a' b' : symb) :
         a' \notin reps D -> b' \in reps D -> a' != b' ->
           metric (join_use D a' b') = (metric D) + size (use D a').
 Proof.
-rewrite /join_use;  move E: (use D a')=>old_use.
+rewrite /join_use; move E: (use D a')=>old_use.
 elim: old_use D E=>[|[[c c1] c2] old_use IH] D E H1 H2 H3 /=; first by rewrite addn0.
-move: (mem_split_uniq H2 (uniq_reps D))=>[s1 [s2 [L1 [L2 L3]]]].
+move: (mem_split_uniq H2 (uniq_reps D))=>[s1][s2][L1 L2 L3].
 have L4 : undup (map (rep D) (enum predT)) = reps D by [].
 case: (fnd _ _)=>[[[d d1] d2]|]; last first.
 - rewrite IH //=; last by rewrite ffunE eq_refl E.

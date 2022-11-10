@@ -1,9 +1,9 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype seq ssrnat.
-From fcsl Require Import options axioms pred.
-From fcsl Require Import pcm unionmap heap automap autopcm.
-From HTT Require Import interlude model heapauto.
-From HTT Require Import llist.
+From pcm Require Import options axioms pred.
+From pcm Require Import pcm unionmap heap automap autopcm.
+From htt Require Import options interlude model heapauto.
+From htt Require Import llist.
 
 (* a queue variant that has a fixed capacity and can overwrite data in a circular way *)
 

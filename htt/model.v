@@ -1,10 +1,7 @@
 From mathcomp Require Import ssreflect ssrbool ssrfun ssrnat eqtype seq.
-From fcsl Require Import axioms pred prelude.
-From fcsl Require Import pcm unionmap heap.
-From HTT Require Import domain.
-Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
+From pcm Require Import options axioms pred prelude.
+From pcm Require Import pcm unionmap heap.
+From htt Require Import domain.
 
 (* Exceptions are an equality type *)
 Inductive exn : Type := exn_from_nat of nat.
@@ -446,7 +443,7 @@ Section VrfLemmas.
 Variables (A : Type) (e : ST A).
 
 Lemma vrfV i (Q : post A) :
-       (valid i -> vrf i e Q) -> vrf i e Q.
+        (valid i -> vrf i e Q) -> vrf i e Q.
 Proof. by move=>H V; apply: H. Qed.
 
 Lemma vrf_post i (Q1 Q2 : post A) :

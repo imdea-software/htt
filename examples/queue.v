@@ -1,9 +1,9 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype seq.
-From fcsl Require Import options axioms pred.
-From fcsl Require Import pcm unionmap heap automap.
-From HTT Require Import model heapauto.
-From HTT Require Import llist.
+From pcm Require Import options axioms pred.
+From pcm Require Import pcm unionmap heap automap.
+From htt Require Import model heapauto.
+From htt Require Import llist.
 
 Record queue (T : Type) : Type := Queue {front: ptr; back: ptr}.
 Definition EmptyQueue : exn := exn_from_nat 100.

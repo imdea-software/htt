@@ -4,9 +4,9 @@
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype seq path.
-From fcsl Require Import axioms pred ordtype finmap.
-From fcsl Require Import pcm unionmap heap autopcm automap.
-From HTT Require Import options interlude model heapauto.
+From pcm Require Import options axioms pred ordtype finmap.
+From pcm Require Import pcm unionmap heap autopcm automap.
+From htt Require Import options interlude model heapauto.
 
 (***********************)
 (* stateful KV map ADT *)

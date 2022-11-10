@@ -1,9 +1,9 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path fintype tuple finfun fingroup perm.
-From fcsl Require Import options axioms prelude pred ordtype.
-From fcsl Require Import pcm unionmap heap.
-From HTT Require Import interlude model heapauto.
-From HTT Require Import array.
+From pcm Require Import options axioms prelude pred ordtype.
+From pcm Require Import pcm unionmap heap.
+From htt Require Import options interlude model heapauto.
+From htt Require Import array.
 
 (* TODO use fintype.lift instead ? *)
 Section OrdArith.

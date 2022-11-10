@@ -1,8 +1,8 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path fintype tuple finfun finset.
-From fcsl Require Import axioms prelude pred.
-From fcsl Require Import pcm unionmap heap.
-From HTT Require Import options model heapauto.
+From pcm Require Import options axioms prelude pred.
+From pcm Require Import pcm unionmap heap.
+From htt Require Import options model heapauto.
 
 Definition indx {I : finType} (x : I) := index x (enum I).
 

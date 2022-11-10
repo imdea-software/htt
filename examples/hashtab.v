@@ -1,9 +1,9 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq fintype tuple finfun finset.
-From fcsl Require Import options axioms prelude pred ordtype finmap.
-From fcsl Require Import pcm unionmap heap autopcm.
-From HTT Require Import model heapauto.
-From HTT Require Import array kvmaps.
+From pcm Require Import options axioms prelude pred ordtype finmap.
+From pcm Require Import pcm unionmap heap autopcm.
+From htt Require Import model heapauto.
+From htt Require Import array kvmaps.
 
 Module HashTab.
 Section HashTab.

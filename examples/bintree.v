@@ -1,10 +1,10 @@
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype seq ssrnat.
-From fcsl Require Import options axioms pred.
-From fcsl Require Import pcm unionmap heap autopcm automap.
-From HTT Require Import model heapauto.
-From HTT Require Import llist.
+From pcm Require Import options axioms pred.
+From pcm Require Import pcm unionmap heap autopcm automap.
+From htt Require Import options model heapauto.
+From htt Require Import llist.
 
 (* Binary tree specification *)
 

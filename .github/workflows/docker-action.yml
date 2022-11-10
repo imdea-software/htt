@@ -28,6 +28,7 @@ jobs:
           opam_file: 'coq-htt.opam'
           custom_image: ${{ matrix.image }}
 
+
 # See also:
 # https://github.com/coq-community/docker-coq-action#readme
 # https://github.com/erikmd/docker-coq-github-action-demo

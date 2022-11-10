@@ -1,8 +1,5 @@
 From mathcomp Require Import ssreflect ssrbool ssrfun ssrnat eqtype seq.
-From fcsl Require Import axioms pred prelude.
-Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
+From pcm Require Import options axioms pred prelude.
 
 (**********)
 (* Posets *)
