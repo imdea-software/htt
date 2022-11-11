@@ -78,9 +78,9 @@ dependencies:
     [MathComp fingroup](https://math-comp.github.io)
 - opam:
     name: coq-fcsl-pcm
-    version: '{ (>= "1.6.0" & < "1.7~") | (= "dev") }'
+    version: '{ (>= "1.7.0" & < "1.8~") | (= "dev") }'
   description: |-
-    [FCSL-PCM 1.6](https://github.com/imdea-software/fcsl-pcm)
+    [FCSL-PCM 1.7](https://github.com/imdea-software/fcsl-pcm)
 
 namespace: htt
 
