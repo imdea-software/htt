@@ -1,10 +1,9 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype ssrnat seq path.
-From fcsl Require Import options axioms pred prelude seqperm.
-
-From fcsl Require Import pcm unionmap heap autopcm automap.
-From HTT Require Import interlude model heapauto.
-From HTT Require Import graphmark.
+From pcm Require Import options axioms pred prelude seqperm.
+From pcm Require Import pcm unionmap heap autopcm automap.
+From htt Require Import options interlude model heapauto.
+From htt Require Import graph.
 
 Section Shape.
 
@@ -36,7 +35,7 @@ Lemma shapeUn g1 g2 m :
 Proof.
 move=>V h; rewrite /shape.
 move: (assocs_perm V)=>H.
-by rewrite (sepit_perm _ H) IterStar.sepit_cat.
+by rewrite (IterStar.sepit_perm _ H) IterStar.sepit_cat.
 Qed.
 
 Lemma shapePtUn (g : pregraph) p n m :
@@ -62,7 +61,7 @@ Lemma shapeMPtUn g p m :
   p \notin dom g ->
   shape g (#p \+ m) =p shape g m.
 Proof.
-move=>Vm Hm Hg h; rewrite /shape; apply: sepitF; case=>q ns /=.
+move=>Vm Hm Hg h; rewrite /shape; apply: IterStar.sepitF; case=>q ns /=.
 move/In_assocs/In_find=>Hq z.
 rewrite !InE /= domPtUn validPtUn /= inE /= Vm Hm /=.
 suff: p != q by move/negbTE=>->.

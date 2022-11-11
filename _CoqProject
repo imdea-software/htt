@@ -2,6 +2,7 @@
 -arg "-w -notation-overridden,-local-declaration,-redundant-canonical-projection,-projection-no-head-constant"
 
 options.v
+pcm/graph.v
 htt/interlude.v
 htt/domain.v
 htt/model.v
@@ -21,3 +22,4 @@ examples/kvmaps.v
 examples/hashtab.v
 examples/congmath.v
 examples/bingraph.v
+examples/bindag.v

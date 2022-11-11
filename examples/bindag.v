@@ -1,9 +1,9 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype ssrnat seq path.
-From fcsl Require Import options prelude axioms pred ordtype.
-From fcsl Require Import pcm unionmap heap autopcm automap.
-From HTT Require Import interlude model heapauto.
-From HTT Require Import bintree graph.
+From pcm Require Import options prelude axioms pred ordtype.
+From pcm Require Import pcm unionmap heap autopcm automap.
+From htt Require Import interlude model heapauto.
+From htt Require Import bintree graph.
 
 Section Shape.
 Variable (f : ptrmap nat).
@@ -40,7 +40,7 @@ Lemma shapeUn g1 g2 :
 Proof.
 move=>V h; rewrite /shape.
 move: (assocs_perm V)=>H.
-by rewrite (sepit_perm _ H) IterStar.sepit_cat.
+by rewrite (IterStar.sepit_perm _ H) IterStar.sepit_cat.
 Qed.
 
 Lemma shapePtUn g p n :

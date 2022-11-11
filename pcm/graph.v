@@ -1,11 +1,9 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype ssrnat seq path.
-(* temp*)
-From mathcomp Require Import bigop.
-From fcsl Require Import options axioms pred prelude seqperm.
-From fcsl Require Import pcm unionmap heap autopcm automap.
-From HTT Require Import interlude.
-
+From pcm Require Import options axioms pred prelude.
+From pcm Require Import pcm unionmap heap autopcm automap.
+From htt Require Import interlude.
+(*
 Section UM.
 Variables (K : ordType) (C : pred K) (V : Type) (U : union_map_class C V).
 
@@ -30,7 +28,6 @@ case: (um_eta D) W=>x [_] {1 3}-> Vf p.
 by rewrite rangePtUn inE Vf=>->; rewrite orbT.
 Qed.
 
-(*
 Lemma umpreim_cond (p : pred V) f k : um_preim (C:=C) (U:=U) p f k -> C k.
 Proof.
 rewrite /um_preim; case E: (find k f)=>[v|] //= _.
@@ -42,47 +39,9 @@ Proof.
 move=>Hk x; rewrite /um_preim /= findPt2.
 by case: eqP=>//= _; rewrite Hk.
 Qed.
-*)
+
 End UMEq.
-
-Section Sep.
-Variable U : pcm.
-
-Lemma sepitF {A} s (f1 f2 : A -> Pred U) :
-        (forall x, x \In s -> f1 x =p f2 x) -> IterStar.sepit s f1 =p IterStar.sepit s f2.
-Proof.
-elim: s=>[|x s IH] H h; first by rewrite !IterStar.sepit0.
-have /IH {IH}H': forall x : A, x \In s -> f1 x =p f2 x.
-  by move=>? H0; apply: H; apply/In_cons; right.
-have Hx : x \In x :: s by apply/In_cons; left.
-by rewrite !IterStar.sepit_cons; split; case=>h1[h2][{h}-> H1 H2]; exists h1, h2;
-split=>//; [rewrite -H | rewrite -H' | rewrite H | rewrite H'].
-Qed.
-
-Lemma sepit_perm {A} s1 s2 (f : A -> Pred U) :
-        perm s1 s2 -> IterStar.sepit s1 f =p IterStar.sepit s2 f.
-Proof.
-elim: s1 s2 =>[|x s1 IH] s2 /=; first by move/pperm_nil=>->.
-move=>H.
-have Hx: x \In s2 by apply/(pperm_in H)/In_cons; left.
-case: (In_split Hx)=>s21[s22] E; rewrite {s2 Hx}E in H *.
-move/pperm_cons_cat_cons: H=>H.
-rewrite IterStar.sepit_cons IterStar.sepit_cat /= =>h0; split.
-- case=>h1[h2][{h0}-> H1]; rewrite (IH _ H) IterStar.sepit_cat.
-  case=>_[_][{h2}-> [hs3][E3 -> H3] [hs4][E4 -> H4]]; rewrite joinCA.
-  exists (IterStar.bigjoin hs3), (h1 \+ IterStar.bigjoin hs4); split=>//; first by exists hs3.
-  by rewrite IterStar.sepit_cons; exists h1, (IterStar.bigjoin hs4); split=>//; exists hs4.
-case=>_[h2][{h0}-> [hs1][Hs1 -> H1]]; rewrite IterStar.sepit_cons.
-case=>h3[_][{h2}-> H3 [hs2][Hs2 -> H2]]; rewrite joinCA.
-exists h3, (IterStar.bigjoin hs1 \+ IterStar.bigjoin hs2); split=>//.
-rewrite (IH _ H); exists (hs1 ++ hs2); split.
-- by rewrite !size_cat Hs1 Hs2.
-- by rewrite /IterStar.bigjoin big_cat.
-by rewrite /IterStar.bigand zip_cat //; apply/IterStar.bigand_cat.
-Qed.
-
-End Sep.
-
+*)
 (* pointer map, a generic finite map with non-null pointer keys and values in A *)
 Notation ptr_pred := (fun x : ptr => x != null).
 
