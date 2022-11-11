@@ -167,7 +167,7 @@ Proof.
 case: k=>//= k; rewrite ltnS=>Hk.
 suff E: {in drop k.+1 (enum 'I_n.+1), f =1 (pffun (pswnx i) f)}.
 - by rewrite /= !codomE -2!map_drop /=; move/eq_in_map: E.
-move=>/= y /index_gtn; rewrite index_last_uniq; last by apply: enum_uniq.
+move=>/= y /index_geq; rewrite index_last_uniq; last by apply: enum_uniq.
 rewrite /pswnx ffunE index_enum_ord=>Hy.
 have {Hk}Hy: i.+1 < y.
 - rewrite -ltn_predRL; apply: (leq_trans Hk).
