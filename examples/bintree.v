@@ -8,7 +8,7 @@ From htt Require Import llist.
 
 (* Binary tree specification *)
 
-Inductive tree A := Leaf | Node of (tree A) & A & (tree A).
+Inductive tree A := Leaf | Node of tree A & A & tree A.
 
 Definition leaf {A} : tree A := @Leaf A.
 
