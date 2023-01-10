@@ -1,6 +1,6 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
-From mathcomp Require Import ssrnat seq eqtype path.
-From pcm Require Import options prelude ordtype.
+From mathcomp Require Import ssrnat seq eqtype path fintype finfun tuple interval perm fingroup.
+From pcm Require Import options prelude ordtype slice.
 
 Lemma implyb_trans a b c : a ==> b -> b ==> c -> a ==> c.
 Proof. by case: a=>//=->. Qed.
@@ -47,7 +47,7 @@ Qed.
 Lemma mem_split (x : A) s :
         x \in s -> exists s1 s2, s = s1 ++ [:: x] ++ s2.
 Proof.
-case/splitP=>s1 s2; exists s1, s2.
+case/path.splitP=>s1 s2; exists s1, s2.
 by rewrite -cats1 catA.
 Qed.
 
@@ -145,3 +145,50 @@ by rewrite (allrel_trans (@trans A) Hl Hr).
 Qed.
 
 End SeqOrd.
+
+(* surgery on finfuns: slicing & permuting *)
+
+Section OnthCodom.
+Variable (A : Type).
+
+Lemma onth_tnth {n} (s : n.-tuple A) (i : 'I_n) : onth s i = Some (tnth s i).
+Proof.
+elim: n s i =>[|n IH] s i; first by case: i.
+case/tupleP: s=>/=x s; case: (unliftP ord0 i)=>[j|]-> /=.
+- by rewrite tnthS.
+by rewrite tnth0.
+Qed.
+
+Lemma onth_codom {n} (i : 'I_n) (f: {ffun 'I_n -> A}) : onth (fgraph f) i = Some (f i).
+Proof.
+pose i' := cast_ord (esym (card_ord n)) i.
+move: (@tnth_fgraph _ _ f i'); rewrite (enum_val_ord) {2}/i' cast_ordKV=><-.
+by rewrite (onth_tnth (fgraph f) i').
+Qed.
+
+End OnthCodom.
+
+Section CodomWS.
+Variable (n : nat) (A : Type).
+
+Lemma codom_ux_rcons (f : {ffun 'I_n -> A}) (i : 'I_n) :
+  &:(fgraph f) `]-oo, i : nat] = rcons (&:(fgraph f) `]-oo, i : nat[) (f i).
+Proof. by rewrite slice_xR // slice_uu onth_codom. Qed.
+
+End CodomWS.
+
+Section PermFfun.
+Variables (I : finType) (A : Type).
+
+Definition pffun (p : {perm I}) (f : {ffun I -> A}) :=
+  [ffun i => f (p i)].
+
+Lemma pffunE1 (f : {ffun I -> A}) :
+  pffun 1%g f = f.
+Proof. by apply/ffunP=>i; rewrite !ffunE permE. Qed.
+
+Lemma pffunEM (p p' : {perm I}) (f : {ffun I -> A}) :
+  pffun (p * p') f = pffun p (pffun p' f).
+Proof. by apply/ffunP => i; rewrite !ffunE permM. Qed.
+
+End PermFfun.
