@@ -75,7 +75,6 @@ Definition partition_lm_loop (a : {array 'I_n -> A}) (pivot : A) (hi : 'I_n) :=
            exists p,
            h \In Array.shape a (pffun p f)]).
 
-
 Program Definition partition_lm_pass (a : {array 'I_n -> A}) (pivot : A) (lo hi : 'I_n) (Hlo : lo < hi):
   {f : {ffun 'I_n -> A}},
   STsep (Array.shape a f,
@@ -88,27 +87,75 @@ Program Definition partition_lm_pass (a : {array 'I_n -> A}) (pivot : A) (lo hi 
           swap a i j;;
           let i1 := So_lower (ord_trans (leq_ltn_trans Hi Hj)) in  (*i+1*)
           if leq_choose Hj is right pf then
-            loop (@existT _ _ i1
-                 (@exist _ _ (So_lower (ord_trans Hj)) (*j+1*)
-                             (conj (So_lower_leq Hi Hj)
-                                   (So_lower_lift Hj pf))))
+            loop (@existT _ _ i1 (@exist _ _ (So_lower (ord_trans Hj)) (*j+1*)
+                                 (conj (So_lower_leq Hi Hj)
+                                       (So_lower_lift Hj pf))))
             else ret i1
         else if leq_choose Hj is right pf then
-               loop (@existT _ _ i
-                    (@exist _ _ (So_lower (ord_trans Hj)) (*j+1*)
-                                (conj (So_lower_lt Hi Hj)
-                                      (So_lower_lift Hj pf))))
-          else ret i)) (@existT _ _ lo
-                        (@exist _ _ lo
-                              (conj erefl Hlo))).
+               loop (@existT _ _ i (@exist _ _ (So_lower (ord_trans Hj)) (*j+1*)
+                                   (conj (So_lower_lt Hi Hj)
+                                         (So_lower_lift Hj pf))))
+          else ret i)) (@existT _ _ lo (@exist _ _ lo
+                                        (conj (leqnn lo) Hlo))).
 Next Obligation.
-move=>a pivot lo hi Hlo loop ? i ? j ? Hi Hj [f][] h /= [E V].
+move=>a pivot lo hi Hlo loop _ i _ j _ Hi Hj [f][] h /= [E V].
 apply: [stepE f, h]=>//= _ _ [->->].
 case: oleqP=>Hfp.
 - apply: [stepE f]=>//= _ m Hm.
   case: (leq_choose Hj)=>Hj1.
   - by step=>_; exists (tperm i j).
-  apply: [gE f]=>//=.
+  apply: [gE (pffun (tperm i j) f)]=>//= ? k [p' Hk] Vk.
+  by exists (p' * tperm i j)%g; rewrite pffunEM.
+case: (leq_choose Hj)=>Hj1.
+- by step=>_; exists 1%g; rewrite pffunE1.
+by apply: [gE f].
+Qed.
+
+Opaque partition_lm_pass.
+
+Program Definition partition_lm (a : {array 'I_n -> A}) (lo hi : 'I_n) (Hlo : lo < hi):
+  {f : {ffun 'I_n -> A}},
+  STsep (Array.shape a f,
+        [vfun (i : 'I_n) h =>
+          exists p,
+          h \In Array.shape a (pffun p f)]) :=
+  Do (pivot <-- Array.read a hi;
+      i <-- partition_lm_pass a pivot Hlo;
+      swap a i hi;;
+      ret i).
+Next Obligation.
+move=> a lo hi Hlo /= [f][] h /= [E V].
+apply: [stepE f, h]=>//= _ _ [->->].
+apply: [stepE f]=>//= i m [p] Hm.
+apply: [stepE (pffun p f)]=>//= _ k Hj.
+by step=>Vk; exists (tperm i hi * p)%g; rewrite pffunEM.
+Qed.
+
+Opaque partition_lm_pass.
+
+Definition quicksort_lm_loop (a : {array 'I_n -> A}) (pivot : A) (hi : 'I_n) :=
+  unit ->
+  {f : {ffun 'I_n -> A}},
+  STsep (Array.shape a f,
+        [vfun (_ : unit) h =>
+           exists (p : 'S_n),
+             h \In Array.shape a (pffun p f) /\
+             sorted oleq (fgraph (pffun p f))]).
+
+Program Definition quicksort_lm (a : {array 'I_n -> A}) (lo hi : 'I_n) :
+  {f : {ffun 'I_n -> A}},
+  STsep (Array.shape a f,
+        [vfun (_ : unit) h =>
+           exists (p : 'S_n),
+             h \In Array.shape a (pffun p f) /\
+             sorted oleq (fgraph (pffun p f))]) :=
+  Fix (fun (loop : quicksort_lm_loop) _ =>
+       Do (if decP (b:=ord lo hi) idP isn't left pf then skip
+           else p <-- partition_lm a lo hi pf;
+                (* this would be caught by previous check on recursive call but we have to stay in [0,n) *)
+                if decP (b:=0 < p < n) idP isn't left pf then skip
+                else loop a lo (Po p);;
+                     loop a (So_lower p) hi)) tt.
 
 (*
 Program Definition partition_lm (a : {array 'I_n -> A}) (lo hi : 'I_n) :
