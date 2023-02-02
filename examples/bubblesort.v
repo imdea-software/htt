@@ -45,17 +45,17 @@ Lemma Po_eq n (i : 'I_n) : nat_of_ord (Po i) = i.-1.
 Proof. by case: i. Qed.
 
 (* increase within the bound *)
-Definition So_lower n (i : 'I_n) (prf : (i.+1 < n)%N) : 'I_n.
+Definition Sbo n (i : 'I_n) (prf : (i.+1 < n)%N) : 'I_n.
 Proof. case: i prf=>/= m Hm; apply: Ordinal. Defined.
 
-Lemma So_lower_eq n (i : 'I_n) (prf : (i.+1 < n)%N) : nat_of_ord (So_lower prf) = i.+1.
+Lemma Sbo_eq n (i : 'I_n) (prf : (i.+1 < n)%N) : nat_of_ord (Sbo prf) = i.+1.
 Proof. by case: i prf. Qed.
 
-Lemma Wo_So_lower_eq n (i : 'I_n) (prf : (i.+1 < n)%N) : Wo (So_lower prf) = So i.
+Lemma Wo_Sbo_eq n (i : 'I_n) (prf : (i.+1 < n)%N) : Wo (Sbo prf) = So i.
 Proof. by case: i prf=>/= m prf0 prf1; apply/ord_inj. Qed.
 
 (* subtract 2 and decrease bound by 1 *)
-Definition Po_lower2 n (i : 'I_n) (pi : 1%N < i) : 'I_n.-1.
+Definition M2lo n (i : 'I_n) (pi : 1%N < i) : 'I_n.-1.
 Proof.
 case: i pi=>m prf /= Hm.
 apply: (Ordinal (n:=n.-1) (m:=m.-2)).
@@ -63,7 +63,7 @@ rewrite ltn_predRL; case: m prf Hm=>//=; case=>//= m Hm _.
 by apply: ltnW.
 Defined.
 
-Lemma Po_lower_eq2 n (i : 'I_n) (prf : 1%N < i) : nat_of_ord (Po_lower2 prf) = i.-2.
+Lemma M2lo_eq n (i : 'I_n) (prf : 1%N < i) : nat_of_ord (M2lo prf) = i.-2.
 Proof. by case: i prf. Qed.
 
 End OrdArith.
@@ -126,7 +126,7 @@ Proof.
 rewrite slice_kk /=.
 pose i' := cast_ord (esym (card_ord n.+1)) (Wo i).
 move: (onth_tnth (codom f) i')=>/= ->.
-by move: (@tnth_fgraph _ _ f i'); rewrite (enum_val_ord) {2}/i' cast_ordKV=>->.
+by move: (@tnth_fgraph _ _ f i'); rewrite enum_val_ord {2}/i' cast_ordKV=>->.
 Qed.
 
 Lemma codom1_Skk (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
@@ -135,7 +135,7 @@ Proof.
 rewrite slice_kk /=.
 pose i' := cast_ord (esym (card_ord n.+1)) (So i).
 move: (onth_tnth (codom f) i')=>/=; rewrite So_eq =>->.
-by move: (@tnth_fgraph _ _ f i'); rewrite (enum_val_ord) {2}/i' cast_ordKV=>->.
+by move: (@tnth_fgraph _ _ f i'); rewrite enum_val_ord {2}/i' cast_ordKV=>->.
 Qed.
 
 End CodomSlice.
@@ -375,7 +375,7 @@ Program Definition bubble_pass (a : {array 'I_n.+2 -> A}) :
                   Do (sw0 <-- cas_next a i;
                       let sw1 := sw || sw0 in
                       if decP (b := i < n) idP is left pf
-                        then loop (So_lower (i:=i) pf, sw1)
+                        then loop (Sbo (i:=i) pf, sw1)
                         else ret sw1))
       in go (ord0, false)).
 Next Obligation.
@@ -385,7 +385,7 @@ apply: [stepE f]=>//= sw0 m [p][{}H Hsw]; case: decP=>Hin.
 - (* i < n, recursive call *)
   apply: [gE (pffun p f)]=>//=.
   - (* precondition *)
-    split=>//; rewrite negb_or andbC So_lower_eq.
+    split=>//; rewrite negb_or andbC Sbo_eq.
     case: sw0 Hsw=>//=; case=>{p H}-> Hf; rewrite pffunE1.
     (* swap didn't happen in this iteration *)
     apply/(implyb_trans Hs)/implyP=>{Hs}.
@@ -514,11 +514,11 @@ Program Definition bubble_pass_opt (a : {array 'I_n.+2 -> A}) (k : 'I_n.+1) :
                   Do (sw0 <-- cas_next a i;
                       let sw1 := sw || sw0 in
                       if decP (b := i < k) idP is left pf
-                        then loop (So_lower (i:=i) pf, sw1)
+                        then loop (Sbo (i:=i) pf, sw1)
                         else ret sw1))
       in go (ord0, false)).
 Next Obligation.
-(* So_lower is always safe *)
+(* Sbo is always safe *)
 move=>_ k _ _ i _ _ /= E; rewrite E ltnS; symmetry.
 by apply: (leq_trans E); rewrite -ltnS; apply: ltn_ord.
 Qed.
@@ -529,7 +529,7 @@ apply: [stepE f]=>//= sw0 m [p][Hm Hsw]; case: decP=>{}H.
 - (* i < k, recursive call *)
   apply: [gE (pffun p f)]=>//=.
   - (* precondition *)
-    rewrite So_lower_eq Wo_So_lower_eq negb_or slice_oSR.
+    rewrite Sbo_eq Wo_Sbo_eq negb_or slice_oSR.
     case: sw0 Hsw=>/=; case=>Ep Hf; rewrite {p}Ep ?pffunE1 in Hm *.
     - (* swap happened before the call *)
       rewrite andbF /= swnx_oa //; split=>//.
@@ -702,11 +702,11 @@ Program Definition bubble_pass_opt2 (a : {array 'I_n.+2 -> A}) (k : 'I_n.+1) :
                   Do (sw <-- cas_next a i;
                       let ls1 := if sw then So i else ls in
                       if decP (b := i < k) idP is left pf
-                        then loop (So_lower (i:=i) pf, ls1)
+                        then loop (Sbo (i:=i) pf, ls1)
                         else ret ls1))
       in go (ord0, ord0)).
 Next Obligation.
-(* show that So_lower is always safe *)
+(* show that Sbo is always safe *)
 move=>_ k _ _ i _ _ /= E; rewrite E ltnS; symmetry.
 by apply: (leq_trans E); rewrite -ltnS; apply: ltn_ord.
 Qed.
@@ -717,7 +717,7 @@ apply: [stepE f]=>//= sw m [p][Hm Hsw]; case: decP=>H.
 - (* i < k, recursive call *)
   apply: [gE (pffun p f)]=>//=.
   - (* precondition *)
-    rewrite So_lower_eq.
+    rewrite Sbo_eq.
     case: sw Hsw=>/=; case=>Ep Hf; rewrite {p}Ep ?pffunE1 in Hm *.
     - (* swap happened before the call *)
       rewrite So_eq swnx_oa; last by rewrite ltnS; apply: ltnW.
@@ -821,7 +821,7 @@ Program Definition bubble_sort_opt2 (a : {array 'I_n.+2 -> A}) :
   Do (let go := Fix (fun (loop : bubble_sort_opt2_loop a) k =>
                      Do (k1 <-- bubble_pass_opt2 a k;
                          if decP (b := 1 < k1) idP is left pf
-                           then loop (Po_lower2 (i:=k1) pf) : ST _
+                           then loop (M2lo (i:=k1) pf) : ST _
                            else skip))
       in go ord_max).
 Next Obligation.
@@ -838,7 +838,7 @@ case: decP=>Hx; last first.
 apply: [gE (pffun p f)]=>//=; last first.
 - move=> _ m2 [p'][H2 Hs'] _; exists (p' * p)%g.
   by rewrite pffunEM.
-rewrite slice_oSL -slice_oSR (Po_lower_eq2 Hx); suff: x.-2.+2 = x by move=>->.
+rewrite slice_oSL -slice_oSR (M2lo_eq Hx); suff: x.-2.+2 = x by move=>->.
 by rewrite -subn2 -addn2 addnBAC // addnK.
 Qed.
 Next Obligation.
