@@ -316,7 +316,7 @@ Opaque Array.write Array.read.
 (*   go 0 false                                      *)
 (*                                                   *)
 (* let bubble_sort (a : array A) : unit =            *)
-(*   if bubble_pass a then bubble_sort a else ().    *)
+(*   if bubble_pass a then bubble_sort a else ()     *)
 (*****************************************************)
 
 Program Definition cas_next (a : {array 'I_n.+2 -> A}) (i : 'I_n.+1) :
@@ -469,7 +469,7 @@ Opaque cas_next.
 (*   let go (k : nat) : unit = {                          *)
 (*     if bubble_pass_opt a k then go (k-1) else ()       *)
 (*   };                                                   *)
-(*   go ((size a)-2).                                     *)
+(*   go ((size a)-2)                                      *)
 (**********************************************************)
 
 Definition bubble_pass_opt_loop (a : {array 'I_n.+2 -> A}) (k : 'I_n.+1) :=
@@ -664,7 +664,7 @@ Opaque cas_next.
 (*     let k1 = bubble_pass_opt2 a k;                   *)
 (*     if 1 < k1 then go (k1 - 2) else ()               *)
 (*   };                                                 *)
-(*   go (size a - 2).                                   *)
+(*   go (size a - 2)                                    *)
 (********************************************************)
 
 Definition bubble_pass_opt2_loop (a : {array 'I_n.+2 -> A}) (k : 'I_n.+1) :=
