@@ -15,6 +15,16 @@ Corollary slice_oPR {A : Type} a x (s : seq A) :
         &:s (Interval a (BRight x.-1)) = &:s (Interval a (BLeft x)).
 Proof. by move=>Hx; rewrite -{2}(prednK Hx) slice_oSR. Qed.
 
+Corollary slice_uxox {A : Type} (s : seq A) a b :
+            a <= b ->
+            &:s `]-oo, b] = &:s `]-oo, a[ ++ &:s `[a, b].
+Proof. by move=>Hab; rewrite (slice_split _ true (x:=a)). Qed.
+
+Corollary slice_uoox {A : Type} (s : seq A) a b :
+            a < b ->
+            &:s `]-oo, b[ = &:s `]-oo, a[ ++ &:s `[a, b[.
+Proof. by move=>Hab; rewrite (slice_split _ true (x:=a)). Qed.
+
 Lemma leq_choose a b : a < b -> sumbool (a.+1 == b) (a.+1 < b).
 Proof.
 move=>H.
@@ -31,7 +41,7 @@ case: j Hi=>j Hj /= Hi.
 by apply/leq_trans/Hj.
 Qed.
 
-(* increase within the bound *)
+(* increase by 1 within the bound *)
 Definition Sbo n (i : 'I_n) (prf : (i.+1 < n)%N) : 'I_n.
 Proof. case: i prf=>/= m Hm; apply: Ordinal. Defined.
 
@@ -47,6 +57,17 @@ Proof. by case: j H1 H2; case: i. Qed.
 Lemma Sbo_lt n (i j k : 'I_n) (H1 : i <= j) (H2 : j < k) : i <= Sbo (ord_trans H2).
 Proof. by case: j H1 H2; case: i=>/=x Hx y Hy Hxy Hyk; apply/ltnW. Qed.
 
+(* increase by 1 with saturation *)
+Definition Sso n (i : 'I_n) : 'I_n.
+Proof.
+case: i=>/= m Hm; case: (ltnP m.+1 n)=>[H|_].
+- by apply: (@Ordinal _ m.+1 H).
+by apply: (@Ordinal _ m Hm).
+Defined.
+
+Lemma Sso_eq n (i : 'I_n) : nat_of_ord (Sso i) = if (i.+1 < n)%N then i.+1 else i.
+Proof. by case: i=>/= m prf; case: ltnP. Qed.
+
 (* decrease by 1 *)
 Definition Po n : 'I_n -> 'I_n :=
   fun '(@Ordinal _ m prf) => @Ordinal n m.-1 (leq_ltn_trans (leq_pred _) prf).
@@ -55,6 +76,35 @@ Lemma Po_eq n (i : 'I_n) : nat_of_ord (Po i) = i.-1.
 Proof. by case: i. Qed.
 
 End OrdArith.
+
+Section ItvPermOn.
+Variable (n : nat) (A : Type).
+
+Lemma perm_on_notin (f : {ffun 'I_n -> A}) (p : 'S_n) (s : {set 'I_n}) (i : interval nat) :
+  perm_on s p ->
+  [disjoint s & [set x : 'I_n | (x : nat) \in i]] ->
+  &:(fgraph (pffun p f)) i = &:(fgraph f) i.
+Proof.
+move=>Hp Hd.
+suff E: {in &:(enum 'I_n) i, f =1 pffun p f}.
+- by rewrite !fgraph_codom /= !codomE /= -2!slice_map /=; move/eq_in_map: E.
+move=>/= y Hy; rewrite ffunE (@out_perm _ s) //.
+apply/negbT/(disjointFl Hd); rewrite inE in_itv.
+case: {Hd}i Hy=>i j; rewrite slice_mem /=; last first.
+- by rewrite count_uniq_mem; [exact: leq_b1|exact: enum_uniq].
+case/and3P=>_; rewrite size_enum_ord index_enum_ord.
+case: j=>[[] jx|[]]; case: i=>[[] ix|[]];
+  rewrite ?andbF ?andbT /= ?addn0 ?addn1 // leEnat ltEnat /=.
+- by move=>->.
+- by move=>->.
+- by rewrite leqNgt (ltn_ord y).
+- by move=>->.
+- by move=>->.
+- by rewrite leqNgt (ltn_ord y).
+by rewrite leqNgt (ltn_ord y).
+Qed.
+
+End ItvPermOn.
 
 Section PermFgraphEq.
 Variable (n : nat) (A : eqType).
@@ -70,20 +120,46 @@ by rewrite tnth_fgraph tnth_map tnth_fgraph ffunE /= tnth_ord_tuple
   !enum_val_ord cast_permE cast_ordKV esymK.
 Qed.
 
-
-Set Printing All.
-
-rewrite enum_ord.
-(* TODO generalize to arb intervals?*)
-Lemma perm_on_codom (a b : 'I_n) (p : 'S_n) (f : {ffun 'I_n -> A}) :
+(* TODO generalize to arbitrary intervals? *)
+Lemma perm_on_fgraph_xx (a b : 'I_n) (p : 'S_n) (f : {ffun 'I_n -> A}) :
   perm_on [set ix : 'I_n | a <= ix & ix <= b] p ->
-  perm_eq &:(codom (pffun p f)) `[a : nat, b : nat]
-          &:(codom f) `[a : nat, b : nat].
+  perm_eq &:(fgraph (pffun p f)) `[a : nat, b : nat]
+          &:(fgraph          f ) `[a : nat, b : nat].
 Proof.
-move/perm_closed=>/= H.
-apply/seq.permP=>pr.
-apply/tuple_permP=>/=.
-rewrite addn0 addn1.
+move=>H.
+case: (leqP a b)=>Hab; last by rewrite !itv_swapped_bnd.
+move: (perm_fgraph p f).
+rewrite {1}(slice_uxou (fgraph f) b) {1}(slice_uxox (fgraph f) Hab).
+rewrite {1}(slice_uxou (fgraph (pffun p f)) b) {1}(slice_uxox (fgraph (pffun p f)) Hab).
+rewrite (perm_on_notin (i:=`]-oo, a : nat[) f H); last first.
+- rewrite disjoint_subset; apply/subsetP=>/= z.
+  by rewrite 4!inE in_itv /= ltEnat /= -ltnNge ltnS; case/andP.
+rewrite (perm_on_notin (i:=`]b : nat, +oo[) f H); last first.
+- rewrite disjoint_subset; apply/subsetP=>/= z.
+  by rewrite 4!inE in_itv /= ltEnat andbT /= -ltnNge ltnS; case/andP.
+by rewrite perm_cat2r perm_cat2l.
+Qed.
+
+Lemma perm_on_fgraph_xo (a b : 'I_n) (p : 'S_n) (f : {ffun 'I_n -> A}) :
+  perm_on [set ix : 'I_n | a <= ix & ix < b] p ->
+  perm_eq &:(fgraph (pffun p f)) `[a : nat, b : nat[
+          &:(fgraph          f ) `[a : nat, b : nat[.
+Proof.
+move=>H.
+case: (ltnP a b)=>Hab; last by rewrite !itv_swapped_bnd // bnd_simp.
+move: (perm_fgraph p f).
+rewrite {1}(slice_uoxu (fgraph f) b) {1}(slice_uoox (fgraph f) Hab).
+rewrite {1}(slice_uoxu (fgraph (pffun p f)) b) {1}(slice_uoox (fgraph (pffun p f)) Hab).
+rewrite (perm_on_notin (i:=`]-oo, a : nat[) f H); last first.
+- rewrite disjoint_subset; apply/subsetP=>/= z.
+  by rewrite 4!inE in_itv /= ltEnat /= -ltnNge ltnS; case/andP.
+rewrite (perm_on_notin (i:=`[b : nat, +oo[) f H); last first.
+- rewrite disjoint_subset; apply/subsetP=>/= z.
+  by rewrite 4!inE in_itv /= leEnat andbT -ltnNge; case/andP.
+by rewrite perm_cat2r perm_cat2l.
+Qed.
+
+End PermFgraphEq.
 
 Section TPermFgraph.
 Variable (n : nat) (A : Type).
@@ -362,9 +438,6 @@ apply: [stepE f]=>//= v m [/andP [Hvl Hvh]][p][Hp Hm Al Ah].
 apply: [stepE (pffun p f)]=>//= _ ml [pl][].
 rewrite Po_eq -pffunEM => Hpl Hml Sl.
 case: decP=>[pf|/negP]; last first.
-
-
-
 - rewrite -leqNgt; move: (ltn_ord v); rewrite !ltnS=>Hvn Hnv.
   have {Hvn Hnv}Ev: (v : nat) = n by apply/eqP; rewrite eqn_leq Hvn.
   have {Hvh}Eh: (h : nat) = (v : nat).
@@ -382,27 +455,39 @@ case: decP=>[pf|/negP]; last first.
   apply/andP; split; last by rewrite -slice_oPR // lt0n.
   rewrite pffunEM ffunE (out_perm Hpl); last first.
   - by rewrite inE negb_and -!ltnNge ltn_predL lt0n Nv orbT.
-
   rewrite (perm_all (s2:=&:(codom (pffun p f)) `[l : nat, v : nat[)) //.
-
-
-
-
-
-- apply: [stepE (pffun p f)]=>//= _ ml [pl][].
-  rewrite Po_eq -pffunEM => Hpl Hml Sl.
-  apply: [gE (pffun (pl * p) f)]=>//= _ mr [pr][].
-  rewrite Sbo_eq -pffunEM => Hpr Hmr Sr _.
-  exists (pr * (pl * p))%g; split=>//.
+  apply: perm_on_fgraph_xo.
+  apply/(subset_trans Hpl)/subsetP=>z; rewrite !inE; case/andP=>->/= Hz.
+  by apply: (leq_ltn_trans Hz); rewrite ltn_predL lt0n.
+apply: [gE (pffun (pl * p) f)]=>//= _ mr [pr][].
+rewrite Sbo_eq -pffunEM => Hpr Hmr Sr _.
+exists (pr * (pl * p))%g; split=>//.
+- apply: perm_onM.
+  - apply/(subset_trans Hpr)/subsetP=>/= z; rewrite !inE.
+    case/andP=>Hz ->; rewrite andbT.
+    by apply/ltnW/leq_ltn_trans/Hz.
+  apply: perm_onM=>//.
+  apply/(subset_trans Hpl)/subsetP=>/= z; rewrite !inE.
+  case/andP=>->/= Hz.
+  apply/leq_trans/Hvh/(leq_trans Hz).
+  by exact: leq_pred.
+rewrite (slice_split _ true (x:=v) (i:=`[l : nat, h : nat])) /=; last first.
+- by rewrite in_itv /= leEnat; apply/andP.
+rewrite (slice_xL (x:=v)) // onth_codom /=.
+have -> : pffun (pr * (pl * p)) f v = pffun p f v.
+- rewrite !ffunE mulgA; suff ->: (pr * pl * p)%g v = p v by [].
+  rewrite permM.
+  have Hmul: perm_on [set ix : 'I_n.+1| (l <= ix <= v.-1) || (v < ix <= h)] (pr * pl)%g.
   - apply: perm_onM.
-    - apply/(subset_trans Hpr)/subsetP=>/= z; rewrite !inE.
-      case/andP=>Hz ->; rewrite andbT.
-      by apply/ltnW/leq_ltn_trans/Hz.
-    apply: perm_onM=>//.
-    apply/(subset_trans Hpl)/subsetP=>/= z; rewrite !inE.
-    case/andP=>->/= Hz.
-    apply/leq_trans/Hvh/(leq_trans Hz).
-    by exact: leq_pred.
+    - by apply/(subset_trans Hpr)/subsetP=>/= z; rewrite !inE=>->; rewrite orbT.
+    by apply/(subset_trans Hpl)/subsetP=>/= z; rewrite !inE=>->.
+  rewrite (out_perm Hmul) // inE negb_or !negb_and -leqNgt -!ltnNge.
+
+
+
+
+
+  rewrite sorted_pairwise // pairwise_cat /=.
 
 
 
