@@ -9,6 +9,38 @@ From htt Require Import array.
 From mathcomp Require order.
 Import order.Order.NatOrder order.Order.TTheory.
 
+Lemma perm_on01 {I : finType} (s : {set I}) (p : {perm I}) :
+  #|s| <= 1 -> perm_on s p -> p = 1%g.
+Proof.
+move=>Hs Hp; apply/permP=>z; rewrite perm1; apply/eqP.
+move: Hs; rewrite leq_eqVlt; case/orP.
+- case/cards1P=>x E; rewrite {s}E in Hp.
+  case: (eqVneq z x)=>[{z}->|N].
+  - by move/perm_closed: Hp =>/(_ x); rewrite !inE=>->.
+  by apply/eqP/(out_perm Hp); rewrite inE.
+rewrite ltnS leqn0 => /eqP/cards0_eq E; rewrite {s}E in Hp.
+by apply/eqP/(out_perm Hp); rewrite inE.
+Qed.
+
+Lemma perm_on_comm {I : finType} (s1 s2 : {set I}) (p1 p2 : {perm I}) :
+  perm_on s1 p1 -> perm_on s2 p2 ->
+  [disjoint s1 & s2] ->
+  commute p1 p2.
+Proof.
+move=>H1 H2 Hd.
+apply/permP=>z; rewrite !permM.
+case/boolP: (z \in s1)=>Hz1.
+- move: Hd; rewrite disjoint_subset =>/subsetP Hd.
+  rewrite !(out_perm H2) //.
+  - by move: Hd=>/(_ z Hz1).
+  by move: Hd=>/(_ (p1 z)); apply; rewrite (perm_closed _ H1).
+case/boolP: (z \in s2)=>Hz2.
+- move: Hd; rewrite disjoint_sym disjoint_subset =>/subsetP Hd.
+  rewrite !(out_perm H1) //.
+  by move: Hd=>/(_ (p2 z)); apply; rewrite (perm_closed _ H2).
+by rewrite (out_perm H1) // (out_perm H2) // (out_perm H1).
+Qed.
+
 (* TODO added *)
 Corollary slice_oPR {A : Type} a x (s : seq A) :
         0 < x ->
@@ -24,6 +56,11 @@ Corollary slice_uoox {A : Type} (s : seq A) a b :
             a < b ->
             &:s `]-oo, b[ = &:s `]-oo, a[ ++ &:s `[a, b[.
 Proof. by move=>Hab; rewrite (slice_split _ true (x:=a)). Qed.
+
+Lemma slice_FR {A : Type} (s : seq A) x : &:s (Interval x +oo) = &:s (Interval x (BLeft (size s))).
+Proof. by rewrite /slice /= addn0. Qed.
+
+(****)
 
 Lemma leq_choose a b : a < b -> sumbool (a.+1 == b) (a.+1 < b).
 Proof.
@@ -121,6 +158,7 @@ by rewrite tnth_fgraph tnth_map tnth_fgraph ffunE /= tnth_ord_tuple
 Qed.
 
 (* TODO generalize to arbitrary intervals? *)
+(* TODO change a and b types to nat *)
 Lemma perm_on_fgraph_xx (a b : 'I_n) (p : 'S_n) (f : {ffun 'I_n -> A}) :
   perm_on [set ix : 'I_n | a <= ix & ix <= b] p ->
   perm_eq &:(fgraph (pffun p f)) `[a : nat, b : nat]
@@ -156,6 +194,25 @@ rewrite (perm_on_notin (i:=`]-oo, a : nat[) f H); last first.
 rewrite (perm_on_notin (i:=`[b : nat, +oo[) f H); last first.
 - rewrite disjoint_subset; apply/subsetP=>/= z.
   by rewrite 4!inE in_itv /= leEnat andbT -ltnNge; case/andP.
+by rewrite perm_cat2r perm_cat2l.
+Qed.
+
+Lemma perm_on_fgraph_ox (a b : 'I_n) (p : 'S_n) (f : {ffun 'I_n -> A}) :
+  perm_on [set ix : 'I_n | a < ix & ix <= b] p ->
+  perm_eq &:(fgraph (pffun p f)) `]a : nat, b : nat]
+          &:(fgraph          f ) `]a : nat, b : nat].
+Proof.
+move=>H.
+case: (ltnP a b)=>Hab; last by rewrite !itv_swapped_bnd.
+move: (perm_fgraph p f).
+rewrite {1}(slice_uxou (fgraph f) b) {1}(slice.slice_uxox (fgraph f) (ltnW Hab)).
+rewrite {1}(slice_uxou (fgraph (pffun p f)) b) {1}(slice.slice_uxox (fgraph (pffun p f)) (ltnW Hab)).
+rewrite (perm_on_notin (i:=`]-oo, a : nat]) f H); last first.
+- rewrite disjoint_subset; apply/subsetP=>/= z.
+  by rewrite 4!inE in_itv /= leEnat -ltnNge; case/andP.
+rewrite (perm_on_notin (i:=`]b : nat, +oo[) f H); last first.
+- rewrite disjoint_subset; apply/subsetP=>/= z.
+  by rewrite 4!inE in_itv /= andbT ltEnat /= -ltnNge ltnS; case/andP.
 by rewrite perm_cat2r perm_cat2l.
 Qed.
 
@@ -198,6 +255,45 @@ End TPermFgraph.
 
 Section Lomuto.
 Variable (n : nat) (A : ordType).
+
+(***************************************************)
+(* pseudocode in idealized effectful ML-like lang  *)
+(* assuming size a >= 1                            *)
+(*                                                 *)
+(* let swap (a : array A) (i j : nat) : unit =     *)
+(*   if i == j then () else                        *)
+(*     let x = array.read a i;                     *)
+(*     let y = array.read a j;                     *)
+(*     array.write a i y;                          *)
+(*     array.write a j x                           *)
+(*                                                 *)
+(* let partition_lm_pass (a : array A) (pivot : A) *)
+(*                       (lo hi : nat) : nat =     *)
+(*   let go (i j : nat) : nat = {                  *)
+(*     let x = array.read a j;                     *)
+(*     if x <= pivot then {                        *)
+(*       swap a i j;                               *)
+(*       if j+1 < hi then go (i+1) (j+1) else i+1  *)
+(*     } else if j+1 < hi then go i (j+1) else i   *)
+(*   };                                            *)
+(*   go lo lo                                      *)
+(*                                                 *)
+(* let partition_lm (a : array A)                  *)
+(*                  (lo hi : nat) : nat =          *)
+(*    let pivot = array.read a hi;                 *)
+(*    let v = partition_lm_pass a pivot lo hi;     *)
+(*    swap a v hi;                                 *)
+(*    v                                            *)
+(*                                                 *)
+(* let quick_sort (a : array A) : unit =           *)
+(*   let go (i j : nat) : unit =                   *)
+(*     if j <= i then () else                      *)
+(*       let v = partition_lm a i j;               *)
+(*       loop (l, v-1);                            *)
+(*       loop (v+1, h)                             *)
+(*   };                                            *)
+(*   go 0 (size a)-1                               *)
+(***************************************************)
 
 Opaque Array.write Array.read.
 
@@ -414,17 +510,16 @@ Program Definition quicksort_lm (a : {array 'I_n.+1 -> A}) :
            exists p, let f' := pffun p f in
              h \In Array.shape a f' /\
              sorted oleq (fgraph f')]) :=
-  let go :=
+  Do (let go :=
     Fix (fun (loop : quicksort_lm_loop a) '(l,h) =>
       Do (if decP (b:=(l : nat) < h) idP isn't left pf then skip
-          else v <-- @partition_lm _ _ a l h pf;
+          else v <-- partition_lm a pf;
                loop (l, Po v);;
-               (* this would be caught by previous check on a next recursive call *)
-               (* but we have to stay under n *)
-               if decP (b:=v.+1 < n.+1) idP isn't left pf
-                 then skip
-                 else loop (Sbo pf, h)))
-  in go (ord0, ord_max).
+               (* we use saturating increment to stay under n+1 *)
+               (* and keep the classical form of the algorithm *)
+               (* the overflow case will exit on next call because v = h = n-1 *)
+               loop (Sso v, h)))
+  in go (ord0, ord_max)).
 Next Obligation.
 move=>a loop _ l h [f][] i /= Hi.
 case: decP=>[Olh|/negP]; last first.
@@ -437,40 +532,69 @@ case: decP=>[Olh|/negP]; last first.
 apply: [stepE f]=>//= v m [/andP [Hvl Hvh]][p][Hp Hm Al Ah].
 apply: [stepE (pffun p f)]=>//= _ ml [pl][].
 rewrite Po_eq -pffunEM => Hpl Hml Sl.
-case: decP=>[pf|/negP]; last first.
-- rewrite -leqNgt; move: (ltn_ord v); rewrite !ltnS=>Hvn Hnv.
-  have {Hvn Hnv}Ev: (v : nat) = n by apply/eqP; rewrite eqn_leq Hvn.
-  have {Hvh}Eh: (h : nat) = (v : nat).
-  - apply/eqP; rewrite eqn_leq Hvh Ev andbT.
-    by move: (ltn_ord h); rewrite ltnS.
-  step=>_; exists (pl * p)%g; split=>//.
-  - apply: perm_onM=>//; rewrite Eh.
-    apply/(subset_trans Hpl)/subsetP=>z; rewrite !inE.
-    case/andP=>-> /= Hz.
-    by apply: (leq_trans Hz); exact: leq_pred.
-  rewrite Eh; case: (eqVneq v ord0)=>[E|Nv].
-  - move: Hvl; rewrite E /= leqn0 => /eqP->.
-    by rewrite slice_kk /= (_ : 0 = (ord0 : 'I_n.+1)) // onth_codom.
-  rewrite slice_xR // onth_codom /= sorted_rconsE //.
-  apply/andP; split; last by rewrite -slice_oPR // lt0n.
-  rewrite pffunEM ffunE (out_perm Hpl); last first.
-  - by rewrite inE negb_and -!ltnNge ltn_predL lt0n Nv orbT.
-  rewrite (perm_all (s2:=&:(codom (pffun p f)) `[l : nat, v : nat[)) //.
-  apply: perm_on_fgraph_xo.
-  apply/(subset_trans Hpl)/subsetP=>z; rewrite !inE; case/andP=>->/= Hz.
-  by apply: (leq_ltn_trans Hz); rewrite ltn_predL lt0n.
 apply: [gE (pffun (pl * p) f)]=>//= _ mr [pr][].
-rewrite Sbo_eq -pffunEM => Hpr Hmr Sr _.
+rewrite Sso_eq ltnS -pffunEM => Hpr Hmr Sr _.
 exists (pr * (pl * p))%g; split=>//.
 - apply: perm_onM.
   - apply/(subset_trans Hpr)/subsetP=>/= z; rewrite !inE.
-    case/andP=>Hz ->; rewrite andbT.
-    by apply/ltnW/leq_ltn_trans/Hz.
+    case/andP=>+ ->; rewrite andbT; case: ltnP=>_ Hz.
+    - by apply/ltnW/leq_ltn_trans/Hz.
+    by apply/leq_trans/Hz.
   apply: perm_onM=>//.
   apply/(subset_trans Hpl)/subsetP=>/= z; rewrite !inE.
   case/andP=>->/= Hz.
   apply/leq_trans/Hvh/(leq_trans Hz).
   by exact: leq_pred.
+
+case: (eqVneq v ord0)=>[Ev|Nv0].
+- have El: l = ord0.
+  - move: Hvl; rewrite Ev leqn0 => /eqP El.
+    by apply/ord_inj.
+  rewrite Ev El /= in Hpl.
+  have Epl: pl = 1%g.
+  - apply: (perm_on01 _ Hpl).
+    suff: [set ix : 'I_n.+1 | ix <= 0] \subset [set ord0].
+    - by move/subset_leqif_cards; rewrite cards1; apply.
+    apply/subsetP=>z; rewrite !inE leqn0=>/eqP E.
+    by apply/eqP/ord_inj.
+  move: Sr Hpr; rewrite El Ev Epl mul1g; case: ifP=>// H Sr Hpr.
+  rewrite slice_xL // onth_codom /= slice_oSL path_sortedE // Sr andbT.
+  move: Ah; rewrite Ev slice_oSL /=.
+  have ->: pffun (pr * p) f ord0 = pffun p f ord0.
+  - by rewrite !ffunE permM (out_perm Hpr) // inE negb_and ltnn.
+  have HS: subpred (ord (pffun p f ord0)) (oleq (pffun p f ord0)).
+  - by move=>z /ordW.
+  move/(sub_all HS).
+  rewrite (perm_all (s2:=&:(codom (pffun (pr * p) f)) `[1, h : nat])) // pffunEM perm_sym.
+  rewrite -!slice_oSL (_ : 0 = (ord0 : 'I_n.+1)) //.
+  by apply: perm_on_fgraph_ox.
+
+move: (ltn_ord v); rewrite ltnS leq_eqVlt; case/orP=>[/eqP Ev|Nv].
+- have Eh: (h : nat) = n.
+  - apply/eqP; rewrite eqn_leq; move: Hvh; rewrite Ev=>->; rewrite andbT.
+    by move: (ltn_ord h); rewrite ltnS.
+  rewrite Ev Eh /= ltnn in Hpr.
+  have Epr: pr = 1%g.
+  - apply: (perm_on01 _ Hpr).
+    suff: [set ix : 'I_n.+1 | n <= ix & ix <= n] \subset [set ord_max].
+    - by move/subset_leqif_cards; rewrite cards1; apply.
+    apply/subsetP=>/= z; rewrite !inE -eqn_leq=>/eqP E.
+    by apply/eqP/ord_inj.
+  move: Sl Hpl; rewrite Eh Ev Epr mul1g => Sl Hpl.
+  rewrite slice_xR; last by rewrite bnd_simp leEnat; move: Hvl; rewrite Ev.
+  rewrite {22}(_ : n = (ord_max : 'I_n.+1)) // onth_codom /= sorted_rconsE //.
+  move: Sl; rewrite slice_oPR; last by rewrite lt0n -Ev.
+  move=>->; rewrite andbT.
+  move: Al; rewrite Ev.
+  have ->: pffun (pl * p) f ord_max = pffun p f ord_max.
+  - by rewrite !ffunE permM (out_perm Hpl) // inE negb_and -!ltnNge /= ltn_predL lt0n -{3}Ev Nv0 orbT.
+  have ->: v = ord_max by apply/ord_inj.
+  rewrite (perm_all (s2:=&:(codom (pffun (pl * p) f)) `[l: nat, n[)) // pffunEM perm_sym.
+  rewrite {8 15}(_ : n = (ord_max : 'I_n.+1)) //; apply: perm_on_fgraph_xo.
+  apply/(subset_trans Hpl)/subsetP=>z; rewrite !inE; case/andP=>->/= Hz.
+  by apply: (leq_ltn_trans Hz); rewrite ltn_predL lt0n -Ev.
+
+rewrite Nv in Hpr Sr.
 rewrite (slice_split _ true (x:=v) (i:=`[l : nat, h : nat])) /=; last first.
 - by rewrite in_itv /= leEnat; apply/andP.
 rewrite (slice_xL (x:=v)) // onth_codom /=.
@@ -481,121 +605,54 @@ have -> : pffun (pr * (pl * p)) f v = pffun p f v.
   - apply: perm_onM.
     - by apply/(subset_trans Hpr)/subsetP=>/= z; rewrite !inE=>->; rewrite orbT.
     by apply/(subset_trans Hpl)/subsetP=>/= z; rewrite !inE=>->.
-  rewrite (out_perm Hmul) // inE negb_or !negb_and -leqNgt -!ltnNge.
+  by rewrite (out_perm Hmul) // inE negb_or !negb_and -leqNgt -!ltnNge leqnn /= andbT ltn_predL lt0n Nv0 orbT.
+rewrite {1}pffunEM (perm_on_notin _ Hpr); last first.
+- rewrite disjoint_subset; apply/subsetP=>/= z.
+  rewrite 4!inE in_itv /= negb_and leEnat ltEnat /= -leqNgt -ltnNge.
+  by case/andP=>/ltnW-> _; rewrite orbT.
+rewrite -slice_oSL in Sr.
+rewrite mulgA (perm_on_comm Hpr Hpl) in Sr *; last first.
+- rewrite disjoint_subset; apply/subsetP=>/= z; rewrite !inE negb_and -!ltnNge.
+  case/andP=>Hz _; apply/orP; right.
+  by apply/leq_ltn_trans/Hz; exact: leq_pred.
+rewrite -mulgA (pffunEM _ (pr * p)%g) (perm_on_notin _ Hpl) in Sr *; last first.
+- rewrite disjoint_subset; apply/subsetP=>/= z.
+  rewrite 4!inE in_itv /= negb_and leEnat /= -leqNgt -ltnNge.
+  case/andP=>_ Hz; apply/orP; left; apply: (leq_trans Hz).
+  by exact: leq_pred.
+rewrite sorted_pairwise // pairwise_cat /= allrel_consr -andbA -!sorted_pairwise //.
+apply/and5P; split=>//.
+- rewrite (perm_all (s2:=&:(codom (pffun p f)) `[l: nat, v: nat[)) // pffunEM.
+  apply/perm_on_fgraph_xo.
+  apply/(subset_trans Hpl)/subsetP=>/= z; rewrite !inE.
+  by case/andP=>->/= Hz; apply: (leq_ltn_trans Hz); rewrite ltn_predL lt0n.
+- apply/allrelP=>x y Hx Hy; apply (otrans (y:=pffun p f v)).
+  - move/allP: Al=>/(_ x); apply.
+    suff: perm_eq (&:(codom (pffun (pl * p) f)) `[l : nat, v : nat[)
+                  (&:(codom (pffun       p  f)) `[l : nat, v : nat[).
+    - by move/perm_mem=>/(_ x)<-.
+    rewrite pffunEM; apply: perm_on_fgraph_xo.
+    apply/(subset_trans Hpl)/subsetP=>/= z; rewrite !inE.
+    by case/andP=>->/= Hz; apply: (leq_ltn_trans Hz); rewrite ltn_predL lt0n.
+  apply/ordW; move/allP: Ah=>/(_ y); apply.
+  suff: perm_eq (&:(codom (pffun (pr * p) f)) `]v : nat, h : nat])
+                (&:(codom (pffun       p  f)) `]v : nat, h : nat]).
+  - by move/perm_mem=>/(_ y) <-.
+  by rewrite pffunEM; apply: perm_on_fgraph_ox.
+- by rewrite slice_oPR // in Sl; rewrite lt0n.
+have HS: subpred (ord (pffun p f v)) (oleq (pffun p f v)).
+- by move=>z /ordW.
+move/(sub_all HS): Ah=>Ah.
+rewrite (perm_all (s2:=&:(codom (pffun p f)) `]v : nat, h : nat])) // pffunEM.
+by apply/perm_on_fgraph_ox.
+Qed.
+Next Obligation.
+move=>a [f][] i /= H.
+apply: [gE f]=>//= _ m [p][Hp Hm Hs] _.
+exists p; split=>//.
+by rewrite -(slice_uu (codom _)) slice_0L slice_FR size_codom card_ord slice_oSR.
+Qed.
 
+End LomutoQsort.
 
-
-
-
-  rewrite sorted_pairwise // pairwise_cat /=.
-
-
-
- E: (decP idP)=>[x|x].
-
-(*
-Program Definition partition_lm (a : {array 'I_n -> A}) (lo hi : 'I_n) :
-  {f : {ffun 'I_n -> A}},
-  STsep (Array.shape a f,
-        [vfun _ h =>
-           h \In Array.shape a (pffun (tperm i j) f)]) :=
-  Do (pivot <-- Array.read a hi;
-      y <-- Array.read a j;
-      Array.write a i y;;
-      Array.write a j x).
-*)
-
-(*
-
-Lomuto
-
-// Divides array into two partitions
-algorithm partition(A, lo, hi) is
-  pivot := A[hi] // Choose the last element as the pivot
-
-  // Temporary pivot index
-  i := lo - 1
-
-  for j := lo to hi - 1 do
-    // If the current element is less than or equal to the pivot
-    if A[j] <= pivot then
-      // Move the temporary pivot index forward
-      i := i + 1
-      // Swap the current element with the element at the temporary pivot index
-      swap A[i] with A[j]
-
-  // Move the pivot element to the correct pivot position (between the smaller and larger elements)
-  i := i + 1
-  swap A[i] with A[hi]
-  return i // the pivot index
-
-// Sorts a (portion of an) array, divides it into partitions, then sorts those
-algorithm quicksort(A, lo, hi) is
-  // Ensure indices are in correct order
-  if lo >= hi || lo < 0 then
-    return
-
-  // Partition array and get the pivot index
-  p := partition(A, lo, hi)
-
-  // Sort the two partitions
-  quicksort(A, lo, p - 1) // Left side of pivot
-  quicksort(A, p + 1, hi) // Right side of pivot
-
-quicksort(A, 0, length(A) - 1)
-
-*)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-(*
-
-Hoare
-
-// Divides array into two partitions
-algorithm partition(A, lo, hi) is
-  // Pivot value
-  pivot := A[ floor((hi + lo) / 2) ] // The value in the middle of the array
-
-  // Left index
-  i := lo - 1
-
-  // Right index
-  j := hi + 1
-
-  loop forever
-    // Move the left index to the right at least once and while the element at
-    // the left index is less than the pivot
-    do i := i + 1 while A[i] < pivot
-
-    // Move the right index to the left at least once and while the element at
-    // the right index is greater than the pivot
-    do j := j - 1 while A[j] > pivot
-
-    // If the indices crossed, return
-    if i >= j then return j
-
-    // Swap the elements at the left and right indices
-    swap A[i] with A[j]
-
-// Sorts a (portion of an) array, divides it into partitions, then sorts those
-algorithm quicksort(A, lo, hi) is
-  if lo >= 0 && hi >= 0 && lo < hi then
-    p := partition(A, lo, hi)
-    quicksort(A, lo, p) // Note: the pivot is now included
-    quicksort(A, p + 1, hi)
-
-quicksort(A, 0, length(A) - 1).
-
-*)
+(* TODO Hoare variant *)
