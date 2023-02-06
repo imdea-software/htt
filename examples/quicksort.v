@@ -12,14 +12,14 @@ Import order.Order.NatOrder order.Order.TTheory.
 Lemma perm_on01 {I : finType} (s : {set I}) (p : {perm I}) :
   #|s| <= 1 -> perm_on s p -> p = 1%g.
 Proof.
-move=>Hs Hp; apply/permP=>z; rewrite perm1; apply/eqP.
-move: Hs; rewrite leq_eqVlt; case/orP.
-- case/cards1P=>x E; rewrite {s}E in Hp.
-  case: (eqVneq z x)=>[{z}->|N].
-  - by move/perm_closed: Hp =>/(_ x); rewrite !inE=>->.
-  by apply/eqP/(out_perm Hp); rewrite inE.
-rewrite ltnS leqn0 => /eqP/cards0_eq E; rewrite {s}E in Hp.
-by apply/eqP/(out_perm Hp); rewrite inE.
+rewrite leq_eqVlt ltnS leqn0=>Hs Hp; apply/permP=>z; rewrite perm1.
+case/orP: Hs; last first.
+- move/eqP/cards0_eq=>E; rewrite {s}E in Hp.
+  by apply: (out_perm Hp); rewrite inE.
+case/cards1P=>x E; rewrite {s}E in Hp.
+case: (eqVneq z x)=>[{z}->|N]; last first.
+- by apply: (out_perm Hp); rewrite inE.
+by apply/eqP; move/perm_closed: Hp =>/(_ x); rewrite !inE=>->.
 Qed.
 
 Lemma perm_on_comm {I : finType} (s1 s2 : {set I}) (p1 p2 : {perm I}) :
@@ -27,21 +27,25 @@ Lemma perm_on_comm {I : finType} (s1 s2 : {set I}) (p1 p2 : {perm I}) :
   [disjoint s1 & s2] ->
   commute p1 p2.
 Proof.
-move=>H1 H2 Hd.
-apply/permP=>z; rewrite !permM.
+move=>H1 H2 Hd; apply/permP=>z; rewrite !permM.
 case/boolP: (z \in s1)=>Hz1.
 - move: Hd; rewrite disjoint_subset =>/subsetP Hd.
-  rewrite !(out_perm H2) //.
-  - by move: Hd=>/(_ z Hz1).
-  by move: Hd=>/(_ (p1 z)); apply; rewrite (perm_closed _ H1).
+  rewrite !(out_perm H2) //; apply: Hd=>//.
+  by rewrite (perm_closed _ H1).
 case/boolP: (z \in s2)=>Hz2.
 - move: Hd; rewrite disjoint_sym disjoint_subset =>/subsetP Hd.
-  rewrite !(out_perm H1) //.
-  by move: Hd=>/(_ (p2 z)); apply; rewrite (perm_closed _ H2).
+  by rewrite !(out_perm H1) //; apply: Hd; rewrite (perm_closed _ H2).
 by rewrite (out_perm H1) // (out_perm H2) // (out_perm H1).
 Qed.
 
-(* TODO added *)
+Lemma tperm_on {I : finType} (i j : I) :
+  perm_on [set i; j] (tperm i j).
+Proof.
+apply/subsetP=>z; rewrite !inE.
+by case: tpermP=>[->|->|]; rewrite eqxx // orbT.
+Qed.
+
+(* TODO added to fcsl-pcm *)
 Corollary slice_oPR {A : Type} a x (s : seq A) :
         0 < x ->
         &:s (Interval a (BRight x.-1)) = &:s (Interval a (BLeft x)).
@@ -59,6 +63,27 @@ Proof. by move=>Hab; rewrite (slice_split _ true (x:=a)). Qed.
 
 Lemma slice_FR {A : Type} (s : seq A) x : &:s (Interval x +oo) = &:s (Interval x (BLeft (size s))).
 Proof. by rewrite /slice /= addn0. Qed.
+
+Lemma slice_extrude {A : Type} (s : seq A) (i : interval nat) :
+        order.Order.lt i.1 i.2 ->
+        s = &:s (Interval -oo i.1) ++ &:s i ++ &:s (Interval i.2 +oo).
+Proof.
+case: i=>[[[] i|[]][[] j|[]]] //=; rewrite bnd_simp=>H;
+  rewrite ?itv_minfR ?itv_pinfL /= ?cats0.
+- by rewrite -{1}(slice_uu s) (slice_split _ true (x:=i)) //=
+    (slice_split _ true (x:=j) (i:=`[i, +oo[)) //= in_itv /= andbT; apply/ltnW.
+- by rewrite -{1}(slice_uu s) (slice_split _ true (x:=i)) //=
+    (slice_split _ false (x:=j) (i:=`[i, +oo[)) //= in_itv /= andbT.
+- by rewrite -{1}(slice_uu s) (slice_split _ true (x:=i)).
+- by rewrite -{1}(slice_uu s) (slice_split _ false (x:=i)) //=
+    (slice_split _ true (x:=j) (i:=`]i, +oo[)) //= in_itv /= andbT.
+- by rewrite -{1}(slice_uu s) (slice_split _ false (x:=i)) //=
+    (slice_split _ false (x:=j) (i:=`]i, +oo[)) //= in_itv /= andbT.
+- by rewrite -{1}(slice_uu s) (slice_split _ false (x:=i)).
+- by rewrite -{1}(slice_uu s) (slice_split _ true (x:=j)).
+- by rewrite -{1}(slice_uu s) (slice_split _ false (x:=j)).
+by rewrite slice_uu.
+Qed.
 
 (****)
 
@@ -114,13 +139,13 @@ Proof. by case: i. Qed.
 
 End OrdArith.
 
-Section ItvPermOn.
+Section PermFgraph.
 Variable (n : nat) (A : Type).
 
 Lemma perm_on_notin (f : {ffun 'I_n -> A}) (p : 'S_n) (s : {set 'I_n}) (i : interval nat) :
-  perm_on s p ->
-  [disjoint s & [set x : 'I_n | (x : nat) \in i]] ->
-  &:(fgraph (pffun p f)) i = &:(fgraph f) i.
+        perm_on s p ->
+        [disjoint s & [set x : 'I_n | (x : nat) \in i]] ->
+        &:(fgraph (pffun p f)) i = &:(fgraph f) i.
 Proof.
 move=>Hp Hd.
 suff E: {in &:(enum 'I_n) i, f =1 pffun p f}.
@@ -141,7 +166,17 @@ case: j=>[[] jx|[]]; case: i=>[[] ix|[]];
 by rewrite leqNgt (ltn_ord y).
 Qed.
 
-End ItvPermOn.
+Corollary tperm_notin (f : {ffun 'I_n -> A}) (x y : 'I_n) (i : interval nat) :
+            (x : nat) \notin i -> (y : nat) \notin i ->
+            &:(fgraph (pffun (tperm x y) f)) i = &:(fgraph f) i.
+Proof.
+move=>Hx0 Hx1.
+apply: perm_on_notin; first by exact: tperm_on.
+rewrite disjoint_subset; apply/subsetP=>/= z; rewrite 6!inE.
+by case/orP=>/eqP->.
+Qed.
+
+End PermFgraph.
 
 Section PermFgraphEq.
 Variable (n : nat) (A : eqType).
@@ -157,101 +192,38 @@ by rewrite tnth_fgraph tnth_map tnth_fgraph ffunE /= tnth_ord_tuple
   !enum_val_ord cast_permE cast_ordKV esymK.
 Qed.
 
-(* TODO generalize to arbitrary intervals? *)
-(* TODO change a and b types to nat *)
-Lemma perm_on_fgraph_xx (a b : 'I_n) (p : 'S_n) (f : {ffun 'I_n -> A}) :
-  perm_on [set ix : 'I_n | a <= ix & ix <= b] p ->
-  perm_eq &:(fgraph (pffun p f)) `[a : nat, b : nat]
-          &:(fgraph          f ) `[a : nat, b : nat].
+Lemma perm_on_fgraph (i : interval nat) (p : 'S_n) (f : {ffun 'I_n -> A}) :
+  perm_on [set x : 'I_n | (x : nat) \in i] p ->
+  perm_eq &:(fgraph (pffun p f)) i
+          &:(fgraph          f ) i.
 Proof.
-move=>H.
-case: (leqP a b)=>Hab; last by rewrite !itv_swapped_bnd.
+case: i=>i j H.
+case/boolP: (order.Order.lt i j)=>[Hij|]; last first.
+- by rewrite -leNgt => H12; rewrite !itv_swapped_bnd.
 move: (perm_fgraph p f).
-rewrite {1}(slice_uxou (fgraph f) b) {1}(slice_uxox (fgraph f) Hab).
-rewrite {1}(slice_uxou (fgraph (pffun p f)) b) {1}(slice_uxox (fgraph (pffun p f)) Hab).
-rewrite (perm_on_notin (i:=`]-oo, a : nat[) f H); last first.
+rewrite {1}(slice_extrude (fgraph (pffun p f)) (i:=Interval i j)) //=.
+rewrite {1}(slice_extrude (fgraph f) (i:=Interval i j)) //=.
+rewrite (perm_on_notin (i:=Interval -oo i) f H); last first.
 - rewrite disjoint_subset; apply/subsetP=>/= z.
-  by rewrite 4!inE in_itv /= ltEnat /= -ltnNge ltnS; case/andP.
-rewrite (perm_on_notin (i:=`]b : nat, +oo[) f H); last first.
+  rewrite inE=>Hz; rewrite 3!inE; apply/negP=>Hz2.
+  suff: (z : nat) \notin order.Order.meet (Interval -oo i) (Interval i j).
+  - by move/negP; apply; rewrite in_itvI Hz2.
+  rewrite /order.Order.meet /= /order.Order.join /= /order.Order.meet /=.
+  move/ltW: Hij; rewrite bound_leEmeet=>/eqP->.
+  by rewrite itv_ge // -leNgt.
+rewrite (perm_on_notin (i:=Interval j +oo) f H); last first.
 - rewrite disjoint_subset; apply/subsetP=>/= z.
-  by rewrite 4!inE in_itv /= ltEnat andbT /= -ltnNge ltnS; case/andP.
-by rewrite perm_cat2r perm_cat2l.
-Qed.
-
-Lemma perm_on_fgraph_xo (a b : 'I_n) (p : 'S_n) (f : {ffun 'I_n -> A}) :
-  perm_on [set ix : 'I_n | a <= ix & ix < b] p ->
-  perm_eq &:(fgraph (pffun p f)) `[a : nat, b : nat[
-          &:(fgraph          f ) `[a : nat, b : nat[.
-Proof.
-move=>H.
-case: (ltnP a b)=>Hab; last by rewrite !itv_swapped_bnd // bnd_simp.
-move: (perm_fgraph p f).
-rewrite {1}(slice_uoxu (fgraph f) b) {1}(slice_uoox (fgraph f) Hab).
-rewrite {1}(slice_uoxu (fgraph (pffun p f)) b) {1}(slice_uoox (fgraph (pffun p f)) Hab).
-rewrite (perm_on_notin (i:=`]-oo, a : nat[) f H); last first.
-- rewrite disjoint_subset; apply/subsetP=>/= z.
-  by rewrite 4!inE in_itv /= ltEnat /= -ltnNge ltnS; case/andP.
-rewrite (perm_on_notin (i:=`[b : nat, +oo[) f H); last first.
-- rewrite disjoint_subset; apply/subsetP=>/= z.
-  by rewrite 4!inE in_itv /= leEnat andbT -ltnNge; case/andP.
-by rewrite perm_cat2r perm_cat2l.
-Qed.
-
-Lemma perm_on_fgraph_ox (a b : 'I_n) (p : 'S_n) (f : {ffun 'I_n -> A}) :
-  perm_on [set ix : 'I_n | a < ix & ix <= b] p ->
-  perm_eq &:(fgraph (pffun p f)) `]a : nat, b : nat]
-          &:(fgraph          f ) `]a : nat, b : nat].
-Proof.
-move=>H.
-case: (ltnP a b)=>Hab; last by rewrite !itv_swapped_bnd.
-move: (perm_fgraph p f).
-rewrite {1}(slice_uxou (fgraph f) b) {1}(slice.slice_uxox (fgraph f) (ltnW Hab)).
-rewrite {1}(slice_uxou (fgraph (pffun p f)) b) {1}(slice.slice_uxox (fgraph (pffun p f)) (ltnW Hab)).
-rewrite (perm_on_notin (i:=`]-oo, a : nat]) f H); last first.
-- rewrite disjoint_subset; apply/subsetP=>/= z.
-  by rewrite 4!inE in_itv /= leEnat -ltnNge; case/andP.
-rewrite (perm_on_notin (i:=`]b : nat, +oo[) f H); last first.
-- rewrite disjoint_subset; apply/subsetP=>/= z.
-  by rewrite 4!inE in_itv /= andbT ltEnat /= -ltnNge ltnS; case/andP.
-by rewrite perm_cat2r perm_cat2l.
+  rewrite inE=>Hz; rewrite 3!inE; apply/negP=>Hz2.
+  suff: (z : nat) \notin order.Order.meet (Interval i j) (Interval j +oo).
+  - by move/negP; apply; rewrite in_itvI Hz.
+  rewrite /order.Order.meet /= /order.Order.meet /=.
+  move: (bound_lex1 j); rewrite bound_leEmeet=>/eqP->.
+  move/ltW: Hij; rewrite leEjoin=>/eqP->.
+  by rewrite itv_ge // -leNgt.
+by rewrite /= perm_cat2l perm_cat2r.
 Qed.
 
 End PermFgraphEq.
-
-Section TPermFgraph.
-Variable (n : nat) (A : Type).
-
-Lemma tperm_notin (f : {ffun 'I_n -> A}) (x y : 'I_n) (i : interval nat) :
-        (x : nat) \notin i -> (y : nat) \notin i ->
-        &:(fgraph (pffun (tperm x y) f)) i = &:(fgraph f) i.
-Proof.
-move=>Hx0 Hx1.
-suff E: {in &:(enum 'I_n) i, f =1 pffun (tperm x y) f}.
-- by rewrite !fgraph_codom /= !codomE /= -2!slice_map /=; move/eq_in_map: E.
-move=>/= z; rewrite slice_mem /=; last first.
-- by rewrite count_uniq_mem; [exact: leq_b1|exact: enum_uniq].
-case: i Hx0 Hx1=>i j Hx0 Hx1 /=.
-case/and3P=>_; rewrite size_enum_ord index_enum_ord =>Hy1 Hy2.
-rewrite ffunE; case: tpermP=>// Ez; move: Hy1 Hy2; rewrite {z}Ez /=.
-- move: {Hx1}Hx0; rewrite in_itv negb_and; case/orP=>Hij.
-  - move=>Hx _; case: i Hx Hij=>[[] ix|[]] //=.
-    - by rewrite addn0=>->.
-    - by rewrite addn1 ltEnat /= leEnat =>->.
-    by rewrite leEnat=>Hnx _; move: (ltn_ord x); rewrite leqNgt ltnS Hnx.
-  move=>_ Hx; case: j Hx Hij=>[[] jx|[]] //=.
-  - by rewrite addn0=>->.
-  by rewrite addn1 ltEnat /= ltnS leEnat =>->.
-move: {Hx0}Hx1; rewrite in_itv negb_and; case/orP=>Hij.
-- move=>Hx _; case: i Hx Hij=>[[] ix|[]] //=.
-  - by rewrite addn0=>->.
-  - by rewrite addn1 ltEnat /= leEnat =>->.
-  by rewrite leEnat =>Hny _; move: (ltn_ord y); rewrite ltnNge Hny.
-move=>_ Hx; case: j Hx Hij=>[[] jx|[]] //=.
-- by rewrite addn0=>->.
-by rewrite addn1 ltEnat /= ltnS leEnat =>->.
-Qed.
-
-End TPermFgraph.
 
 Section Lomuto.
 Variable (n : nat) (A : ordType).
@@ -280,10 +252,10 @@ Variable (n : nat) (A : ordType).
 (*                                                 *)
 (* let partition_lm (a : array A)                  *)
 (*                  (lo hi : nat) : nat =          *)
-(*    let pivot = array.read a hi;                 *)
-(*    let v = partition_lm_pass a pivot lo hi;     *)
-(*    swap a v hi;                                 *)
-(*    v                                            *)
+(*   let pivot = array.read a hi;                  *)
+(*   let v = partition_lm_pass a pivot lo hi;      *)
+(*   swap a v hi;                                  *)
+(*   v                                             *)
 (*                                                 *)
 (* let quick_sort (a : array A) : unit =           *)
 (*   let go (i j : nat) : unit =                   *)
@@ -354,30 +326,32 @@ Program Definition partition_lm_pass (a : {array 'I_n -> A}) (pivot : A) (lo hi 
           if oleq x pivot then
             swap a i j;;
             let i1 := Sbo (ord_trans (leq_ltn_trans Hi Hj)) in  (* i+1 *)
+            let j1 := Sbo (ord_trans Hj) in                     (* j+1 *)
             if leq_choose Hj is right pf then
-              loop (@existT _ _ i1 (@exist _ _ (Sbo (ord_trans Hj)) (* j+1 *)
-                                   (conj (Sbo_leq Hi Hj)
-                                         (Sbo_lift Hj pf))))
+              loop (@existT _ _ i1 (@exist _ _ j1
+                      (conj (Sbo_leq Hi Hj) (Sbo_lift Hj pf))))
               else ret i1
           else if leq_choose Hj is right pf then
-                 loop (@existT _ _ i (@exist _ _ (Sbo (ord_trans Hj)) (* j+1 *)
-                                     (conj (Sbo_lt Hi Hj)
-                                           (Sbo_lift Hj pf))))
+                 let j1 := Sbo (ord_trans Hj) in                (* j+1 *)
+                 loop (@existT _ _ i (@exist _ _ j1
+                         (conj (Sbo_lt Hi Hj) (Sbo_lift Hj pf))))
             else ret i))
   in go (@existT _ _ lo (@exist _ _ lo (conj (leqnn lo) Hlo)))).
 Next Obligation.
 move=>a pivot lo hi Hlo loop _ i _ j _ Hi Hj [f][] h /= [H Oli Ai Aj].
 apply: [stepE f, h]=>//= _ _ [->->].
 case: oleqP=>Hfp.
-- apply: [stepE f]=>//= _ m Hm.
+- (* a[j] <= pivot, make swap *)
+  apply: [stepE f]=>//= _ m Hm.
   case: (leq_choose Hj)=>Hj1.
-  - step=>_; split.
+  - (* j+1 = hi, exit *)
+    step=>_; split.
     - rewrite Sbo_eq; apply/andP; split=>//.
       by apply/leq_ltn_trans/Hj.
     exists (tperm i j); rewrite Sbo_eq; split=>//.
     - rewrite -(eqP Hj1).
-      apply/subsetP=>/= x; rewrite !inE /= ltnS.
-      by case: tpermP=>[->_|->_|]; rewrite ?leqnn ?andbT // eqxx.
+      apply/(subset_trans (tperm_on i j))/subsetP=>/= x; rewrite !inE ltnS.
+      by case/orP=>/eqP->; rewrite leqnn // andbT.
     - rewrite slice_oSR slice_xR; last by rewrite bnd_simp.
       rewrite onth_codom ffunE tpermL /= all_rcons Hfp /=.
       rewrite tperm_notin // in_itv /= negb_and leEnat ltEnat /= -leqNgt.
@@ -388,11 +362,12 @@ case: oleqP=>Hfp.
     - by rewrite itv_swapped_bnd // bnd_simp ltEnat /= ltnS.
     rewrite slice_xR; last by rewrite bnd_simp.
     move: Aj; rewrite slice_xL; last by rewrite bnd_simp.
-    rewrite onth_codom /=; case/andP=>Hpi Aj.
-    rewrite onth_codom /= all_rcons; apply/andP; split.
+    rewrite !onth_codom /=; case/andP=>Hpi Aj.
+    rewrite all_rcons; apply/andP; split.
     - by rewrite ffunE tpermR.
     by rewrite tperm_notin -?slice_oSL //
       in_itv /= negb_and leEnat ltEnat /= -!leqNgt leqnn // orbT.
+  (* j+1 < hi, loop *)
   apply: [gE (pffun (tperm i j) f)]=>//=.
   - split=>//; rewrite !Sbo_eq; first by apply/ltnW.
     - rewrite slice_oSR slice_xR; last by rewrite bnd_simp.
@@ -405,8 +380,8 @@ case: oleqP=>Hfp.
     - by rewrite itv_swapped_bnd // bnd_simp ltEnat /= ltnS.
     rewrite slice_xR; last by rewrite bnd_simp.
     move: Aj; rewrite slice_xL; last by rewrite bnd_simp.
-    rewrite onth_codom /=; case/andP=>Hpi Aj.
-    rewrite onth_codom /= all_rcons; apply/andP; split.
+    rewrite !onth_codom /=; case/andP=>Hpi Aj.
+    rewrite all_rcons; apply/andP; split.
     - by rewrite ffunE tpermR.
     by rewrite tperm_notin -?slice_oSL //
       in_itv /= negb_and leEnat ltEnat /= -!leqNgt leqnn // orbT.
@@ -416,18 +391,18 @@ case: oleqP=>Hfp.
   rewrite Sbo_eq in Pk; apply: perm_onM.
   - apply/(subset_trans Pk)/subsetP=>x; rewrite !inE.
     by case/andP=>/ltnW->->.
-  apply/subsetP=>/= x; rewrite !inE /=.
-  case: tpermP=>[->_|->_|]; first last.
-  - by rewrite eqxx.
-  - by apply/andP.
+  apply/(subset_trans (tperm_on i j))/subsetP=>/= x; rewrite !inE /=.
+  case/orP=>/eqP->; last by apply/andP.
   by rewrite leqnn /=; apply/leq_ltn_trans/Hj.
+(* pivot < a[j] *)
 case: (leq_choose Hj)=>Hj1.
-- step=>_; split.
+- (* j+1 = hi, exit *)
+  step=>_; split.
   - by rewrite leqnn /= -(eqP Hj1); apply: ltnW.
-  exists 1%g; rewrite pffunE1; split=>//.
-  - by apply: perm_on1.
+  exists 1%g; rewrite pffunE1; split=>//; first by exact: perm_on1.
   rewrite -(eqP Hj1) slice_oSR slice_xR; last by rewrite bnd_simp.
   by rewrite onth_codom /= all_rcons Hfp.
+(* j+1 < hi, loop *)
 apply: [gE f]=>//=; split=>//.
 rewrite Sbo_eq slice_oSR slice_xR; last by rewrite bnd_simp.
 by rewrite onth_codom /= all_rcons Hfp.
@@ -461,9 +436,8 @@ apply: [stepE (pffun p f)]=>//= _ k Hj.
 step=>Vk; split=>//.
 exists (tperm v hi * p)%g; split=>//.
 - apply: perm_onM.
-  - apply/subsetP=>/= x; rewrite !inE /=.
-    case: tpermP=>[->_|->_|] //; last by rewrite eqxx.
-    by rewrite leqnn andbT; apply/ltnW.
+    apply/(subset_trans (tperm_on v hi))/subsetP=>/= x; rewrite !inE /=.
+    by case/orP=>/eqP->//; rewrite leqnn andbT; apply/ltnW.
   apply/(subset_trans Pm)/subsetP=>x; rewrite !inE.
   by case/andP=>->/ltnW->.
 - by rewrite pffunEM.
@@ -545,18 +519,16 @@ exists (pr * (pl * p))%g; split=>//.
   case/andP=>->/= Hz.
   apply/leq_trans/Hvh/(leq_trans Hz).
   by exact: leq_pred.
-
+(* we need to handle two edge cases: v=0 and v=n *)
 case: (eqVneq v ord0)=>[Ev|Nv0].
-- have El: l = ord0.
-  - move: Hvl; rewrite Ev leqn0 => /eqP El.
-    by apply/ord_inj.
+- (* if v=0, then l=0 and left partition is empty *)
+  have El: l = ord0.
+  - by move: Hvl; rewrite Ev leqn0 => /eqP El; apply/ord_inj.
   rewrite Ev El /= in Hpl.
   have Epl: pl = 1%g.
   - apply: (perm_on01 _ Hpl).
-    suff: [set ix : 'I_n.+1 | ix <= 0] \subset [set ord0].
-    - by move/subset_leqif_cards; rewrite cards1; apply.
-    apply/subsetP=>z; rewrite !inE leqn0=>/eqP E.
-    by apply/eqP/ord_inj.
+    have ->: (1 = #|[set (@ord0 n)]|) by rewrite cards1.
+    by apply/subset_leqif_cards/subsetP=>/= z; rewrite !inE leqn0=>/eqP E; apply/eqP/ord_inj.
   move: Sr Hpr; rewrite El Ev Epl mul1g; case: ifP=>// H Sr Hpr.
   rewrite slice_xL // onth_codom /= slice_oSL path_sortedE // Sr andbT.
   move: Ah; rewrite Ev slice_oSL /=.
@@ -564,36 +536,32 @@ case: (eqVneq v ord0)=>[Ev|Nv0].
   - by rewrite !ffunE permM (out_perm Hpr) // inE negb_and ltnn.
   have HS: subpred (ord (pffun p f ord0)) (oleq (pffun p f ord0)).
   - by move=>z /ordW.
-  move/(sub_all HS).
-  rewrite (perm_all (s2:=&:(codom (pffun (pr * p) f)) `[1, h : nat])) // pffunEM perm_sym.
-  rewrite -!slice_oSL (_ : 0 = (ord0 : 'I_n.+1)) //.
-  by apply: perm_on_fgraph_ox.
-
+  move/(sub_all HS); congr (_ = _); apply: perm_all.
+  rewrite pffunEM perm_sym -!slice_oSL (_ : 0 = (ord0 : 'I_n.+1)) //.
+  by apply: perm_on_fgraph.
 move: (ltn_ord v); rewrite ltnS leq_eqVlt; case/orP=>[/eqP Ev|Nv].
-- have Eh: (h : nat) = n.
+- (* if v=n, then h=n and right partition is empty *)
+  have Eh: (h : nat) = n.
   - apply/eqP; rewrite eqn_leq; move: Hvh; rewrite Ev=>->; rewrite andbT.
     by move: (ltn_ord h); rewrite ltnS.
   rewrite Ev Eh /= ltnn in Hpr.
   have Epr: pr = 1%g.
   - apply: (perm_on01 _ Hpr).
-    suff: [set ix : 'I_n.+1 | n <= ix & ix <= n] \subset [set ord_max].
-    - by move/subset_leqif_cards; rewrite cards1; apply.
-    apply/subsetP=>/= z; rewrite !inE -eqn_leq=>/eqP E.
-    by apply/eqP/ord_inj.
+  have ->: (1 = #|[set (@ord_max n)]|) by rewrite cards1.
+  by apply/subset_leqif_cards/subsetP=>/= z; rewrite !inE -eqn_leq=>/eqP E; apply/eqP/ord_inj.
   move: Sl Hpl; rewrite Eh Ev Epr mul1g => Sl Hpl.
   rewrite slice_xR; last by rewrite bnd_simp leEnat; move: Hvl; rewrite Ev.
   rewrite {22}(_ : n = (ord_max : 'I_n.+1)) // onth_codom /= sorted_rconsE //.
   move: Sl; rewrite slice_oPR; last by rewrite lt0n -Ev.
-  move=>->; rewrite andbT.
-  move: Al; rewrite Ev.
+  move=>->; rewrite andbT; move: Al; rewrite Ev.
   have ->: pffun (pl * p) f ord_max = pffun p f ord_max.
   - by rewrite !ffunE permM (out_perm Hpl) // inE negb_and -!ltnNge /= ltn_predL lt0n -{3}Ev Nv0 orbT.
   have ->: v = ord_max by apply/ord_inj.
   rewrite (perm_all (s2:=&:(codom (pffun (pl * p) f)) `[l: nat, n[)) // pffunEM perm_sym.
-  rewrite {8 15}(_ : n = (ord_max : 'I_n.+1)) //; apply: perm_on_fgraph_xo.
-  apply/(subset_trans Hpl)/subsetP=>z; rewrite !inE; case/andP=>->/= Hz.
-  by apply: (leq_ltn_trans Hz); rewrite ltn_predL lt0n -Ev.
-
+  rewrite {8 15}(_ : n = (ord_max : 'I_n.+1)) //; apply: perm_on_fgraph.
+  apply/(subset_trans Hpl)/subsetP=>/= z; rewrite 2!inE in_itv /= leEnat ltEnat /=.
+  by case/andP=>->/= Hz; apply: (leq_ltn_trans Hz); rewrite ltn_predL lt0n -Ev.
+(* the general case *)
 rewrite Nv in Hpr Sr.
 rewrite (slice_split _ true (x:=v) (i:=`[l : nat, h : nat])) /=; last first.
 - by rewrite in_itv /= leEnat; apply/andP.
@@ -622,29 +590,23 @@ rewrite -mulgA (pffunEM _ (pr * p)%g) (perm_on_notin _ Hpl) in Sr *; last first.
   by exact: leq_pred.
 rewrite sorted_pairwise // pairwise_cat /= allrel_consr -andbA -!sorted_pairwise //.
 apply/and5P; split=>//.
-- rewrite (perm_all (s2:=&:(codom (pffun p f)) `[l: nat, v: nat[)) // pffunEM.
-  apply/perm_on_fgraph_xo.
-  apply/(subset_trans Hpl)/subsetP=>/= z; rewrite !inE.
+- move: Al; congr (_ = _); apply/esym/perm_all; rewrite pffunEM.
+  apply/perm_on_fgraph/(subset_trans Hpl)/subsetP=>/= z; rewrite 2!inE in_itv /= leEnat ltEnat /=.
   by case/andP=>->/= Hz; apply: (leq_ltn_trans Hz); rewrite ltn_predL lt0n.
-- apply/allrelP=>x y Hx Hy; apply (otrans (y:=pffun p f v)).
+- apply/allrelP=>x y Hx Hy; apply: (otrans (y:=pffun p f v)).
   - move/allP: Al=>/(_ x); apply.
-    suff: perm_eq (&:(codom (pffun (pl * p) f)) `[l : nat, v : nat[)
-                  (&:(codom (pffun       p  f)) `[l : nat, v : nat[).
-    - by move/perm_mem=>/(_ x)<-.
-    rewrite pffunEM; apply: perm_on_fgraph_xo.
-    apply/(subset_trans Hpl)/subsetP=>/= z; rewrite !inE.
+    move: Hx; congr (_ = _); move: x; apply: perm_mem.
+    rewrite pffunEM; apply: perm_on_fgraph.
+    apply/(subset_trans Hpl)/subsetP=>/= z; rewrite 2!inE in_itv /= leEnat ltEnat /=.
     by case/andP=>->/= Hz; apply: (leq_ltn_trans Hz); rewrite ltn_predL lt0n.
   apply/ordW; move/allP: Ah=>/(_ y); apply.
-  suff: perm_eq (&:(codom (pffun (pr * p) f)) `]v : nat, h : nat])
-                (&:(codom (pffun       p  f)) `]v : nat, h : nat]).
-  - by move/perm_mem=>/(_ y) <-.
-  by rewrite pffunEM; apply: perm_on_fgraph_ox.
+  move: Hy; congr (_ = _); move: y; apply: perm_mem.
+  by rewrite pffunEM; apply: perm_on_fgraph.
 - by rewrite slice_oPR // in Sl; rewrite lt0n.
 have HS: subpred (ord (pffun p f v)) (oleq (pffun p f v)).
 - by move=>z /ordW.
-move/(sub_all HS): Ah=>Ah.
-rewrite (perm_all (s2:=&:(codom (pffun p f)) `]v : nat, h : nat])) // pffunEM.
-by apply/perm_on_fgraph_ox.
+move/(sub_all HS): Ah; congr (_ = _); apply/esym/perm_all.
+by rewrite pffunEM; apply/perm_on_fgraph.
 Qed.
 Next Obligation.
 move=>a [f][] i /= H.
