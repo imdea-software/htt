@@ -1,5 +1,7 @@
-From Coq Require Import ssreflect ssrbool ssrfun.
-From mathcomp Require Import ssrnat eqtype seq path fintype tuple finfun finset fingroup perm interval.
+From mathcomp Require Import ssreflect ssrbool ssrfun.
+From mathcomp Require Import ssrnat eqtype seq path fintype tuple finfun finset.
+From mathcomp Require Import fingroup perm.
+From mathcomp Require Import interval.
 From pcm Require Import options axioms prelude pred ordtype slice.
 From pcm Require Import pcm unionmap heap.
 From htt Require Import options interlude model heapauto.
@@ -9,40 +11,36 @@ From htt Require Import array.
 From mathcomp Require order.
 Import order.Order.NatOrder order.Order.TTheory.
 
-Lemma perm_on01 {I : finType} (s : {set I}) (p : {perm I}) :
-  #|s| <= 1 -> perm_on s p -> p = 1%g.
+(* TODO added to mathcomp > 1.16 *)
+Lemma perm_on_id {T : finType} (u : {perm T}) (S : {set T}) :
+        perm_on S u -> #|S| <= 1 -> u = 1%g.
 Proof.
-rewrite leq_eqVlt ltnS leqn0=>Hs Hp; apply/permP=>z; rewrite perm1.
-case/orP: Hs; last first.
-- move/eqP/cards0_eq=>E; rewrite {s}E in Hp.
-  by apply: (out_perm Hp); rewrite inE.
-case/cards1P=>x E; rewrite {s}E in Hp.
-case: (eqVneq z x)=>[{z}->|N]; last first.
-- by apply: (out_perm Hp); rewrite inE.
-by apply/eqP; move/perm_closed: Hp =>/(_ x); rewrite !inE=>->.
+rewrite leq_eqVlt ltnS leqn0 => pSu S10; apply/permP => t; rewrite perm1.
+case/orP : S10; last first.
+  by move/eqP/cards0_eq => S0; apply: (out_perm pSu); rewrite S0 inE.
+move=> /cards1P[x Sx].
+have [-> | ntx] := eqVneq t x; last by apply: (out_perm pSu); rewrite Sx inE.
+by apply/eqP; have := perm_closed x pSu; rewrite Sx !inE => ->.
 Qed.
 
-Lemma perm_on_comm {I : finType} (s1 s2 : {set I}) (p1 p2 : {perm I}) :
-  perm_on s1 p1 -> perm_on s2 p2 ->
-  [disjoint s1 & s2] ->
-  commute p1 p2.
+Lemma perm_onC {T : finType} (S1 S2 : {set T}) (u1 u2 : {perm T}) :
+    perm_on S1 u1 -> perm_on S2 u2 ->
+    [disjoint S1 & S2] ->
+  commute u1 u2.
 Proof.
-move=>H1 H2 Hd; apply/permP=>z; rewrite !permM.
-case/boolP: (z \in s1)=>Hz1.
-- move: Hd; rewrite disjoint_subset =>/subsetP Hd.
-  rewrite !(out_perm H2) //; apply: Hd=>//.
-  by rewrite (perm_closed _ H1).
-case/boolP: (z \in s2)=>Hz2.
-- move: Hd; rewrite disjoint_sym disjoint_subset =>/subsetP Hd.
-  by rewrite !(out_perm H1) //; apply: Hd; rewrite (perm_closed _ H2).
-by rewrite (out_perm H1) // (out_perm H2) // (out_perm H1).
+move=> pS1 pS2 S12; apply/permP => t; rewrite !permM.
+case/boolP : (t \in S1) => tS1.
+  have /[!disjoint_subset] /subsetP {}S12 := S12.
+  by rewrite !(out_perm pS2) //; apply: S12; rewrite // perm_closed.
+case/boolP : (t \in S2) => tS2.
+  have /[1!disjoint_sym] /[!disjoint_subset] /subsetP {}S12 := S12.
+  by rewrite !(out_perm pS1) //; apply: S12; rewrite // perm_closed.
+by rewrite (out_perm pS1) // (out_perm pS2) // (out_perm pS1).
 Qed.
 
-Lemma tperm_on {I : finType} (i j : I) :
-  perm_on [set i; j] (tperm i j).
+Lemma tperm_on {T : finType} (x y : T) : perm_on [set x; y] (tperm x y).
 Proof.
-apply/subsetP=>z; rewrite !inE.
-by case: tpermP=>[->|->|]; rewrite eqxx // orbT.
+by apply/subsetP => z /[!inE]; case: tpermP => [->|->|]; rewrite eqxx // orbT.
 Qed.
 
 (* TODO added to fcsl-pcm *)
@@ -50,16 +48,6 @@ Corollary slice_oPR {A : Type} a x (s : seq A) :
         0 < x ->
         &:s (Interval a (BRight x.-1)) = &:s (Interval a (BLeft x)).
 Proof. by move=>Hx; rewrite -{2}(prednK Hx) slice_oSR. Qed.
-
-Corollary slice_uxox {A : Type} (s : seq A) a b :
-            a <= b ->
-            &:s `]-oo, b] = &:s `]-oo, a[ ++ &:s `[a, b].
-Proof. by move=>Hab; rewrite (slice_split _ true (x:=a)). Qed.
-
-Corollary slice_uoox {A : Type} (s : seq A) a b :
-            a < b ->
-            &:s `]-oo, b[ = &:s `]-oo, a[ ++ &:s `[a, b[.
-Proof. by move=>Hab; rewrite (slice_split _ true (x:=a)). Qed.
 
 Lemma slice_FR {A : Type} (s : seq A) x : &:s (Interval x +oo) = &:s (Interval x (BLeft (size s))).
 Proof. by rewrite /slice /= addn0. Qed.
@@ -526,9 +514,10 @@ case: (eqVneq v ord0)=>[Ev|Nv0].
   - by move: Hvl; rewrite Ev leqn0 => /eqP El; apply/ord_inj.
   rewrite Ev El /= in Hpl.
   have Epl: pl = 1%g.
-  - apply: (perm_on01 _ Hpl).
+  - apply: (perm_on_id Hpl).
     have ->: (1 = #|[set (@ord0 n)]|) by rewrite cards1.
-    by apply/subset_leqif_cards/subsetP=>/= z; rewrite !inE leqn0=>/eqP E; apply/eqP/ord_inj.
+    apply/subset_leqif_cards/subsetP=>/= z.
+    by rewrite !inE leqn0 =>/eqP E; apply/eqP/ord_inj.
   move: Sr Hpr; rewrite El Ev Epl mul1g; case: ifP=>// H Sr Hpr.
   rewrite slice_xL // onth_codom /= slice_oSL path_sortedE // Sr andbT.
   move: Ah; rewrite Ev slice_oSL /=.
@@ -546,9 +535,10 @@ move: (ltn_ord v); rewrite ltnS leq_eqVlt; case/orP=>[/eqP Ev|Nv].
     by move: (ltn_ord h); rewrite ltnS.
   rewrite Ev Eh /= ltnn in Hpr.
   have Epr: pr = 1%g.
-  - apply: (perm_on01 _ Hpr).
-  have ->: (1 = #|[set (@ord_max n)]|) by rewrite cards1.
-  by apply/subset_leqif_cards/subsetP=>/= z; rewrite !inE -eqn_leq=>/eqP E; apply/eqP/ord_inj.
+  - apply: (perm_on_id Hpr).
+    have ->: (1 = #|[set (@ord_max n)]|) by rewrite cards1.
+    apply/subset_leqif_cards/subsetP=>/= z.
+    by rewrite !inE -eqn_leq =>/eqP E; apply/eqP/ord_inj.
   move: Sl Hpl; rewrite Eh Ev Epr mul1g => Sl Hpl.
   rewrite slice_xR; last by rewrite bnd_simp leEnat; move: Hvl; rewrite Ev.
   rewrite {22}(_ : n = (ord_max : 'I_n.+1)) // onth_codom /= sorted_rconsE //.
@@ -579,7 +569,7 @@ rewrite {1}pffunEM (perm_on_notin _ Hpr); last first.
   rewrite 4!inE in_itv /= negb_and leEnat ltEnat /= -leqNgt -ltnNge.
   by case/andP=>/ltnW-> _; rewrite orbT.
 rewrite -slice_oSL in Sr.
-rewrite mulgA (perm_on_comm Hpr Hpl) in Sr *; last first.
+rewrite mulgA (perm_onC Hpr Hpl) in Sr *; last first.
 - rewrite disjoint_subset; apply/subsetP=>/= z; rewrite !inE negb_and -!ltnNge.
   case/andP=>Hz _; apply/orP; right.
   by apply/leq_ltn_trans/Hz; exact: leq_pred.
