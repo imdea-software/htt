@@ -55,13 +55,13 @@ license:
   file: LICENSE
 
 supported_coq_versions:
-  text: Coq 8.14 to 8.16
-  opam: '{ (>= "8.14" & < "8.17~") | (= "dev") }'
+  text: Coq 8.15 to 8.17
+  opam: '{ (>= "8.15" & < "8.18~") | (= "dev") }'
 
 tested_coq_opam_versions:
-- version: '1.13.0-coq-8.14'
+- version: '1.15.0-coq-8.15'
   repo: 'mathcomp/mathcomp'
-- version: '1.15.0-coq-8.16'
+- version: '1.16.0-coq-8.17'
   repo: 'mathcomp/mathcomp'
 - version: 'coq-dev'
   repo: 'mathcomp/mathcomp-dev'
@@ -69,18 +69,22 @@ tested_coq_opam_versions:
 dependencies:
 - opam:
     name: coq-mathcomp-ssreflect
-    version: '{ (>= "1.13.0" & < "1.16~") | (= "dev") }'
+    version: '{ (>= "1.15.0" & < "1.17~") | (= "dev") }'
   description: |-
-    [MathComp ssreflect 1.13 to 1.15](https://math-comp.github.io)
+    [MathComp ssreflect 1.15 to 1.16](https://math-comp.github.io)
+- opam:
+    name: coq-mathcomp-algebra
+  description: |-
+    [MathComp algebra](https://math-comp.github.io)
 - opam:
     name: coq-mathcomp-fingroup
   description: |-
     [MathComp fingroup](https://math-comp.github.io)
 - opam:
     name: coq-fcsl-pcm
-    version: '{ (>= "1.7.0" & < "1.8~") | (= "dev") }'
+    version: '{ (>= "1.8.0" & < "1.9~") | (= "dev") }'
   description: |-
-    [FCSL-PCM 1.7](https://github.com/imdea-software/fcsl-pcm)
+    [FCSL-PCM 1.8](https://github.com/imdea-software/fcsl-pcm)
 
 namespace: htt
 
