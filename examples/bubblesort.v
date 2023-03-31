@@ -182,8 +182,7 @@ Proof.
 move=>Hx0 Hx1.
 suff E: {in &:(enum 'I_n.+1) i, f =1 pffun (swnx x) f}.
 - by rewrite !fgraph_codom /= !codomE /= -2!slice_map /=; move/eq_in_map: E.
-move=>/= y; rewrite slice_mem /=; last first.
-- by rewrite count_uniq_mem; [exact: leq_b1|exact: enum_uniq].
+move=>/= y; rewrite slice_uniq_memE /=; last by exact: enum_uniq.
 case: i Hx0 Hx1=>i j Hx0 Hx1 /=.
 case/and3P=>_; rewrite /swnx size_enum_ord index_enum_ord =>Hy1 Hy2.
 rewrite ffunE; case: tpermP=>// Ey; move: Hy1 Hy2; rewrite {y}Ey /=.
@@ -551,7 +550,7 @@ have {H}Hik : nat_of_ord i = k.
 - apply/eqP; rewrite eqn_leq Hik /=.
   by move/negP: H; rewrite -leqNgt.
 step=>Vm; exists p; split=>//; first by apply/implyP=>->.
-rewrite -Hik in Hak Hsk *; rewrite slice_oSL.
+rewrite -Hik in Hak Hsk *; rewrite -slice_oSL.
 case: sw0 Hsw=>/=; case=>-> Hf.
 - (* swap happened on last iteration *)
   rewrite orbT swnx_xu_cons /=; apply/andP; split.
@@ -621,7 +620,7 @@ apply: [gE (pffun p f)]=>//=; last first.
 - by move=> _ m2 [p'][H2 Hs'] _; exists (p' * p)%g; rewrite pffunEM.
 rewrite Po_eq; case: (posnP k)=>Hk; last by rewrite (prednK Hk).
 move: H Hs; rewrite {}Hk /=.
-rewrite slice_oSL (_ : 1 = (@nat_of_ord n.+1 ord0).+1) // codom1_xu_cons /=
+rewrite -slice_oSL (_ : 1 = (@nat_of_ord n.+1 ord0).+1) // codom1_xu_cons /=
   (path_sortedE (@otrans A)) allrel_consr.
 case/andP=>_ Ha1; case/andP=>Ha2 Hs; split=>//.
 rewrite (_ : (codom (pffun p f)) = fgraph (pffun p f)) //.
@@ -725,7 +724,7 @@ apply: [stepE f]=>//= sw m [p][Hm Hsw]; case: decP=>H.
       - rewrite (@allrel_in_l _ _ _ _ &:(codom f) `]-oo, k.+1]) //.
         by apply/perm_mem; rewrite perm_sym; apply: perm_swnx_ux.
       - by rewrite ltnS leqnn.
-      rewrite allrel1r slice_oSR (@slice_split _ _ true ls); last by rewrite in_itv.
+      rewrite allrel1r slice_oSR (slice_split (x:=ls) _ true); last by rewrite in_itv.
       rewrite /= all_cat; apply/andP; split.
       - rewrite swnx_ao //; move: Hai.
         by rewrite codom1_ax_rcons // allrel_rconsr; case/andP.
@@ -765,15 +764,15 @@ step=>Vm; exists p; case: sw Hsw=>/=; case=>Ep Hf.
     move: Hai; rewrite codom1_ax_rcons //= allrel_rconsr; case/andP=>_ Hals.
     move: Hsi; rewrite codom1_ax_rcons // sorted_rconsE //; case/andP =>Halsi _.
     move: Hils; rewrite leq_eqVlt; case/orP=>[/eqP <-|Hlsi] //.
-    rewrite (@slice_split _ _ true ls); last by rewrite in_itv.
+    rewrite (slice_split (x:=ls) _ true); last by rewrite in_itv.
     by rewrite /= all_cat Hals.
   rewrite Ep swnx_xu_cons /= (path_sortedE (@otrans A)) Hsk andbT.
   by move: Hak; rewrite codom1_ax_rcons2 // !allrel_rconsl -!andbA; case/and3P.
 (* swap didn't happen on last iteration *)
 rewrite {p}Ep pffunE1 /= in Hm *.
-rewrite (@slice_split _ _ false i `[ls:nat, +oo[); last by rewrite in_itv /= andbT.
+rewrite (slice_split (x:=i) (i:=`[ls:nat, +oo[) _ false); last by rewrite in_itv /= andbT.
 split=>//=.
-- rewrite allrel_catr Hai /= slice_oSL codom1_xu_cons allrel_consr; apply/andP; split.
+- rewrite allrel_catr Hai /= -slice_oSL codom1_xu_cons allrel_consr; apply/andP; split.
   - suff: all (oleq^~ (f (Wo i))) (&:(codom f) `]-oo, ls:nat[).
     - by apply/sub_all=>z /otrans; apply.
     apply/sub_all/Hai=>z /allP; apply.
@@ -781,7 +780,7 @@ split=>//=.
   apply/allrel_sub_l/Hak/slice_subset.
   by rewrite subitvE /= bnd_simp leEnat; apply/ltnW.
 rewrite (sorted_pairwise (@otrans A)) pairwise_cat -!(sorted_pairwise (@otrans A)) Hsi /=.
-rewrite slice_oSL codom1_xu_cons /= allrel_consr -andbA; apply/and3P; split.
+rewrite -slice_oSL codom1_xu_cons /= allrel_consr -andbA; apply/and3P; split.
 - move: Hsi; rewrite (sorted_pairwise (@otrans A)) codom1_ax_rcons // pairwise_rcons.
   case/andP=>H' _; rewrite all_rcons Hf /=.
   by apply/sub_all/H'=>z Hz; apply/otrans/Hf.
@@ -838,7 +837,7 @@ case: decP=>Hx; last first.
 apply: [gE (pffun p f)]=>//=; last first.
 - move=> _ m2 [p'][H2 Hs'] _; exists (p' * p)%g.
   by rewrite pffunEM.
-rewrite slice_oSL -slice_oSR (M2lo_eq Hx); suff: x.-2.+2 = x by move=>->.
+rewrite -slice_oSL -slice_oSR (M2lo_eq Hx); suff: x.-2.+2 = x by move=>->.
 by rewrite -subn2 -addn2 addnBAC // addnK.
 Qed.
 Next Obligation.

@@ -1,6 +1,6 @@
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat seq eqtype path fintype finfun tuple interval perm fingroup.
-From pcm Require Import options prelude ordtype slice.
+From pcm Require Import options prelude ordtype seqext slice.
 
 Lemma implyb_trans a b c : a ==> b -> b ==> c -> a ==> c.
 Proof. by case: a=>//=->. Qed.
@@ -44,12 +44,10 @@ by rewrite (_ : [::x,y & s] = [::x] ++ [::y] ++ s) //
   (_ : [::y,x & s] = [::y] ++ [::x] ++ s) // perm_catCA.
 Qed.
 
+(* a weaker form of in_split *)
 Lemma mem_split (x : A) s :
         x \in s -> exists s1 s2, s = s1 ++ [:: x] ++ s2.
-Proof.
-case/path.splitP=>s1 s2; exists s1, s2.
-by rewrite -cats1 catA.
-Qed.
+Proof. by case/in_split=>s1 [s2][H _]; exists s1, s2. Qed.
 
 Lemma mem_split_uniq (x : A) s :
        x \in s -> uniq s ->
