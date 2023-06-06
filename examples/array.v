@@ -32,6 +32,7 @@ Notation array := {array I -> T}.
 Definition shape (a : array) (f : {ffun I -> T}) :=
   [Pred h | h = updi a (fgraph f) /\ valid h].
 
+(*
 (* helper lemmas *)
 
 Lemma enum_split k :
@@ -74,7 +75,7 @@ move: (enum_uniq I); rewrite {1}(enum_split k) cat_uniq /= => H4.
 move=>y H5; rewrite /f' /= !ffunE /=; case: eqP H5 H4=>// -> ->.
 by rewrite !andbF.
 Qed.
-
+*)
 (* main methods *)
 
 (* a new empty array preallocates all cells for all possible index values *)
