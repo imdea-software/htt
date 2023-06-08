@@ -61,7 +61,7 @@ supported_coq_versions:
 tested_coq_opam_versions:
 - version: '1.15.0-coq-8.15'
   repo: 'mathcomp/mathcomp'
-- version: '1.16.0-coq-8.17'
+- version: '1.17.0-coq-8.17'
   repo: 'mathcomp/mathcomp'
 - version: 'coq-dev'
   repo: 'mathcomp/mathcomp-dev'
@@ -69,9 +69,9 @@ tested_coq_opam_versions:
 dependencies:
 - opam:
     name: coq-mathcomp-ssreflect
-    version: '{ (>= "1.15.0" & < "1.17~") | (= "dev") }'
+    version: '{ (>= "1.15.0" & < "1.18~") | (= "dev") }'
   description: |-
-    [MathComp ssreflect 1.15 to 1.16](https://math-comp.github.io)
+    [MathComp ssreflect 1.15 to 1.17](https://math-comp.github.io)
 - opam:
     name: coq-mathcomp-algebra
   description: |-
