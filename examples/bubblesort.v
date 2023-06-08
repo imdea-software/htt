@@ -125,7 +125,7 @@ Lemma codom1_kk (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
 Proof.
 rewrite slice_kk /=.
 pose i' := cast_ord (esym (card_ord n.+1)) (Wo i).
-move: (onth_tnth (codom f) i')=>/= ->.
+move: (onth_tnth (codom_tuple f) i')=>/= ->.
 by move: (@tnth_fgraph _ _ f i'); rewrite enum_val_ord {2}/i' cast_ordKV=>->.
 Qed.
 
@@ -134,7 +134,7 @@ Lemma codom1_Skk (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
 Proof.
 rewrite slice_kk /=.
 pose i' := cast_ord (esym (card_ord n.+1)) (So i).
-move: (onth_tnth (codom f) i')=>/=; rewrite So_eq =>->.
+move: (onth_tnth (codom_tuple f) i')=>/=; rewrite So_eq =>->.
 by move: (@tnth_fgraph _ _ f i'); rewrite enum_val_ord {2}/i' cast_ordKV=>->.
 Qed.
 
