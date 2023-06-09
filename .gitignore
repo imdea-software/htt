@@ -67,3 +67,4 @@ Makefile.coq.conf
 CoqMakefile.conf
 loadpath.v
 
+_build/
