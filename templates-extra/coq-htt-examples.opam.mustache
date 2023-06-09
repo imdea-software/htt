@@ -1,0 +1,50 @@
+# This file was generated from `meta.yml`, please do not edit manually.
+
+opam-version: "2.0"
+maintainer: "{{& opam-file-maintainer }}{{^ opam-file-maintainer }}palmskog@gmail.com{{/ opam-file-maintainer }}"
+version: "{{ opam-file-version }}{{^ opam-file-version }}dev{{/ opam-file-version }}"
+
+homepage: "https://github.com/{{ organization }}/{{ shortname }}"
+dev-repo: "git+https://github.com/{{ organization }}/{{ shortname }}.git"
+bug-reports: "https://github.com/{{ organization }}/{{ shortname }}/issues"{{# coqdoc }}
+doc: "https://{{ organization }}.github.io/{{ shortname }}/"{{/ coqdoc }}
+{{# license }}license: "{{ identifier }}"{{/ license }}
+
+synopsis: "{{& synopsis }}"
+description: """
+{{& description }}"""
+
+build: [make "-j%{jobs}%"{{# make_target }} "{{ make_target }}"{{/ make_target }}]
+{{# test_target }}
+run-test: [make "-j%{jobs}%" "{{ test_target }}"]
+{{/ test_target }}
+install: [make "install"{{# install_flag }} "{{ install_flag }}"{{/ install_flag }}]
+depends: [
+{{# supported_ocaml_versions }}
+  "ocaml" {{& opam }}
+{{/ supported_ocaml_versions }}
+  "coq" {{& supported_coq_versions.opam }}
+{{# dependencies }}
+{{# opam }}
+  "{{ name }}" {{& version }}
+{{/ opam }}
+{{/ dependencies }}
+]
+
+tags: [
+{{# categories }}
+  "category:{{ name }}"
+{{/ categories }}
+{{# keywords }}
+  "keyword:{{& name }}"
+{{/ keywords }}
+{{# date }}
+  "date:{{ date }}"
+{{/ date }}
+  "logpath:{{ namespace }}"
+]
+authors: [
+{{# authors }}
+  "{{& name }}{{# email }} <{{& email }}>{{/ email }}"
+{{/ authors }}
+]
