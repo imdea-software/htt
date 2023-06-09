@@ -3,6 +3,8 @@
 TMP=$(mktemp -d); git clone https://github.com/coq-community/templates.git $TMP
 $TMP/generate.sh README.md coq-htt.opam dune-project
 
+echo "Proceeding with customized generation..."
+
 srcdir="templates-extra"
 
 get_yaml() {
@@ -18,30 +20,6 @@ get_yaml() {
 for f in "$srcdir"/*.mustache; do
     target=$(basename "$f" .mustache)
     case "$target" in
-        coq.opam)
-            mustache='{{ opam_name }}'
-            opam_name=$(get_yaml meta.yml <<<"$mustache")
-	    if [ -n "$opam_name" ]; then
-		target=${target/coq/$opam_name}
-	    else
-		mustache='{{ shortname }}'
-		shortname=$(get_yaml meta.yml <<<"$mustache")
-		if [ -n "$shortname" ]; then
-		    target=${target/coq/coq-$shortname}
-	        else
-		    continue
-		fi
-            fi
-            ;;
-        extracted.opam)
-            mustache='{{# extracted }}{{ extracted_shortname }}{{/ extracted }}'
-            extracted_shortname=$(get_yaml meta.yml <<<"$mustache")
-            if [ -n "$extracted_shortname" ]; then
-                target=${target/extracted/$extracted_shortname}
-            else
-                continue
-            fi
-            ;;
         dune)
             mustache='{{ dune }}'
             bool=$(get_yaml meta.yml <<<"$mustache")
