@@ -1,5 +1,4 @@
 # This file was generated from `meta.yml`, please do not edit manually.
-# Follow the instructions on https://github.com/coq-community/templates to regenerate.
 
 opam-version: "2.0"
 maintainer: "fcsl@software.imdea.org"
@@ -31,9 +30,9 @@ variables). The connection reconciles dependent types with effects of state and 
 establishes Separation logic as a type theory for such effects. In implementation terms, it means
 that HTT implements Separation logic as a shallow embedding in Coq."""
 
-build: ["dune" "build" "-p" name "-j" jobs]
+build: [make "-j%{jobs}%"]
+install: [make "install"]
 depends: [
-  "dune" {>= "2.5"}
   "coq" { (>= "8.15" & < "8.18~") | (= "dev") }
   "coq-mathcomp-ssreflect" { (>= "1.15.0" & < "1.18~") | (= "dev") }
   "coq-mathcomp-algebra" 

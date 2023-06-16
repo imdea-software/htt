@@ -4,6 +4,7 @@ organization: imdea-software
 opam_name: coq-htt
 community: false
 action: true
+dune: true
 coqdoc: false
 
 synopsis: >-
@@ -27,6 +28,28 @@ description: |-
   variables). The connection reconciles dependent types with effects of state and exceptions and
   establishes Separation logic as a type theory for such effects. In implementation terms, it means
   that HTT implements Separation logic as a shallow embedding in Coq.
+
+build: |-
+  ## Building and installation instructions
+
+  The easiest way to install the latest released version of Hoare Type Theory
+  is via [OPAM](https://opam.ocaml.org/doc/Install.html):
+
+  ```shell
+  opam repo add coq-released https://coq.inria.fr/opam/released
+  opam install coq-htt
+  ```
+
+  To instead build and install manually, do:
+
+  ``` shell
+  git clone https://github.com/imdea-software/htt.git
+  cd htt
+  dune build
+  dune install htt
+  ```
+
+  If you also want to build the examples, run `make` instead of `dune`.
 
 authors:
 - name: Aleksandar Nanevski

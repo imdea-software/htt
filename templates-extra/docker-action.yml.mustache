@@ -1,0 +1,62 @@
+# This file was generated from `meta.yml`, please do not edit manually.
+name: Docker CI
+
+on:
+  {{# ci_cron_schedule }}
+  schedule:
+    - cron: '{{ ci_cron_schedule }}'
+  {{/ ci_cron_schedule }}
+  push:
+    branches:
+      - {{branch}}{{^branch}}master{{/branch}}
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  build:
+    # the OS must be GNU/Linux to be able to use the docker-coq-action
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image:
+{{# tested_coq_opam_versions }}
+          - '{{ repo }}{{^ repo }}coqorg/coq{{/ repo }}:{{ version }}'
+{{/ tested_coq_opam_versions }}
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v2
+{{# submodule }}
+        with:
+          submodules: recursive
+{{/ submodule }}
+      - uses: coq-community/docker-coq-action@v1
+        with:
+          opam_file: 'coq-htt-examples.opam'
+{{! Change delimiters to avoid the next line being parsed as mustache syntax. }}
+{{=<% %>=}}
+          custom_image: ${{ matrix.image }}
+<%# ci_extra_dev %>
+          before_install: |
+            startGroup "Setup and print opam config"
+              opam repo -a --set-default add coq-extra-dev https://coq.inria.fr/opam/extra-dev
+              opam config list; opam repo list; opam list
+            endGroup
+<%/ ci_extra_dev %>
+<%# ci_test_dependants %>
+          after_script: |
+            startGroup "Test dependants"
+              PINS=$(opam list -s --pinned --columns=package | xargs | tr ' ' ,)
+              PACKAGES=`opam list -s --depends-on <% opam_name %><%^ opam_name %>coq-<% shortname %><%/ opam_name %> --coinstallable-with $PINS`
+              for PACKAGE in $PACKAGES
+              do DEPS_FAILED=false
+                 opam install -y --deps-only $PACKAGE || DEPS_FAILED=true
+                 [ $DEPS_FAILED == true ] || opam install -t $PACKAGE
+              done
+            endGroup
+<%/ ci_test_dependants %>
+<%& action_appendix %>
+
+# See also:
+# https://github.com/coq-community/docker-coq-action#readme
+# https://github.com/erikmd/docker-coq-github-action-demo
