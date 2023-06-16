@@ -32,50 +32,6 @@ Notation array := {array I -> T}.
 Definition shape (a : array) (f : {ffun I -> T}) :=
   [Pred h | h = updi a (fgraph f) /\ valid h].
 
-(*
-(* helper lemmas *)
-
-Lemma enum_split k :
-        enum I = take (indx k) (enum I) ++ k :: drop (indx k).+1 (enum I).
-Proof.
-case: path.splitP; first by rewrite mem_enum.
-by move=>p1 p2; rewrite -cats1 -catA.
-Qed.
-
-Lemma updi_split (a : array) k (f : {ffun I -> T}) :
-        updi a (fgraph f) = updi a (take (indx k) (fgraph f)) \+
-                            a.+(indx k) :-> f k \+
-                            updi (a.+(indx k).+1) (drop (indx k).+1 (fgraph f)).
-Proof.
-rewrite fgraph_codom /= codomE {1}(enum_split k) map_cat updi_cat /=.
-rewrite map_take map_drop size_takel ?joinA ?ptrA ?addn1 //.
-by rewrite size_map index_size.
-Qed.
-
-Lemma takeord k x (f : {ffun I -> T}) :
-        take (indx k) (fgraph [ffun y => [eta f with k |-> x] y]) =
-        take (indx k) (fgraph f).
-Proof.
-set f' := (finfun _).
-suff E: {in take (indx k) (enum I), f =1 f'}.
-- by rewrite !fgraph_codom /= !codomE -2!map_take; move/eq_in_map: E.
-move: (enum_uniq I); rewrite {1}(enum_split k) cat_uniq /= =>H4.
-move=>y H5; rewrite /f' /= !ffunE /=; case: eqP H5 H4=>// -> ->.
-by rewrite andbF.
-Qed.
-
-Lemma dropord k x (f : {ffun I -> T}) :
-        drop (indx k).+1 (fgraph [ffun y => [eta f with k |->x] y]) =
-        drop (indx k).+1 (fgraph f).
-Proof.
-set f' := (finfun _).
-suff E: {in drop (indx k).+1 (enum I), f =1 f'}.
-- by rewrite !fgraph_codom /= !codomE -2!map_drop; move/eq_in_map: E.
-move: (enum_uniq I); rewrite {1}(enum_split k) cat_uniq /= => H4.
-move=>y H5; rewrite /f' /= !ffunE /=; case: eqP H5 H4=>// -> ->.
-by rewrite !andbF.
-Qed.
-*)
 (* main methods *)
 
 (* a new empty array preallocates all cells for all possible index values *)
