@@ -113,7 +113,7 @@ The original version of HTT can be found [here](https://software.imdea.org/~alek
 
 * [Structuring the Verification of Heap-Manipulating Programs](http://software.imdea.org/~aleks/htt/reflect.pdf)
 
-  Aleksandar Nanevski, Viktor Vefeiadis and Josh Berfine. POPL 2010.
+  Aleksandar Nanevski, Viktor Vafeiadis and Josh Berfine. POPL 2010.
 
   This paper introduces what is closest to the current structure of the implementation of HTT.
   It puts emphasis on structuring programs and proofs together, rather than on attacking the
