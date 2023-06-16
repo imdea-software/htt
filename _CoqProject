@@ -11,6 +11,7 @@ examples/gcd.v
 examples/llist.v
 examples/array.v
 examples/bubblesort.v
+examples/quicksort.v
 examples/stack.v
 examples/dlist.v
 examples/queue.v
