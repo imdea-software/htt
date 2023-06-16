@@ -86,8 +86,8 @@ tested_coq_opam_versions:
   repo: 'mathcomp/mathcomp'
 - version: '1.17.0-coq-8.17'
   repo: 'mathcomp/mathcomp'
-- version: 'coq-dev'
-  repo: 'mathcomp/mathcomp-dev'
+# - version: 'coq-dev'
+#  repo: 'mathcomp/mathcomp-dev'
 
 dependencies:
 - opam:
