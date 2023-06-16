@@ -35,7 +35,7 @@ build: ["dune" "build" "-p" name "-j" jobs]
 depends: [
   "dune" {>= "2.5"}
   "coq" { (>= "8.15" & < "8.18~") | (= "dev") }
-  "coq-mathcomp-ssreflect" { (>= "1.15.0" & < "1.18~") | (= "dev") }
+  "coq-mathcomp-ssreflect" { (>= "1.17.0" & < "1.18~") | (= "dev") }
   "coq-mathcomp-algebra" 
   "coq-mathcomp-fingroup" 
   "coq-fcsl-pcm" { (>= "1.8.0" & < "1.9~") | (= "dev") }

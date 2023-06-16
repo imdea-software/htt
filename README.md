@@ -40,7 +40,7 @@ that HTT implements Separation logic as a shallow embedding in Coq.
 - License: [Apache-2.0](LICENSE)
 - Compatible Coq versions: Coq 8.15 to 8.17
 - Additional dependencies:
-  - [MathComp ssreflect 1.15 to 1.17](https://math-comp.github.io)
+  - [MathComp ssreflect 1.17](https://math-comp.github.io)
   - [MathComp algebra](https://math-comp.github.io)
   - [MathComp fingroup](https://math-comp.github.io)
   - [FCSL-PCM 1.8](https://github.com/imdea-software/fcsl-pcm)
