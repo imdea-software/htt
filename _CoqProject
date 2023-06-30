@@ -20,4 +20,5 @@ examples/bintree.v
 examples/bst.v
 examples/kvmaps.v
 examples/hashtab.v
+examples/counter.v
 examples/congmath.v
