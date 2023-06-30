@@ -24,7 +24,12 @@ by move=>x [v][] _ /= ->; do 3!step.
 Qed.
 Next Obligation.
 move=>[] _ /= ->.
+(* ordinarily step should work here *)
+(* but it doesn't; we suspect because universe levels are off *)
+(* but error messages aren't helpful *)
+(* one can still finish the step manually *)
 apply/vrf_bind/vrf_alloc=>x; rewrite unitR=>_.
+(* after which, automation proceeds to work *)
 by step.
 Qed.
 
