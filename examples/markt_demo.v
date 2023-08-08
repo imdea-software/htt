@@ -75,29 +75,38 @@ do !apply: hstep=>//=; apply: [gE (behead alpha), a::beta]=>//=.
 by rewrite !(pull h') -!joinA; do ![eexists _, _; split].
 Qed.
 (* the outer call *)
-Next Obligation.
-move=>i [alpha0][h /= H]; apply: [gE alpha0, nil]=>//=. 
-by eexists h, Unit; rewrite unitR. 
+Next Obligation. 
+move=>i [alpha0][h /= H]; set f := Fix _; simpl in f.
+apply: [gE alpha0, nil]=>/=. 
+- by eexists h, Unit; rewrite unitR.  
+- by rewrite /rev.
+by [].
 Qed.
 
 End MarktoberdorfDemo1.
 
 
-Module MarktoberdordDemo2.
+Module MarktoberdorfDemo2.
 Section MarktoberdorfDemo2.
 
 Inductive tp := 
   pair inv of {v : nat}, STsep (inv v, 
-                                [vfun r h => inv r h /\ r = v + 1]).
+                                [vfun r h => r = v.+1 /\ inv r h]).
 
 Definition inv x := let 'pair inv _ := x in inv.
 
+Definition code x := 
+  let 'pair _ comp := x 
+    return {v : nat}, STsep (inv x v, 
+       [vfun r h => r = v.+1 /\ inv x r h])
+  in comp.
+
 Program Definition fetch_add (x : ptr) : 
   {v : nat}, STsep (fun h => h = x :-> v, 
-                   [vfun r h => h = x :-> r /\ r = v + 1]) := 
+                   [vfun r h => r = v.+1 /\ h = x :-> r]) := 
   Do (z <-- !x;
-      x ::= z + 1;;
-      ret (z+1)).
+      x ::= z.+1;;
+      ret (z.+1)).
 Next Obligation. by move=>x [v][_] -> /=; do !step. Qed.
 
 Program Definition alloc_fetch_add : 
@@ -108,8 +117,25 @@ Next Obligation.
 by case=>_ -> /=; apply: vrf_bind; step=>x _; step; rewrite unitR.
 Qed.
 
+Program Definition silly_client : 
+  STsep (emp, [vfun r => inv r 3]) := 
+  Do (x <-- alloc_fetch_add;  (* open invariant of alloc_fetch_add *)
+      code x;;
+      code x;;
+      code x;; 
+      ret x).                 (* close invariant back up *)
+Next Obligation.
+case=>_ ->; apply: vrf_bind; apply: [gE]=>//= [x i0 H _].
+apply: vrf_bind; apply: [gE 0]=>//= _ i1 [->] {i0}H _.
+apply: vrf_bind; apply: [gE 1]=>//= _ i2 [->] {i1}H _.
+apply: vrf_bind; apply: [gE 2]=>//= _ i3 [->] {i2}H _.
+by apply: vrf_ret.
+Qed.
+
 End MarktoberdorfDemo2.
-End MarktoberdordDemo2.
+End MarktoberdorfDemo2.
+
+
 
 (* the same example done using sigma types *)
 
