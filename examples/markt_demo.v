@@ -1,4 +1,4 @@
-From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq.
+From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun seq path.
 From pcm Require Import axioms pred.
 From pcm Require Import pcm unionmap heap autopcm automap.
 From htt Require Import options model heapauto.
@@ -76,12 +76,18 @@ by rewrite !(pull h') -!joinA; do ![eexists _, _; split].
 Qed.
 (* the outer call *)
 Next Obligation. 
+move=>i [alpha0][h /= H]; apply: [gE alpha0, nil]=>//=.  
+by eexists h, Unit; rewrite unitR.  
+Qed.
+
+(*
 move=>i [alpha0][h /= H]; set f := Fix _; simpl in f.
 apply: [gE alpha0, nil]=>/=. 
 - by eexists h, Unit; rewrite unitR.  
 - by rewrite /rev.
 by [].
 Qed.
+*)
 
 End MarktoberdorfDemo1.
 
@@ -161,4 +167,48 @@ Qed.
 
 End MarktoberdorfDemo3.
 End MarktoberdordDemo3.
+
+
+(* Examples from Ranjit Jhala's blog post *)
+
+Section Ranjit.
+
+(* we define a function that takes a number *)
+(* and puts it in a list *)
+Definition pos (x1 : nat) := [:: 0; x1]. 
+
+(* And then we prove that the size of the list is two. *)
+(* No proof is actually required if we work in a purely-functional manner *)
+(* as Jhala advocates doing in Liquid Haskell. *)
+(* The reason is that Coq can just compute with values *)
+(* whereas Liquid Haskell doesn't seem to be able to do that. *)
+Lemma test1 : forall x1, size (pos x1) = 2. Proof. by []. Qed.
+
+(* If, however, we want to use Hoare-Floyd logic, as Dafny would *)
+(* then we have an overhead of half a line. *)
+(* The overhead arises because every proof has a preamble *)
+(* that requires binding some heap variables (though this is automatable). *)
+(* However, even such a proof is still shorter than Jhala's annotations *)
+(* in Liquid Haskell. *)
+Program Definition test2 (x1 : nat) :
+  STsep (fun h => True, [vfun pos h => size pos = 2]) := 
+    Do (let: pos := [:: 0; x1] in ret pos).
+Next Obligation. by move=>??*; step. Qed.
+
+(* The proof is also more general than his approach of annotating type constructors *)
+(* with size information. For we can prove non-size properties if we wanted *)
+(* whereas he can't, unless he re-annotates the constructors, which *)
+(* may not be possible if the constructors are library code. *)
+(* For example, we can assert and prove sortedness of pos *)
+(* again with essentially no work. *)
+
+Lemma test3 : forall x1, sorted leq (pos x1). Proof. by []. Qed.
+
+Program Definition test4 (x1 : nat) : 
+  STsep (fun h => True, [vfun pos h => sorted leq pos]) := 
+    Do (let: pos := [:: 0; x1] in ret pos).
+Next Obligation. by move=>??*; step. Qed.
+
+End Ranjit.
+
 
