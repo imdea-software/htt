@@ -439,6 +439,7 @@ End Fix.
 Arguments Fix [G A B s] f x.
 Arguments Fix' [G A B s] f pf x.
 
+
 Section VrfLemmas.
 Variables (A : Type) (e : ST A).
 
@@ -1047,6 +1048,129 @@ by apply: poset_trans (Hf x) _; apply: supP; exists x.
 Qed.
 
 End Monotonicity.
+
+Section MonotonicityExamples.
+
+Notation "'Do' e" := (@STprog _ _ _ e _) (at level 80).
+
+Notation "x '<--' c1 ';' c2" := (bind c1 (fun x => c2))
+  (at level 81, right associativity).
+Notation "c1 ';;' c2" := (bind c1 (fun _ => c2))
+  (at level 81, right associativity).
+Notation "'!' x" := (read x) (at level 50).
+Notation "x '::=' e" := (write x e) (at level 60).
+
+Fixpoint fact (x : nat) := if x is x'.+1 then x * fact x' else 1.
+
+Definition facttp := forall x : nat, @STspec unit nat
+  (fun => (fun i => True, 
+   fun v m => if v is Val w then w = fact x else False)).
+
+(* for the example, we need a quick lemma for function calls *)
+(* this need not be exported, as it follows from the signature *)
+(* will reprove it outside of the module *)
+
+Lemma gE G A (s : spec G A) g i (e : @STspec G A s) (Q : post A) : 
+        (s g).1 i ->
+        (forall v m, (s g).2 (Val v) m ->
+           valid m -> Q (Val v) m) ->
+        (forall x m, (s g).2 (Exn x) m ->
+           valid m -> Q (Exn x) m) ->
+        vrf i e Q.
+Proof.
+case: e=>e /= /[apply] Hp Hv He; apply: vrfV=>V /=.
+by apply/vrf_post/Hp; case=>[v|ex] m Vm H; [apply: Hv | apply: He].
+Qed.
+
+(* now we can do the example with monotonicity explicitly *)
+
+Program Definition factx :=
+  Fix' (fun (loop : facttp) (x : nat) =>
+    Do (if x is x'.+1 then
+          t <-- loop x'; 
+          ret (x * t)
+        else ret 1)) _.
+Next Obligation.
+case=>i /= _; case: x; first by apply: vrf_ret.
+by move=>n; apply: vrf_bind=>//; apply: gE=>// x m -> _; apply: vrf_ret.
+Qed.
+Next Obligation.
+move=>x1 x2 H; case=>[|n]; first by apply: poset_refl.
+by apply: do_mono; apply: bind_mono=>//; apply: H.
+Qed.
+
+(* Monotonocity works even if we compute *)
+(* with propositions, and deliberately invert the polarity. *)
+
+Definition proptp := unit -> @STspec unit Prop
+  (fun => (fun i => True, fun R m => True)).
+
+Program Definition propx := 
+  Fix' (fun (loop : proptp) (x : unit) =>
+    Do (R <-- loop tt; ret (not R))) _.
+Next Obligation.
+case=>i _; apply: vrf_bind=>//.
+by apply: gE=>//= R m _ C; apply: vrf_ret.
+Qed.
+Next Obligation.
+move=>x1 x2 H /= n; apply: do_mono; apply: bind_mono=>//. 
+by apply: H.
+Qed.
+
+Definition proptp2 := Prop -> @STspec unit Prop 
+  (fun => (fun i => True, fun (Ro : ans Prop) m => True)).
+
+Program Definition propx2 := 
+  Fix' (fun (loop : proptp2) (x : Prop) =>
+    Do (R <-- loop (x -> x); ret R)) _ True.
+Next Obligation.
+case=>i /= _; apply: vrf_bind=>//.
+by apply: gE=>//= R m _ _; apply: vrf_ret.
+Qed.
+Next Obligation.
+move=>x1 x2 H /= n; apply: do_mono. 
+by apply: bind_mono=>//; apply: H.
+Qed.
+
+Definition proptp3 := forall R : Prop, @STspec unit Prop 
+  (fun => (fun i => True, 
+           fun (Ro : ans Prop) m => if Ro is Val Ro' then Ro' else False)).
+
+Program Definition propx3 := 
+  Fix' (fun (loop : proptp3) (x : Prop) =>
+    Do (R <-- loop (x -> x); ret R)) _ True.
+Next Obligation.
+case=>i /= _; apply: vrf_bind=>//.
+by apply: gE=>//= R m X _; apply: vrf_ret.
+Qed.
+Next Obligation.
+move=>x1 x2 H /= n; apply: do_mono.
+by apply: bind_mono=>//; apply: H.
+Qed.
+
+(* It seems safe to say that monotonicity is always easy *)
+(* to prove for all the programs that we expect to write. *)
+(* Thus, we will export ffix over monotone closure, but not ffix2. *)
+(* Exporting ffix has the advantage of eliding the always simple *)
+(* and syntax-directed proofs of monotonicity, which we just don't *)
+(* want to bother with. *)
+
+(* It isn't theoretically excluded that one may somehow concoct a *)
+(* non-monotone program using the exported syntax that will thus *)
+(* result in weird and incorrect specs, though I so far failed to do that. *)
+(* But if such a case arises it can be ruled out by switching to *)
+(* ffix2 and requiring an explicit proof of monotonicity. *)
+(* For all the examples we did so far, such a proof will be easily *)
+(* constructed, but will not be possible for the concocted example. *)
+
+(* Again, using ffix instead of ffix2 isn't some theoretically *)
+(* justified result, just an expedient design choice to avoid *)
+(* bothering with proofs that are always easy. *)
+(* Maybe the best of both worlds would be to instead design automation *)
+(* for proving monotonicity by simply traversing the recursive *)
+(* function and applying the command_mono lemmas *)
+
+End MonotonicityExamples.
 
 End Vrf.
 
