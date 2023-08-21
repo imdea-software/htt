@@ -1159,19 +1159,26 @@ Qed.
 (* standalone theory, where you can show that all functions that can be *)
 (* produced using the syntax are monotone in the model. That proof *)
 (* relied on a significant subset of Coq, but still a subset. *)
+
 (* The paper is: *)
 (* Partiality, State and Dependent Types *)
 (* Kasper Svendsen, Lars Birkedal and Aleksandar Nanevski *)
-(* International Conference on Typed Lambda Calculi and Applications (TLCA), pages 198-212, 2011. *)
+(* International Conference on Typed Lambda Calculi and Applications (TLCA) *)
+(* pages 198-212, 2011. *)
 
 (* The model in that paper, and the one we use here, are quite different *)
 (* however, and we can't exclude concocting a *)
 (* non-monotone program using the syntax we export here, *)
-(* though we have so far failed to do that. *)
+(* based on the results of that other paper. *)
+(* That said, we have so far failed to do produce such a non-monotone function. *)
 (* But if such a case arises, we should switch to using Fix' *)
 (* and ask for explicit proofs of monotonicity. *)
 (* For all the examples we did so far, such a proof is easily *)
-(* constructed, along the lines of above (and maybe can even be automated). *)
+(* constructed, along the above lines (moreover, such proofs ought to be automatable) *)
+(* Perhaps a proof, in the theory of Coq, that all functions are monotone *)
+(* can be produced if we worked from parametricity properties of Coq, *)
+(* which have been established in the past work, and even internalized *)
+(* into Coq by means of parametricity axioms. But that remains future work. *)
 
 End MonotonicityExamples.
 
