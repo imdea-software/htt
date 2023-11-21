@@ -2,6 +2,7 @@ From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype ssrnat seq path.
 From pcm Require Import options axioms pred prelude.
 From pcm Require Import pcm unionmap heap autopcm automap.
+From pcm Require Import seqext.
 From htt Require Import interlude.
 (*
 Section UM.
@@ -616,7 +617,7 @@ End GraphOps.
 
 Section Marking.
 
-Lemma connectMPtUn p m g x cs :
+Lemma connectMPtUn p m g x (cs : seq ptr) :
   valid m ->
   p \notin dom m ->
   find p g = Some cs ->
@@ -693,7 +694,7 @@ move/(connectMUnSub Vpm)=>Hz.
 by apply/hasP; exists x.
 Qed.
 
-Lemma connectMUn p m1 m2 g x c cs :
+Lemma connectMUn p m1 m2 g x c (cs : seq ptr) :
   valid (m2 \+ m1) ->
   find p g = Some cs ->
   c \in cs -> good_ptr g c ->
@@ -721,7 +722,7 @@ case/boolP: (all (fun z => z \notin dom m2) (x::xs))=>Hpxs.
 left; rewrite -has_predC (eq_has (a2:=fun z=> z \in dom m2)) in Hpxs; last first.
 - by move=>q /=; rewrite negbK.
 (* q is the last vertex in marked component, xs2 is the free path *)
-case: {-1}_ _ _ / (split_find_last Hpxs) (erefl (x::xs))=>{Hpxs} q xs1 xs2 Hq.
+case: {-1}_ _ _ / (split_findlast Hpxs) (erefl (x::xs))=>{Hpxs} q xs1 xs2 Hq.
 rewrite -all_predC (eq_all (a2:=fun z=> z \notin dom m2)) // => Hxs2 Heq.
 apply: (connect_trans (y:=q)); rewrite app_predE; first by rewrite -Hm.
 case: xs1 Heq=>/=.
@@ -738,7 +739,7 @@ rewrite Exs -cats1 -catA cat1s -cat_cons all_cat in Ha.
 by case/andP: Ha.
 Qed.
 
-Corollary connectMUnHas p m1 m2 g c cs :
+Corollary connectMUnHas p m1 m2 g c (cs : seq ptr) :
   valid (m2 \+ m1) ->
   find p g = Some cs ->
   c \in cs -> good_ptr g c ->
