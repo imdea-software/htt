@@ -868,7 +868,7 @@ End Bingraph.
 
 Section Marking.
 
-(* TODO adhoc *)
+(* TODO adhoc + duplication *)
 Lemma connect_upd_true (g : pregraph bool) p l r y :
   valid g ->
   find p (structure g) = Some (BN l tt r) ->
@@ -886,7 +886,6 @@ case/orP.
   case Hpxs: (p \in l::xs); last first.
   - apply/orP; left; apply/connectP; exists xs; split=>//; last first.
     - by rewrite pval_upd_val // (negbTE Np).
-
     rewrite (eq_in_path (P:=fun x => (x != p) && (x \in dom g)) (e':=prel negb g)) //.
     - move=>x' y'; rewrite -!topredE /= => /andP [Hx' /um_eta [[vl va vr]][Hdx' ?]] /andP [Hy' Hdy'].
       have Hst : find x' (structure g) = Some (BN vl tt vr) by rewrite find_structure Hdx'.
@@ -964,9 +963,82 @@ case/orP.
   rewrite all_predI Ha andbT; apply/allP=>z Hz.
   by apply/negP=>/eqP Ez; rewrite -Ez Hz in Npxs2.
 
-(* TOOO copypaste *)
-
-Admitted.
+case/connectP=>xs [Hxs Ey Hy].
+case Hpxs: (p \in r::xs); last first.
+- apply/orP; right; apply/connectP; exists xs; split=>//; last first.
+  - by rewrite pval_upd_val // (negbTE Np).
+  rewrite (eq_in_path (P:=fun x => (x != p) && (x \in dom g)) (e':=prel negb g)) //.
+  - move=>x' y'; rewrite -!topredE /= => /andP [Hx' /um_eta [[vl va vr]][Hdx' ?]] /andP [Hy' Hdy'].
+    have Hst : find x' (structure g) = Some (BN vl tt vr) by rewrite find_structure Hdx'.
+    rewrite -!plink_val pval_upd_val // eq_sym (negbTE Hx') /=.
+    rewrite !(plink_conn negb (l:=vl) (r:=vr)) //; last by rewrite struct_upd_val.
+    by rewrite !mem_filter (structure_dom_eq (g2:=g)) // struct_upd_val.
+  move/negbT: Hpxs; rewrite inE negb_or; case/andP=>Hpl Hpxs.
+  move: (full_path_dom Hxs Ey Hy)=>/=; case/andP=>-> Ha; rewrite andbT.
+  apply/andP; split; first by rewrite eq_sym.
+  rewrite all_predI Ha andbT; apply/allP=>z Hz.
+  by apply/negP=>/eqP Ez; rewrite -Ez Hz in Hpxs.
+(* find the suffix of the path after the last p *)
+case: {-1}_ _ _ / (splitLastP Hpxs) (erefl (r::xs)) =>{Hpxs} xs1 xs2 Hxs2.
+case: xs1=>/=.
+- case=>Erp Exs; rewrite -{xs2}Exs in Hxs2.
+  rewrite Erp in Hxs Ey.
+  case: xs Hxs Ey Hxs2 =>/=.
+  - by move=>_ Eyp; rewrite Eyp eq_refl in Np.
+  move=>r' xs; case/andP; case/andP=>_.
+  rewrite (plink_conn negb (l:=l) (r:=r)) // mem_filter; case/andP=>Hr'.
+  rewrite !inE; case/orP; last first.
+  - by move/eqP=>-> _ _; rewrite Erp eq_refl.
+  move/eqP=>E'; rewrite {r'}E' in Hr' *.
+  rewrite negb_or=> Hr Ey; case/andP =>Npr Nxs.
+  apply/orP; left; apply/connectP; exists xs.
+  split=>//; last by rewrite pval_upd_val // (negbTE Np).
+  rewrite (eq_in_path (P:=fun x => (x != p) && (x \in dom g)) (e':=prel negb g)) //.
+  - move=>x' y'; rewrite -!topredE /= => /andP [Hx' /um_eta [[vl va vr]][Hdx' ?]] /andP [Hy' Hdy'].
+    have Hst : find x' (structure g) = Some (BN vl tt vr) by rewrite find_structure Hdx'.
+    rewrite -!plink_val pval_upd_val // eq_sym (negbTE Hx') /=.
+    rewrite !(plink_conn negb (l:=vl) (r:=vr)) //; last by rewrite struct_upd_val.
+    by rewrite !mem_filter (structure_dom_eq (g2:=g)) // struct_upd_val.
+  move: (full_path_dom Hr Ey Hy)=>/=; case/andP=>-> Ha; rewrite andbT.
+  apply/andP; split; first by rewrite eq_sym.
+  rewrite all_predI Ha andbT; apply/allP=>z Hz.
+  by apply/negP=>/eqP Ez; rewrite -Ez Hz in Nxs.
+(* xs2 can only start with l or p, this decides the component *)
+move=>_ xs1 [_ Exs]; rewrite {xs}Exs in Hxs Ey.
+case: xs2 Ey Hxs Hxs2 =>/=.
+- by rewrite cats0 last_rcons => Eyp; rewrite Eyp eq_refl in Np.
+move=>h xs2; rewrite cat_path last_cat last_rcons /= => Ey.
+case/and3P=>_; case/andP=>_.
+rewrite (plink_conn negb (l:=l) (r:=r)) // mem_filter; case/andP=>Hh.
+rewrite !inE negb_or; case/orP=>/eqP Eh;
+rewrite {h}Eh in Ey Hh *; move=>Hxs2; case/andP=>Np' Npxs2.
+- apply/orP; left.
+  apply/connectP; exists xs2; split=>//; last first.
+  - by rewrite pval_upd_val // (negbTE Np).
+  rewrite (eq_in_path (P:=fun x => (x != p) && (x \in dom g)) (e':=prel negb g)) //.
+  - move=>x' y'; rewrite -!topredE /= => /andP [Hx' /um_eta [[vl va vr]][Hdx' ?]] /andP [Hy' Hdy'].
+    have Hst : find x' (structure g) = Some (BN vl tt vr) by rewrite find_structure Hdx'.
+    rewrite -!plink_val pval_upd_val // eq_sym (negbTE Hx') /=.
+    rewrite !(plink_conn negb (l:=vl) (r:=vr)) //; last by rewrite struct_upd_val.
+    by rewrite !mem_filter (structure_dom_eq (g2:=g)) // struct_upd_val.
+  move: (full_path_dom Hxs2 Ey Hy)=>/=; case/andP=>-> Ha; rewrite andbT.
+  apply/andP; split; first by rewrite eq_sym.
+  rewrite all_predI Ha andbT; apply/allP=>z Hz.
+  by apply/negP=>/eqP Ez; rewrite -Ez Hz in Npxs2.
+apply/orP; right.
+apply/connectP; exists xs2; split=>//; last first.
+- by rewrite pval_upd_val // (negbTE Np).
+rewrite (eq_in_path (P:=fun x => (x != p) && (x \in dom g)) (e':=prel negb g)) //.
+- move=>x' y'; rewrite -!topredE /= => /andP [Hx' /um_eta [[vl va vr]][Hdx' ?]] /andP [Hy' Hdy'].
+  have Hst : find x' (structure g) = Some (BN vl tt vr) by rewrite find_structure Hdx'.
+  rewrite -!plink_val pval_upd_val // eq_sym (negbTE Hx') /=.
+  rewrite !(plink_conn negb (l:=vl) (r:=vr)) //; last by rewrite struct_upd_val.
+  by rewrite !mem_filter (structure_dom_eq (g2:=g)) // struct_upd_val.
+move: (full_path_dom Hxs2 Ey Hy)=>/=; case/andP=>-> Ha; rewrite andbT.
+apply/andP; split; first by rewrite eq_sym.
+rewrite all_predI Ha andbT; apply/allP=>z Hz.
+by apply/negP=>/eqP Ez; rewrite -Ez Hz in Npxs2.
+Qed.
 
 Definition mark_eq (x : ptr) (g1 g2 : pregraph bool) :=
   forall y, p_val id g2 y = (y \in connect negb g1 x) || p_val id g1 y.
