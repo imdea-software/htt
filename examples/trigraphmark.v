@@ -4,7 +4,7 @@ From pcm Require Import options axioms pred prelude seqperm.
 
 From pcm Require Import pcm unionmap heap autopcm automap.
 From htt Require Import interlude model heapauto.
-From HTT Require Import graphmark.
+From htt Require Import graph.
 
 (*
 Section FindLast.
