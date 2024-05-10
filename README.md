@@ -6,8 +6,8 @@ Follow the instructions on https://github.com/coq-community/templates to regener
 
 [![Docker CI][docker-action-shield]][docker-action-link]
 
-[docker-action-shield]: https://github.com/imdea-software/htt/workflows/Docker%20CI/badge.svg?branch=master
-[docker-action-link]: https://github.com/imdea-software/htt/actions?query=workflow:"Docker%20CI"
+[docker-action-shield]: https://github.com/imdea-software/htt/actions/workflows/docker-action.yml/badge.svg?branch=master
+[docker-action-link]: https://github.com/imdea-software/htt/actions/workflows/docker-action.yml
 
 
 
