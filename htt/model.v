@@ -205,12 +205,14 @@ End BasePrograms.
 (* - safety monotonicity *)
 (* - strictness of definedness *)
 (* - frameability *)
+
+Definition st_axiom A (p : pre) (e : prog p A) := 
+  [/\ safe_mono p, def_strict e & frameable e].
+
 Structure ST' (A : Type) := Prog {
   pre_of : pre;
   prog_of : prog pre_of A;
-  _ : safe_mono pre_of;
-  _ : def_strict prog_of;
-  _ : frameable prog_of}.
+  _ : st_axiom prog_of}.
 
 Arguments prog_of {A}.
 
@@ -220,10 +222,10 @@ Definition ST := ST'.
 (* projections *)
 
 Lemma sfm_st A (e : ST A) : safe_mono (pre_of e).
-Proof. by case: e. Qed.
+Proof. by case: e=>?? []. Qed.
 
 Lemma dstr_st A (e : ST A) : def_strict (prog_of e).
-Proof. by case: e. Qed.
+Proof. by case: e=>?? []. Qed.
 
 Lemma dstr_valid A (e : ST A) i p v x m :
         m \In prog_of e i p v x -> 
@@ -231,9 +233,10 @@ Lemma dstr_valid A (e : ST A) i p v x m :
 Proof. by case: m=>// /dstr_st. Qed.
 
 Lemma fr_st A (e : ST A) : frameable (prog_of e).
-Proof. by case: e. Qed.
+Proof. by case: e=>?? []. Qed.
 
 Arguments fr_st {A e i j}.
+
 
 Section STDef.
 Variable A : Type.
@@ -251,7 +254,7 @@ Proof.
 split=>[e|e1 e2|e1 e2 e3].
 - exists (poset_refl _)=>i V P y m.
   by rewrite (pf_irr (poset_refl (pre_of e) i P) P).
-- case: e1 e2=>p1 e1 S1 D1 F1 [p2 e2 S2 D2 F2].
+- case: e1 e2=>p1 e1 [S1 D1 F1][p2 e2 [S2 D2 F2]].
   rewrite /st_leq /=; case=>E1 R1 [E2 R2].
   move: (poset_asym E1 E2)=>?; subst p2.
   have : e1 = e2.
@@ -263,7 +266,7 @@ split=>[e|e1 e2|e1 e2 e3].
     by move=>H2; apply: R2; rewrite (pf_irr (E2 i Pi) Pi).
   move=>?; subst e2.
   by congr Prog; apply: pf_irr.
-case: e1 e2 e3=>p1 e1 S1 D1 F1 [p2 e2 S2 D2 F2][p3 e3 S3 D3 F3].
+case: e1 e2 e3=>p1 e1 [S1 D1 F1][p2 e2 [S2 D2 F2]][p3 e3 [S3 D3 F3]].
 case=>/= E1 R1 [/= E2 R2]; rewrite /st_leq /=.
 have E3 := poset_trans E2 E1; exists E3=>i V P y m.
 set P' := E2 i P.
@@ -277,28 +280,21 @@ HB.instance Definition _ := isPoset.Build (ST A) st_is_poset.
 (* bottom is a program that can always run *)
 (* but never returns (infinite loop) *)
 
+(* DO WE NEED THIS? If we have lattice sturcture *)
+(* existence of bot follows *)
+
 Definition pre_bot : pre := top.
-
-Definition prog_bot : prog pre_bot A :=
-  fun _ _ _ _ => bot.
-
-Lemma sfmono_bot : safe_mono pre_bot.
-Proof. by []. Qed.
-
-Lemma dstrict_bot : def_strict prog_bot.
-Proof. by move=>*. Qed.
-
-Lemma frame_bot : frameable prog_bot.
-Proof. by []. Qed.
-
-Definition st_bot := Prog sfmono_bot dstrict_bot frame_bot.
+Definition prog_bot : prog pre_bot A := fun _ _ _ _ => bot.
+Lemma progbot_is_st : st_axiom prog_bot.
+Proof. by split=>//; move=>*. Qed.
+Definition st_bot := Prog progbot_is_st.
 
 Lemma st_botP e : st_leq st_bot e.
-Proof. by case: e=>p e S D F; exists (fun _ _ => I)=>???; apply: botP. Qed.
+Proof. by case: e=>p e [???]; exists (fun _ _ => I)=>???; apply: botP. Qed.
 
 (* lattice structure on ST *)
 
-Here need that bot is bottom.
+UP TO HERE
 
 
 
