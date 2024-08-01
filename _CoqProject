@@ -1,11 +1,40 @@
--Q . htt
--arg "-w -notation-overridden,-local-declaration,-redundant-canonical-projection,-projection-no-head-constant"
+-Q core pcm
+-Q pcm pcm
+-Q htt htt
+-Q examples htt
+-docroot docs # where the documentation should go
 
-theories/options.v
-theories/interlude.v
-theories/domain.v
-theories/model.v
-theories/heapauto.v
+-arg -w -arg -notation-overridden
+-arg -w -arg -redundant-canonical-projection
+
+core/options.v
+core/axioms.v
+core/prelude.v
+core/pred.v
+core/auto.v
+core/seqext.v
+core/slice.v
+core/uslice.v
+core/useqord.v
+core/uconsec.v
+core/ordtype.v
+core/seqperm.v
+core/finmap.v
+core/rtc.v
+pcm/pcm.v
+pcm/autopcm.v
+pcm/morphism.v
+pcm/invertible.v
+pcm/unionmap.v
+pcm/natmap.v
+pcm/automap.v
+pcm/heap.v
+pcm/mutex.v
+htt/options.v
+htt/interlude.v
+htt/domain.v
+htt/model.v
+htt/heapauto.v
 examples/exploit.v
 examples/gcd.v
 examples/llist.v

@@ -1,3 +1,6 @@
-Export Unset Program Cases.
 (* turn off the automation of Program *)
-Obligation Tactic := auto.
+#[export] Obligation Tactic := auto.
+(* turn off other Program extensions *)
+#[export] Unset Program Cases.
+#[export] Unset Program Generalized Coercion.
+#[export] Unset Program Mode.

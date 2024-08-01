@@ -33,14 +33,16 @@ Proof. by elim: s=>*; [apply: permutation_nil | apply: permutation_skip]. Qed.
 
 Hint Resolve pperm_refl : core.
 
-Lemma pperm_nil (s : seq A) : perm [::] s <-> s = [::].
+Lemma pperm_nil (s : seq A) : 
+        perm [::] s <-> s = [::].
 Proof.
 split; last by move=>->; apply: permutation_nil.
 move E: {1}[::]=>l H; move: H {E}(esym E).
 by elim=>//??? _ IH1 _ IH2 /IH1/IH2.
 Qed.
 
-Lemma pperm_sym s1 s2 : perm s1 s2 <-> perm s2 s1.
+Lemma pperm_sym s1 s2 : 
+        perm s1 s2 <-> perm s2 s1.
 Proof.
 suff {s1 s2} L : forall s1 s2, perm s1 s2 -> perm s2 s1 by split; apply: L.
 apply: perm_ind=>[|||??? _ H1 _ H2] *;
@@ -48,10 +50,16 @@ by [apply: permutation_nil | apply: permutation_skip |
     apply: permutation_swap | apply: permutation_trans H2 H1].
 Qed.
 
-Lemma pperm_trans s2 s1 s3 : perm s1 s2 -> perm s2 s3 -> perm s1 s3.
+Lemma pperm_trans s2 s1 s3 : 
+        perm s1 s2 -> 
+        perm s2 s3 -> 
+        perm s1 s3.
 Proof. by apply: permutation_trans. Qed.
 
-Lemma pperm_in s1 s2 x : perm s1 s2 -> x \In s1 -> x \In s2.
+Lemma pperm_in s1 s2 x : 
+        perm s1 s2 -> 
+        x \In s1 -> 
+        x \In s2.
 Proof. elim=>//??? =>[|?|_ I1 _ I2 /I1/I2]; rewrite ?InE; tauto. Qed.
 
 Lemma pperm_catC s1 s2 : perm (s1 ++ s2) (s2 ++ s1).
@@ -65,10 +73,14 @@ Qed.
 
 Hint Resolve pperm_catC : core.
 
-Lemma pperm_cat2lL s s1 s2 : perm s1 s2 -> perm (s ++ s1) (s ++ s2).
+Lemma pperm_cat2lL s s1 s2 : 
+        perm s1 s2 -> 
+        perm (s ++ s1) (s ++ s2).
 Proof. by elim: s=>[//|e s IH /IH]; apply: permutation_skip. Qed.
 
-Lemma pperm_cat2rL s s1 s2 : perm s1 s2 -> perm (s1 ++ s) (s2 ++ s).
+Lemma pperm_cat2rL s s1 s2 : 
+        perm s1 s2 -> 
+        perm (s1 ++ s) (s2 ++ s).
 Proof.
 move=>?.
 apply: (@pperm_trans (s ++ s1)); first by apply: pperm_catC.
@@ -77,37 +89,47 @@ by apply: pperm_cat2lL.
 Qed.
 
 Lemma pperm_catL s1 t1 s2 t2 :
-        perm s1 s2 -> perm t1 t2 -> perm (s1 ++ t1) (s2 ++ t2).
+        perm s1 s2 -> 
+        perm t1 t2 -> 
+        perm (s1 ++ t1) (s2 ++ t2).
 Proof. by move/(pperm_cat2rL t1)=>H1/(pperm_cat2lL s2); apply: pperm_trans. Qed.
 
 Lemma pperm_cat_consL s1 t1 s2 t2 x :
-        perm s1 s2 -> perm t1 t2 -> perm (s1 ++ x :: t1) (s2 ++ x :: t2).
+        perm s1 s2 -> 
+        perm t1 t2 -> 
+        perm (s1 ++ x :: t1) (s2 ++ x :: t2).
 Proof. by move=>*; apply: pperm_catL=>//; apply: permutation_skip. Qed.
 
-Lemma pperm_cons_catCA s1 s2 x : perm (x :: s1 ++ s2) (s1 ++ x :: s2).
+Lemma pperm_cons_catCA s1 s2 x : 
+        perm (x :: s1 ++ s2) (s1 ++ x :: s2).
 Proof.
 rewrite -cat1s -(cat1s _ s2) !catA.
 by apply/pperm_cat2rL/pperm_catC.
 Qed.
 
-Lemma pperm_cons_catAC s1 s2 x : perm (s1 ++ x :: s2) (x :: s1 ++ s2).
+Lemma pperm_cons_catAC s1 s2 x : 
+        perm (s1 ++ x :: s2) (x :: s1 ++ s2).
 Proof. by apply/pperm_sym/pperm_cons_catCA. Qed.
 
 Hint Resolve pperm_cons_catCA pperm_cons_catAC : core.
 
 Lemma pperm_cons_cat_consL s1 s2 s x :
-        perm s (s1 ++ s2) -> perm (x :: s) (s1 ++ x :: s2).
+        perm s (s1 ++ s2) -> 
+        perm (x :: s) (s1 ++ x :: s2).
 Proof.
 move=>?.
 apply: (@pperm_trans (x :: (s1 ++ s2))); first by apply: permutation_skip.
 by apply: pperm_cons_catCA.
 Qed.
 
-Lemma pperm_size l1 l2: perm l1 l2 -> size l1 = size l2.
+Lemma pperm_size l1 l2 : 
+        perm l1 l2 -> 
+        size l1 = size l2.
 Proof. by elim=>//=???? =>[|?|]->. Qed.
 
 Lemma pperm_cat_consR s1 s2 t1 t2 x :
-        perm (s1 ++ x :: t1) (s2 ++ x :: t2) -> perm (s1 ++ t1) (s2 ++ t2).
+        perm (s1 ++ x :: t1) (s2 ++ x :: t2) -> 
+        perm (s1 ++ t1) (s2 ++ t2).
 Proof.
 move: s1 t1 s2 t2 x.
 suff H:
@@ -143,24 +165,29 @@ case: s1 E2=>/=[|a s1][->]=>E2; case: s2 E4=>/=[|d s2][->]=>E4;
 by apply: permutation_swap; apply: IH.
 Qed.
 
-Lemma pperm_cons x s1 s2 : perm (x :: s1) (x :: s2) <-> perm s1 s2.
+Lemma pperm_cons x s1 s2 : 
+        perm (x :: s1) (x :: s2) <-> perm s1 s2.
 Proof.
 by split; [apply/(@pperm_cat_consR [::] [::]) | apply: permutation_skip].
 Qed.
 
-Lemma pperm_cat2l s s1 s2: perm (s ++ s1) (s ++ s2) <-> perm s1 s2.
+Lemma pperm_cat2l s s1 s2: 
+        perm (s ++ s1) (s ++ s2) <-> perm s1 s2.
 Proof. by split; [elim: s=>// ??? /pperm_cons | apply: pperm_cat2lL]. Qed.
 
-Lemma pperm_cat2r s s1 s2 : perm (s1 ++ s) (s2 ++ s) <-> perm s1 s2.
+Lemma pperm_cat2r s s1 s2 : 
+        perm (s1 ++ s) (s2 ++ s) <-> perm s1 s2.
 Proof.
 split; last by apply: pperm_cat2rL.
 by elim: s=>[|??? /pperm_cat_consR]; rewrite ?cats0.
 Qed.
 
-Lemma pperm_catAC s1 s2 s3 : perm ((s1 ++ s2) ++ s3) ((s1 ++ s3) ++ s2).
+Lemma pperm_catAC s1 s2 s3 : 
+        perm ((s1 ++ s2) ++ s3) ((s1 ++ s3) ++ s2).
 Proof. by move=>*; rewrite -!catA pperm_cat2l. Qed.
 
-Lemma pperm_catCA s1 s2 s3 : perm (s1 ++ s2 ++ s3) (s2 ++ s1 ++ s3).
+Lemma pperm_catCA s1 s2 s3 : 
+        perm (s1 ++ s2 ++ s3) (s2 ++ s1 ++ s3).
 Proof. by move=>*; rewrite !catA pperm_cat2r. Qed.
 
 Lemma pperm_cons_cat_cons x s1 s2 s :
@@ -184,7 +211,8 @@ End Permutations.
 
 (* perm and map *)
 Lemma pperm_map A B (f : A -> B) (s1 s2 : seq A) :
-        perm s1 s2 -> perm (map f s1) (map f s2).
+        perm s1 s2 -> 
+        perm (map f s1) (map f s2).
 Proof.
 elim=>[//|||??? _ IH1 _ IH2]*;
 by [apply/pperm_cons | apply/permutation_swap | apply/(pperm_trans IH1 IH2)].
@@ -206,3 +234,4 @@ move: (seq.perm_mem H x); rewrite mem_head=>H'; move: H' H.
 move/splitPr=>[p1 p2]; rewrite -cat1s seq.perm_catCA seq.perm_cons=>/IH.
 by rewrite -[_::s2]cat0s pperm_cat_cons.
 Qed.
+

@@ -18,7 +18,8 @@ limitations under the License.
 
 From HB Require Import structures.
 From Coq Require Import ssreflect ssrbool ssrfun Eqdep.
-From mathcomp Require Import ssrnat seq eqtype choice fintype finfun.
+From mathcomp Require Import ssrnat seq eqtype choice fintype finfun tuple.
+From mathcomp Require Import perm fingroup.
 From pcm Require Import options axioms.
 
 (***********)
@@ -30,23 +31,25 @@ From pcm Require Import options axioms.
 
 (* export inj_pair without exporting the whole Eqdep library *)
 Definition inj_pair2 := @inj_pair2.
-Arguments inj_pair2 [U P p x y] _.
-Prenex Implicits inj_pair2.
+Arguments inj_pair2 {U P p x y}.
 
 (* Because of a bug in inversion and injection tactics *)
 (* we occasionally have to destruct pair by hand, else we *)
 (* lose the second equation. *)
 Lemma inj_pair A B (a1 a2 : A) (b1 b2 : B) :
-         (a1, b1) = (a2, b2) -> (a1 = a2) * (b1 = b2).
+         (a1, b1) = (a2, b2) -> 
+         (a1 = a2) * (b1 = b2).
 Proof. by case. Qed.
-Arguments inj_pair [A B a1 a2 b1 b2].
-Prenex Implicits inj_pair.
+
+Arguments inj_pair {A B a1 a2 b1 b2}.
 
 (* eta laws for pairs and units *)
 Notation prod_eta := surjective_pairing.
 
 (* eta law often used with injection *)
-Lemma prod_inj A B (x y : A * B) : x = y <-> (x.1, x.2) = (y.1, y.2).
+Lemma prod_inj A B (x y : A * B) : 
+        x = y <-> 
+        (x.1, x.2) = (y.1, y.2).
 Proof. by case: x y=>x1 x2 []. Qed.
 
 Lemma idfunE (U : Type) (x : U) : idfun x = x.
@@ -57,7 +60,10 @@ Lemma idfun0E (U V : Type) (f : U -> V):
         (idfun \o f = f) * (f \o idfun = f).
 Proof. by []. Qed.
 
-Lemma trans_eq A (x y z : A) : x = y -> x = z -> y = z.
+Lemma trans_eq A (x y z : A) : 
+        x = y -> 
+        x = z -> 
+        y = z.
 Proof. by move/esym; apply: eq_trans. Qed.
 
 (* Triples *)
@@ -65,51 +71,60 @@ Section TripleLemmas.
 Variables (A B C : Type).
 Implicit Types (a : A) (b : B) (c : C).
 
-Lemma t1P a1 a2 b1 b2 c1 c2 : (a1, b1, c1) = (a2, b2, c2) -> a1 = a2.
+Lemma t1P a1 a2 b1 b2 c1 c2 : 
+        (a1, b1, c1) = (a2, b2, c2) -> 
+        a1 = a2.
 Proof. by case. Qed.
 
-Lemma t2P a1 a2 b1 b2 c1 c2 : (a1, b1, c1) = (a2, b2, c2) -> b1 = b2.
+Lemma t2P a1 a2 b1 b2 c1 c2 : 
+        (a1, b1, c1) = (a2, b2, c2) -> 
+        b1 = b2.
 Proof. by case. Qed.
 
-Lemma t3P a1 a2 b1 b2 c1 c2 : (a1, b1, c1) = (a2, b2, c2) -> c1 = c2.
+Lemma t3P a1 a2 b1 b2 c1 c2 : 
+        (a1, b1, c1) = (a2, b2, c2) -> 
+        c1 = c2.
 Proof. by case. Qed.
 
-Lemma t12P a1 a2 b1 b2 c1 c2 : (a1, b1, c1) = (a2, b2, c2) -> (a1 = a2) * (b1 = b2).
+Lemma t12P a1 a2 b1 b2 c1 c2 : 
+        (a1, b1, c1) = (a2, b2, c2) -> 
+        (a1 = a2) * (b1 = b2).
 Proof. by case. Qed.
 
-Lemma t13P a1 a2 b1 b2 c1 c2 : (a1, b1, c1) = (a2, b2, c2) -> (a1 = a2) * (c1 = c2).
+Lemma t13P a1 a2 b1 b2 c1 c2 : 
+        (a1, b1, c1) = (a2, b2, c2) -> 
+        (a1 = a2) * (c1 = c2).
 Proof. by case. Qed.
 
-Lemma t23P a1 a2 b1 b2 c1 c2 : (a1, b1, c1) = (a2, b2, c2) -> (b1 = b2) * (c1 = c2).
+Lemma t23P a1 a2 b1 b2 c1 c2 : 
+        (a1, b1, c1) = (a2, b2, c2) -> 
+        (b1 = b2) * (c1 = c2).
 Proof. by case. Qed.
 
 End TripleLemmas.
+
 Prenex Implicits t1P t2P t3P t12P t13P t23P.
 
 (************)
 (* Products *)
 (************)
 
-Inductive Prod3 (U1 U2 U3 : Type) := 
+Inductive Prod3 U1 U2 U3 := 
   mk3 {proj31 : U1; proj32 : U2; proj33 : U3}.
-Prenex Implicits proj31 proj32 proj33.
-
-Inductive Prod4 (U1 U2 U3 U4 : Type) := 
+Inductive Prod4 U1 U2 U3 U4 := 
   mk4 {proj41 : U1; proj42 : U2; proj43 : U3; proj44 : U4}.
-Prenex Implicits proj41 proj42 proj43 proj44.
-
-Inductive Prod5 (U1 U2 U3 U4 U5 : Type) := 
+Inductive Prod5 U1 U2 U3 U4 U5 := 
   mk5 {proj51 : U1; proj52 : U2; proj53 : U3; proj54 : U4; proj55 : U5}.
-Prenex Implicits proj51 proj52 proj53 proj54 proj55.
-
-Inductive Prod6 (U1 U2 U3 U4 U5 U6 : Type) := 
+Inductive Prod6 U1 U2 U3 U4 U5 U6 := 
   mk6 {proj61 : U1; proj62 : U2; proj63 : U3; 
        proj64 : U4; proj65 : U5; proj66 : U6}.
-Prenex Implicits proj61 proj62 proj63 proj64 proj65 proj66.
-
-Inductive Prod7 (U1 U2 U3 U4 U5 U6 U7 : Type) := 
+Inductive Prod7 U1 U2 U3 U4 U5 U6 U7 := 
   mk7 {proj71 : U1; proj72 : U2; proj73 : U3; 
        proj74 : U4; proj75 : U5; proj76 : U6; proj77 : U7}.
+Prenex Implicits proj31 proj32 proj33.
+Prenex Implicits proj41 proj42 proj43 proj44.
+Prenex Implicits proj51 proj52 proj53 proj54 proj55.
+Prenex Implicits proj61 proj62 proj63 proj64 proj65 proj66.
 Prenex Implicits proj71 proj72 proj73 proj74 proj75 proj76 proj77.
 
 Definition eq3 (U1 U2 U3 : eqType) (x y : Prod3 U1 U2 U3) := 
@@ -128,31 +143,36 @@ Definition eq7 (U1 U2 U3 U4 U5 U6 U7 : eqType) (x y : Prod7 U1 U2 U3 U4 U5 U6 U7
      proj74 x == proj74 y, proj75 x == proj75 y, proj76 x == proj76 y & 
      proj77 x == proj77 y].
 
-Lemma eq3P U1 U2 U3 : Equality.axiom (@eq3 U1 U2 U3).
+Lemma eq3P U1 U2 U3 : 
+        Equality.axiom (@eq3 U1 U2 U3).
 Proof.
 rewrite /eq3; case=>x1 x2 x3 [y1 y2 y3] /=. 
 by do ![case: eqP=>[->|]]; constructor=>//; case.
 Qed.
 
-Lemma eq4P U1 U2 U3 U4 : Equality.axiom (@eq4 U1 U2 U3 U4).
+Lemma eq4P U1 U2 U3 U4 : 
+        Equality.axiom (@eq4 U1 U2 U3 U4).
 Proof.
 rewrite /eq4; case=>x1 x2 x3 x4 [y1 y2 y3 y4] /=. 
 by do ![case: eqP=>[->|]]; constructor=>//; case.
 Qed.
 
-Lemma eq5P U1 U2 U3 U4 U5 : Equality.axiom (@eq5 U1 U2 U3 U4 U5).
+Lemma eq5P U1 U2 U3 U4 U5 : 
+        Equality.axiom (@eq5 U1 U2 U3 U4 U5).
 Proof.
 rewrite /eq5; case=>x1 x2 x3 x4 x5 [y1 y2 y3 y4 y5] /=. 
 by do ![case: eqP=>[->|]]; constructor=>//; case.
 Qed.
 
-Lemma eq6P U1 U2 U3 U4 U5 U6 : Equality.axiom (@eq6 U1 U2 U3 U4 U5 U6).
+Lemma eq6P U1 U2 U3 U4 U5 U6 : 
+        Equality.axiom (@eq6 U1 U2 U3 U4 U5 U6).
 Proof.
 rewrite /eq6; case=>x1 x2 x3 x4 x5 x6 [y1 y2 y3 y4 y5 y6] /=. 
 by do ![case: eqP=>[->|]]; constructor=>//; case.
 Qed.
 
-Lemma eq7P U1 U2 U3 U4 U5 U6 U7 : Equality.axiom (@eq7 U1 U2 U3 U4 U5 U6 U7).
+Lemma eq7P U1 U2 U3 U4 U5 U6 U7 : 
+        Equality.axiom (@eq7 U1 U2 U3 U4 U5 U6 U7).
 Proof.
 rewrite /eq7; case=>x1 x2 x3 x4 x5 x6 x7 [y1 y2 y3 y4 y5 y6 y7] /=. 
 by do ![case: eqP=>[->|]]; constructor=>//; case.
@@ -160,19 +180,14 @@ Qed.
 
 HB.instance Definition _ (U1 U2 U3 : eqType) := 
   hasDecEq.Build (Prod3 U1 U2 U3) (@eq3P U1 U2 U3).
-
 HB.instance Definition _ (U1 U2 U3 U4 : eqType) := 
   hasDecEq.Build (Prod4 U1 U2 U3 U4) (@eq4P U1 U2 U3 U4).
-
 HB.instance Definition _ (U1 U2 U3 U4 U5 : eqType) := 
   hasDecEq.Build (Prod5 U1 U2 U3 U4 U5) (@eq5P U1 U2 U3 U4 U5).
-
 HB.instance Definition _ (U1 U2 U3 U4 U5 U6 : eqType) := 
   hasDecEq.Build (Prod6 U1 U2 U3 U4 U5 U6) (@eq6P U1 U2 U3 U4 U5 U6).
-
 HB.instance Definition _ (U1 U2 U3 U4 U5 U6 U7 : eqType) := 
   hasDecEq.Build (Prod7 U1 U2 U3 U4 U5 U6 U7) (@eq7P U1 U2 U3 U4 U5 U6 U7).
-
 
 (***************************)
 (* operations on functions *)
@@ -189,13 +204,15 @@ Lemma compA A B C D (h : A -> B) (g : B -> C) (f : C -> D) :
         (f \o g) \o h = f \o (g \o h).
 Proof. by []. Qed.
 
-Lemma compE A B C (g : B -> C) (f : A -> B) x : g (f x) = (g \o f) x.
+Lemma compE A B C (g : B -> C) (f : A -> B) x : 
+        g (f x) = (g \o f) x.
 Proof. by []. Qed.
 
 Definition fprod A1 A2 B1 B2 (f1 : A1 -> B1) (f2 : A2 -> B2) :=
   fun (x : A1 * A2) => (f1 x.1, f2 x.2).
 
-Notation "f1 \* f2" := (fprod f1 f2) (at level 42, left associativity) : fun_scope.
+Notation "f1 \* f2" := (fprod f1 f2) 
+  (at level 42, left associativity) : fun_scope.
 
 (* product morphism, aka. fork/fanout/fsplice *)
 Definition pmorphism A B1 B2 (f1 : A -> B1) (f2 : A -> B2) :=
@@ -227,29 +244,20 @@ Notation "[ ** f1 , f2 , f3 , f4 & f5 ]" := ((((f1 \** f2) \** f3) \** f4) \** f
 
 Reserved Notation "[ /\ P1 , P2 , P3 , P4 , P5 & P6 ]" (at level 0, format
   "'[hv' [ /\ '['  P1 , '/'  P2 , '/'  P3 , '/'  P4 , '/'  P5 ']' '/ '  &  P6 ] ']'").
-
 Reserved Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 & P7 ]" (at level 0, format
   "'[hv' [ /\ '['  P1 , '/'  P2 , '/'  P3 , '/'  P4 , '/'  P5 , '/'  P6 ']' '/ '  &  P7 ] ']'").
-
 Reserved Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 & P7 ]" (at level 0, format
   "'[hv' [ /\ '['  P1 , '/'  P2 , '/'  P3 , '/'  P4 , '/'  P5 , '/'  P6 ']' '/ '  &  P7 ] ']'").
-
 Reserved Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 , P7 & P8 ]" (at level 0, format
   "'[hv' [ /\ '['  P1 , '/'  P2 , '/'  P3 , '/'  P4 , '/'  P5 , '/'  P6 , '/'  P7 ']' '/ '  &  P8 ] ']'").
-
 Reserved Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 , P7 , P8 & P9 ]" (at level 0, format
   "'[hv' [ /\ '['  P1 , '/'  P2 , '/'  P3 , '/'  P4 , '/'  P5 , '/'  P6 , '/'  P7 , '/'  P8 ']' '/ '  &  P9 ] ']'").
-
 Reserved Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 , P7 , P8 , P9 & P10 ]" (at level 0, format
   "'[hv' [ /\ '['  P1 , '/'  P2 , '/'  P3 , '/'  P4 , '/'  P5 , '/'  P6 , '/'  P7 , '/'  P8 , '/' P9 ']' '/ '  &  P10 ] ']'").
-
 Reserved Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 , P7 , P8 , P9 , P10 & P11 ]" (at level 0, format
   "'[hv' [ /\ '['  P1 , '/'  P2 , '/'  P3 , '/'  P4 , '/'  P5 , '/'  P6 , '/'  P7 , '/'  P8 , '/' P9 , '/' P10 ']' '/ '  &  P11 ] ']'").
-
 Reserved Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 , P7 , P8 , P9 , P10 , P11 & P12 ]" (at level 0, format
   "'[hv' [ /\ '['  P1 , '/'  P2 , '/'  P3 , '/'  P4 , '/'  P5 , '/'  P6 , '/'  P7 , '/'  P8 , '/' P9 , '/' P10 , '/' P11 ']' '/ '  &  P12 ] ']'").
-
-
 Reserved Notation "[ \/ P1 , P2 , P3 , P4 | P5 ]" (at level 0, format
   "'[hv' [ \/ '['  P1 , '/'  P2 , '/'  P3 , '/'  P4 ']' '/ '  |  P5 ] ']'").
 Reserved Notation "[ \/ P1 , P2 , P3 , P4 , P5 | P6 ]" (at level 0, format
@@ -526,19 +534,23 @@ Lemma iffE (b1 b2 : bool) : b1 = b2 <-> (b1 <-> b2).
 Proof. by split=>[->|] //; move/iffPb/eqP. Qed.
 
 Lemma subsetC T (p q : mem_pred T) :
-       {subset p <= q} -> {subset predC q <= predC p}.
+        {subset p <= q} -> 
+        {subset predC q <= predC p}.
 Proof. by move=>H x; apply: contra (H x). Qed.
 
 Lemma subsetR T (p q : mem_pred T) :
-       {subset p <= predC q} -> {subset q <= predC p}.
+        {subset p <= predC q} -> 
+        {subset q <= predC p}.
 Proof. by move=>H x; apply: contraL (H x). Qed.
 
 Lemma subsetL T (p q : mem_pred T) :
-       {subset predC p <= q} -> {subset predC q <= p}.
+        {subset predC p <= q} -> 
+        {subset predC q <= p}.
 Proof. by move=>H x; apply: contraR (H x). Qed.
 
 Lemma subsetLR T (p q : mem_pred T) :
-       {subset predC p <= predC q} -> {subset q <= p}.
+        {subset predC p <= predC q} -> 
+        {subset q <= p}.
 Proof. by move=>H x; apply: contraLR (H x). Qed.
 
 Lemma subset_disj T (p q r : mem_pred T) :
@@ -556,6 +568,12 @@ Proof.
 move=>H1 H2 D1; apply: subset_disj H1 _ => x H /H2.
 by apply: D1 H.
 Qed.
+
+Lemma implyb_trans a b c : 
+        a ==> b -> 
+        b ==> c -> 
+        a ==> c.
+Proof. by case: a=>//=->. Qed.
 
 (**************)
 (* empty type *)
@@ -690,42 +708,43 @@ HB.instance Definition _ : isFinite Side := isFinite.Build Side Side_enumP.
 HB.instance Definition _ := isInhabited.Build Side (inhabits LL).
 
 (*************)
-(* sequences *)
+(* Sequences *)
 (*************)
 
+(* folds *)
 (* TODO upstream to mathcomp *)
-Section Fold.
 
 Lemma map_foldr {T1 T2} (f : T1 -> T2) xs :
-  map f xs = foldr (fun x ys => f x :: ys) [::] xs.
+        map f xs = foldr (fun x ys => f x :: ys) [::] xs.
 Proof. by []. Qed.
 
 Lemma fusion_foldr {T R Q} (g : R -> Q) f0 f1 z0 z1 (xs : seq T) :
-  (forall x y, g (f0 x y) = f1 x (g y)) -> g z0 = z1 ->
-  g (foldr f0 z0 xs) = foldr f1 z1 xs.
+        (forall x y, g (f0 x y) = f1 x (g y)) -> 
+        g z0 = z1 ->
+        g (foldr f0 z0 xs) = foldr f1 z1 xs.
 Proof. by move=>Hf Hz; elim: xs=>//= x xs <-. Qed.
 
 Lemma fusion_foldl {T R Q} (g : R -> Q) f0 f1 z0 z1 (xs : seq T) :
-  (forall x y, g (f0 x y) = f1 (g x) y) -> g z0 = z1 ->
-  g (foldl f0 z0 xs) = foldl f1 z1 xs.
+        (forall x y, g (f0 x y) = f1 (g x) y) -> 
+        g z0 = z1 ->
+        g (foldl f0 z0 xs) = foldl f1 z1 xs.
 Proof.
 move=>Hf Hz; elim: xs z0 z1 Hz =>//= x xs IH z0 z1 Hz.
 by apply: IH; rewrite Hf Hz.
 Qed.
 
 Lemma foldl_foldr {T R} (f : R -> T -> R) z xs :
-  foldl f z xs = foldr (fun b g x => g (f x b)) id xs z.
+        foldl f z xs = foldr (fun b g x => g (f x b)) id xs z.
 Proof. by elim: xs z=>/=. Qed.
 
 Lemma foldr_foldl {T R} (f : T -> R -> R) z xs :
-  foldr f z xs = foldl (fun g b x => g (f b x)) id xs z.
+        foldr f z xs = foldl (fun g b x => g (f b x)) id xs z.
 Proof.
 elim/last_ind: xs z=>//= xs x IH z.
 by rewrite foldl_rcons -IH foldr_rcons.
 Qed.
 
-End Fold.
-
+(* pmap *)
 (* TODO upstream to mathcomp *)
 Lemma pmap_pcomp {S T U} (f : T -> option U) (g : S -> option T) s : 
         pmap (pcomp f g) s = pmap f (pmap g s).
@@ -734,11 +753,9 @@ Proof. by elim: s=>//= x s ->; rewrite /pcomp; case: (g x). Qed.
 (* sequence prefixes *)
 
 (* Two helper concepts for searching in sequences:                       *)
-(*                                                                       *)
 (* - onth: like nth, but returns None when the element is not found      *)
 (* - Prefix: a prefix relation on sequences, used for growing            *)
 (*   interpretation contexts                                             *)
-
 
 Fixpoint onth A (s : seq A) n : option A :=
   if s is x::sx then if n is nx.+1 then onth sx nx else Some x else None.
@@ -789,7 +806,9 @@ elim: s n=>/= [|a s IH] n /=; first by apply: nth_nil.
 by case: n.
 Qed.
 
-Lemma onth_nth x0 n s : n < size s -> onth s n = Some (nth x0 s n).
+Lemma onth_nth x0 n s : 
+        n < size s -> 
+        onth s n = Some (nth x0 s n).
 Proof.
 elim: s n=>//= a s IH n.
 by rewrite ltnS; case: n.
@@ -845,24 +864,37 @@ End SeqPrefix.
 
 #[export] Hint Resolve Prefix_refl : core.
 
-Lemma onth_mem (A : eqType) (s : seq A) n x :
-        onth s n = Some x -> x \in s.
+(* when A : eqType *)
+
+Section SeqPrefixEq.
+Variable A : eqType.
+Implicit Type s : seq A.
+
+Lemma onth_mem s n x :
+        onth s n = Some x -> 
+        x \in s.
 Proof.
 by elim: s n=>//= a s IH [[->]|n /IH]; rewrite inE ?eq_refl // orbC =>->.
 Qed.
 
-Lemma onth_index (A : eqType) (s : seq A) x :
-        onth s (index x s) = if x \in s then Some x else None.
+Lemma onth_index (s : seq A) x :
+        onth s (index x s) = 
+          if x \in s then Some x else None.
 Proof.
 by elim: s=>//=h s IH; rewrite inE eq_sym; case: eqP=>//= ->.
 Qed.
 
-Lemma PrefixP (A : eqType) (s1 s2 : seq A) :
+Lemma PrefixP (s1 s2 : seq A) :
         reflect (Prefix s1 s2) (prefix s1 s2).
 Proof.
 apply/(equivP (prefixP (s1:=s1) (s2:=s2))).
 by apply: iff_sym; exact: PrefixE.
 Qed.
+
+End SeqPrefixEq.
+
+
+
 
 (******************************)
 (* Some commuting conversions *)
@@ -1056,6 +1088,46 @@ by rewrite !eqc.
 Qed.
 
 End FinFunMap.
+
+(* surgery on tuples and finfuns *)
+
+Section OnthCodom.
+Variable A : Type.
+
+Lemma onth_tnth {n} (s : n.-tuple A) (i : 'I_n) : 
+        onth s i = Some (tnth s i).
+Proof.
+elim: n s i =>[|n IH] s i; first by case: i.
+case/tupleP: s=>/=x s; case: (unliftP ord0 i)=>[j|]-> /=.
+- by rewrite tnthS.
+by rewrite tnth0.
+Qed.
+
+Lemma onth_codom {n} (i : 'I_n) (f: {ffun 'I_n -> A}) : 
+        onth (fgraph f) i = Some (f i).
+Proof.
+pose i' := cast_ord (esym (card_ord n)) i.
+move: (@tnth_fgraph _ _ f i'); rewrite (enum_val_ord) {2}/i' cast_ordKV=><-.
+by rewrite (onth_tnth (fgraph f) i').
+Qed.
+
+End OnthCodom.
+
+(* ffun and permutation *)
+Section PermFfun.
+Variables (I : finType) (A : Type).
+
+Definition pffun (p : {perm I}) (f : {ffun I -> A}) :=
+  [ffun i => f (p i)].
+
+Lemma pffunE1 (f : {ffun I -> A}) : pffun 1%g f = f.
+Proof. by apply/ffunP=>i; rewrite !ffunE permE. Qed.
+
+Lemma pffunEM (p p' : {perm I}) (f : {ffun I -> A}) :
+  pffun (p * p') f = pffun p (pffun p' f).
+Proof. by apply/ffunP => i; rewrite !ffunE permM. Qed.
+
+End PermFfun.
 
 
 (* Tagging *)

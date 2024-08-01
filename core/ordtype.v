@@ -21,7 +21,7 @@ limitations under the License.
 From HB Require Import structures.
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path fintype.
-From pcm Require Import options.
+From pcm Require Import options seqext.
 
 Definition connected (T : eqType) (ord : rel T) := 
   forall x y, x != y -> ord x y || ord y x.
@@ -223,7 +223,7 @@ Definition oleq (T : ordType) (t1 t2 : T) := ord t1 t2 || (t1 == t2).
 Prenex Implicits ord oleq.
 
 Section Lemmas.
-Variable T : ordType.
+Context {T : ordType}.
 Implicit Types x y : T.
 
 Lemma ord_total x y : [|| ord x y, x == y | ord y x].
@@ -232,7 +232,17 @@ case E: (x == y)=>/=; first by rewrite orbT.
 by apply: connex; rewrite negbT.
 Qed.
 
-Lemma nsym x y : ord x y -> ~ ord y x.
+Lemma ord_neq (x y : T) : 
+        ord x y -> 
+        x != y.
+Proof.
+move=>H; apply/negP=>/eqP E.
+by rewrite E irr in H.
+Qed.
+
+Lemma nsym x y : 
+        ord x y -> 
+        ~ ord y x.
 Proof. by move=>E1 E2; move: (trans E1 E2); rewrite irr. Qed.
 
 Lemma antisym : antisymmetric (@ord T).
@@ -258,29 +268,36 @@ Qed.
 Lemma subrel_ord : subrel (@ord T) oleq.
 Proof. exact: subrelUl. Qed.
 
-Lemma sorted_oleq s : sorted (@ord T) s -> sorted (@oleq T) s.
+Lemma sorted_oleq s : 
+        sorted (@ord T) s -> 
+        sorted (@oleq T) s.
 Proof. case: s=>//= x s; apply/sub_path/subrel_ord. Qed.
 
 Lemma path_filter (r : rel T) (tr : transitive r) s (p : pred T) x :
-        path r x s -> path r x (filter p s).
+        path r x s -> 
+        path r x (filter p s).
 Proof. exact: (subseq_path tr (filter_subseq p s)). Qed.
 
 Lemma ord_sorted_eq (s1 s2 : seq T) :
-        sorted ord s1 -> sorted ord s2 -> s1 =i s2 -> s1 = s2.
+        sorted ord s1 -> 
+        sorted ord s2 -> 
+        s1 =i s2 -> 
+        s1 = s2.
 Proof. exact/irr_sorted_eq/irr/(@trans _). Qed.
 
 Lemma oleq_ord_trans (n m p : T) :
-        oleq m n -> ord n p -> ord m p.
+        oleq m n -> 
+        ord n p -> 
+        ord m p.
 Proof. by case/orP; [apply: trans | move/eqP=>->]. Qed.
 
 Lemma ord_oleq_trans (n m p : T) :
-        ord m n -> oleq n p -> ord m p.
+        ord m n -> 
+        oleq n p -> 
+        ord m p.
 Proof. by move=>H /orP [|/eqP <- //]; apply: trans. Qed.
 
 End Lemmas.
-
-Arguments orefl {T}.
-Arguments otrans {T}.
 
 #[export] Hint Resolve orefl irr trans connex 
 otrans oantisym oleq_ord_trans : core.
@@ -351,7 +368,6 @@ Lemma oleq_total x y: oleq x y || oleq y x.
 Proof. by case:oleqP=>// /ordW ->//. Qed.
 
 End Weakening.
-
 
 (**********************************************)
 (* Building hierarchies for some basic orders *)
@@ -468,6 +484,14 @@ Canonical seq_ordType : ordType :=
   Ordered.Pack (sort:=seq T) (Ordered.Class seq_ord_mix).
 End SeqOrdType.
 
-#[deprecated(since="fcsl-pcm 1.4.0", note="Use ord_sorted_eq instead.")]
-Notation eq_sorted_ord := ord_sorted_eq (only parsing).
+Lemma sorted_cat_cons_cat (A : ordType) (l r : seq A) x :
+        sorted ord (l ++ x :: r) = 
+        sorted ord (l ++ [::x]) && sorted ord (x::r).
+Proof.
+rewrite !(sorted_pairwise (@trans A)) cats1 pairwise_cat.
+rewrite pairwise_rcons allrel_consr !pairwise_cons.
+case/boolP: (all (ord^~ x) l)=>//= Hl.
+case/boolP: (all (ord x) r)=>/= [Hr|_]; last by rewrite !andbF.
+by rewrite (allrel_trans (@trans A) Hl Hr).
+Qed.
 

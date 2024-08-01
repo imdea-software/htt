@@ -13,6 +13,7 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path interval order.
+From mathcomp Require Import fintype finfun tuple.
 From pcm Require Import options prelude seqext.
 
 Open Scope order_scope.
@@ -714,3 +715,13 @@ by apply/drop_sorted/take_sorted.
 Qed.
 
 End LemmasEq.
+
+(* slicing and rcons *)
+Lemma codom_ux_rcons A n (f : {ffun 'I_n -> A}) (i : 'I_n) :
+        &:(fgraph f) `]-oo, i : nat] = 
+        rcons (&:(fgraph f) `]-oo, i : nat[) (f i).
+Proof. by rewrite slice_xR // slice_uu onth_codom. Qed.
+
+
+
+

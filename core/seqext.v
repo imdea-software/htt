@@ -12,12 +12,23 @@ limitations under the License.
 *)
 
 From Coq Require Import ssreflect ssrbool ssrfun.
-From mathcomp Require Import ssrnat seq path eqtype choice fintype bigop.
+From mathcomp Require Import ssrnat seq eqtype path choice fintype bigop perm.
 From pcm Require Import options prelude pred.
 
 (*********************)
 (* Extensions to seq *)
 (*********************)
+
+(* TODO upstream to mathcomp *)
+
+Lemma rcons_nseq {A} n (x : A) :
+        rcons (nseq n x) x = nseq n.+1 x.
+Proof. by elim: n=>//=n ->. Qed.
+
+Lemma behead_rcons {A} (xs : seq A) x :
+        0 < size xs ->
+        behead (rcons xs x) = rcons (behead xs) x.
+Proof. by case: xs. Qed.
 
 Lemma nilp_hasPn {A} (s : seq A) : nilp s = ~~ has predT s.
 Proof. by case: s. Qed.
@@ -31,10 +42,12 @@ Lemma filter_swap {A} (s : seq A) p1 p2 :
 Proof. by rewrite -!filter_predI filter_predIC. Qed.
 
 (* TODO contribute to mathcomp? *)
-Lemma map_nilp {A B} (f : A -> B) (s : seq A) : nilp (map f s) = nilp s.
+Lemma map_nilp {A B} (f : A -> B) (s : seq A) : 
+        nilp (map f s) = nilp s.
 Proof. by rewrite /nilp; case: s. Qed.
 
-Lemma filter_nilp {A} (p : pred A) (s : seq A) : nilp (filter p s) = ~~ has p s.
+Lemma filter_nilp {A} (p : pred A) (s : seq A) : 
+        nilp (filter p s) = ~~ has p s.
 Proof. by rewrite /nilp size_filter -leqn0 leqNgt has_count. Qed.
 
 Lemma head_map {P Q} (f : P -> Q) z (s : seq P) :
@@ -49,14 +62,14 @@ elim: s1 s2=>/= [|x1 s1 IH] [|x2 s2] //=.
 by congr cons.
 Qed.
 
-Corollary zip_mapl {P Q R} (f : P -> R) (s1 : seq P) (s2 : seq Q) :
-            zip (map f s1) s2 =
-            map (fun '(x1,x2) => (f x1,x2)) (zip s1 s2).
+Lemma zip_mapl {P Q R} (f : P -> R) (s1 : seq P) (s2 : seq Q) :
+        zip (map f s1) s2 =
+        map (fun '(x1,x2) => (f x1,x2)) (zip s1 s2).
 Proof. by rewrite -{1}(map_id s2) zip_map2. Qed.
 
-Corollary zip_mapr {P Q S} (g : Q -> S) (s1 : seq P) (s2 : seq Q) :
-            zip s1 (map g s2) =
-            map (fun '(x1,x2) => (x1,g x2)) (zip s1 s2).
+Lemma zip_mapr {P Q S} (g : Q -> S) (s1 : seq P) (s2 : seq Q) :
+        zip s1 (map g s2) =
+        map (fun '(x1,x2) => (x1,g x2)) (zip s1 s2).
 Proof. by rewrite -{1}(map_id s1) zip_map2. Qed.
 
 Lemma drop_take_id {A} x (s : seq A) : drop x (take x s) = [::].
@@ -78,7 +91,7 @@ by rewrite drop_oversize // size_take_min geq_min Hxy.
 Qed.
 
 Section LemmasEq.
-Variables (A : eqType).
+Variables A : eqType.
 Implicit Type xs : seq A.
 
 (* With A : Type, we have the In_split lemma. *)
@@ -86,23 +99,66 @@ Implicit Type xs : seq A.
 (* not only return the split of xs, but the split of xs *)
 (* that uses the first occurrence of x is xs *)
 Lemma in_split xs x :
-        x \in xs -> exists xs1 xs2, xs = xs1 ++ x :: xs2 /\ x \notin xs1.
+        x \in xs -> 
+        exists xs1 xs2, 
+          xs = xs1 ++ x :: xs2 /\ x \notin xs1.
 Proof.
 rewrite -has_pred1; case/split_find=>_ s1 s2 /eqP ->.
 by rewrite has_pred1=>H; exists s1, s2; rewrite -cats1 -catA.
 Qed.
 
+(* a weaker form of in_split *)
+Lemma mem_split (x : A) s :
+        x \in s -> 
+        exists s1 s2, s = s1 ++ [:: x] ++ s2.
+Proof. by case/in_split=>s1 [s2][H _]; exists s1, s2. Qed.
+
+Lemma mem_split_uniq (x : A) s :
+       x \in s -> uniq s ->
+       exists s1 s2, [/\ s = s1 ++ [:: x] ++ s2,
+                         uniq (s1 ++ s2) &
+                         x \notin s1 ++ s2].
+Proof.
+move=>/[swap] Hu /mem_split [s1 [s2 H]].
+exists s1, s2; move: Hu.
+by rewrite H uniq_catCA cons_uniq; case/andP.
+Qed.
+
+Lemma perm_cons2 (x y : A) s : 
+        perm_eq [:: x, y & s] [:: y, x & s].
+Proof.
+by rewrite (_ : [::x,y & s] = [::x] ++ [::y] ++ s) //
+  (_ : [::y,x & s] = [::y] ++ [::x] ++ s) // perm_catCA.
+Qed.
+
+Lemma all_notin (p : pred A) xs y :
+        all p xs -> 
+        ~~ p y -> 
+        y \notin xs.
+Proof. by move/allP=>Ha; apply/contra/Ha. Qed.
+
+Lemma subset_all a (s1 s2 : seq A) : 
+        {subset s1 <= s2} -> 
+        all a s2 -> 
+        all a s1.
+Proof. by move=>Hs /allP Ha1; apply/allP=>s /Hs /Ha1. Qed.
+
 Lemma subset_nilR xs :
-        {subset xs <= [::]} -> xs = [::].
+        {subset xs <= [::]} -> 
+        xs = [::].
 Proof. by case: xs=>// x xs /(_ x); rewrite inE eqxx=>/(_ erefl). Qed.
 
 Lemma subset_nil xs ys :
-        {subset xs <= ys} -> ys = [::] -> xs = [::].
+        {subset xs <= ys} -> 
+        ys = [::] -> 
+        xs = [::].
 Proof. by move=>X E; move: E X=>->; apply: subset_nilR. Qed.
 
-Lemma all_mem xs ys :
+Lemma all_mem xs ys : 
         reflect {subset ys <= xs} (all [mem xs] ys).
-Proof. by case: allP=>H; constructor; [move=>x /H | move=>X; apply: H=>x /X]. Qed.
+Proof. 
+by case: allP=>H; constructor; [move=>x /H | move=>X; apply: H=>x /X]. 
+Qed.
 
 Lemma all_predC_sym xs ys :
         all [predC xs] ys = all [predC ys] xs.
@@ -137,8 +193,8 @@ split; first by exact: memNindex.
 by move=>E; rewrite -index_mem E ltnn.
 Qed.
 
-Corollary index_sizeE x xs :
-            reflect (index x xs = size xs) (x \notin xs).
+Lemma index_sizeE x xs :
+        reflect (index x xs = size xs) (x \notin xs).
 Proof. by apply/(equivP idP)/index_memN. Qed.
 
 Lemma size0nilP xs :
@@ -172,14 +228,16 @@ by rewrite eqn0Ngt -has_count; apply/hasPn=>x /H; case: (p x)=>//; apply.
 Qed.
 
 Lemma filter_pred1 x xs :
-        x \notin xs -> filter (pred1 x) xs = [::].
+        x \notin xs -> 
+        filter (pred1 x) xs = [::].
 Proof.
 move=>H; apply/eqP; apply/filter_nilP=>z /eqP ->.
 by rewrite (negbTE H).
 Qed.
 
 Lemma filter_predC1 x xs :
-        x \notin xs -> filter (predC1 x) xs = xs.
+        x \notin xs -> 
+        filter (predC1 x) xs = xs.
 Proof.
 by move=>H; apply/all_filterP/allP=>y /=; case: eqP=>// ->; apply/contraL.
 Qed.
@@ -189,7 +247,9 @@ Lemma filter_mem_sym (s1 s2 : seq A) :
 Proof. by move=>x; rewrite !mem_filter andbC. Qed.
 
 Lemma index_inj xs x y :
-        x \in xs -> index x xs = index y xs -> x = y.
+        x \in xs -> 
+        index x xs = index y xs -> 
+        x = y.
 Proof.
 elim: xs=>[|k xs IH] //=; rewrite inE eq_sym.
 case: eqP=>[->{k} _|_ /= S]; case: eqP=>// _ []; apply: IH S.
@@ -215,7 +275,8 @@ Qed.
 
 (* if the list is not empty, the default value in head doesn't matter *)
 Lemma head_dflt (x1 x2 x : A) xs :
-        x \in xs -> head x1 xs = head x2 xs.
+        x \in xs -> 
+        head x1 xs = head x2 xs.
 Proof. by case: xs. Qed.
 
 Lemma mem_head (x : A) xs : head x xs \in x :: xs.
@@ -223,25 +284,30 @@ Proof. by case: xs=>[|y ys]; rewrite !inE //= eqxx orbT. Qed.
 
 (* a common pattern of using mem_head that avoids forward reasoning *)
 Lemma mem_headI (x : A) xs a :
-        a = head x xs -> a \in x :: xs.
+        a = head x xs -> 
+        a \in x :: xs.
 Proof. by move=>->; apply: mem_head. Qed.
 
 Lemma head_nilp (x : A) xs :
-        x \notin xs -> head x xs = x -> nilp xs.
+        x \notin xs -> 
+        head x xs = x -> 
+        nilp xs.
 Proof.
 elim: xs=>[|y ys IH] //= H1 H2.
 by rewrite H2 inE eqxx /= in H1.
 Qed.
 
 Lemma head_notin (x y : A) xs :
-        y \in xs -> x \notin xs -> head x xs != x.
+        y \in xs -> 
+        x \notin xs -> 
+        head x xs != x.
 Proof.
 move=>Y X; apply/negP=>/eqP; move/(head_nilp X)/nilP=>E.
 by rewrite E in Y.
 Qed.
 
 (* weaker form of in_mask *)
-(* TODO contribute to mathcomp *)
+(* TODO upstream to mathcomp *)
 Lemma in_mask_count x m xs :
         count_mem x xs <= 1 ->
         x \in mask m xs = (x \in xs) && nth false m (index x xs).
@@ -292,7 +358,8 @@ Lemma findlast_auxE oi0 p s :
         (if k == size s then oi0.1
            else Some (oi0.2 + (size s - k).-1), oi0.2 + size s).
 Proof.
-rewrite /findlast_aux; elim: s oi0=>/= [|x s IH] [o0 i0] /=; first by rewrite addn0.
+rewrite /findlast_aux; elim: s oi0=>/= [|x s IH] [o0 i0] /=.
+- by rewrite addn0.
 rewrite IH /= rev_cons -cats1 find_cat /= has_find.
 move: (find_size p (rev s)); rewrite size_rev; case: ltngtP=>// H _.
 - case: eqP=>[E|_]; first by rewrite E ltnNge leqnSn in H.
@@ -306,29 +373,32 @@ Definition findlast p s : nat :=
   let '(o, i) := findlast_aux (None, 0) p s in odflt i o.
 
 (* finding last is finding first in reversed list and flipping indices *)
-Corollary findlastE p s :
-            findlast p s =
-            if has p s then (size s - seq.find p (rev s)).-1
-                       else size s.
+Lemma findlastE p s :
+        findlast p s =
+        if has p s then (size s - seq.find p (rev s)).-1 else size s.
 Proof.
 rewrite /findlast findlast_auxE /= !add0n -has_rev; case/boolP: (has p (rev s)).
 - by rewrite has_find size_rev; case: ltngtP.
 by move/hasNfind=>->; rewrite size_rev eqxx.
 Qed.
 
-Lemma findlast_size p s : findlast p s <= size s.
+Lemma findlast_size p s : 
+        findlast p s <= size s.
 Proof.
 rewrite findlastE; case: ifP=>// _.
 by rewrite -subnS; apply: leq_subr.
 Qed.
 
-Lemma has_findlast p s : has p s = (findlast p s < size s).
+Lemma has_findlast p s : 
+        has p s = (findlast p s < size s).
 Proof.
 symmetry; rewrite findlastE; case: ifP=>H /=; last by rewrite ltnn.
 by rewrite -subnS /= ltn_subrL /=; case: s H.
 Qed.
 
-Lemma hasNfindlast p s : ~~ has p s -> findlast p s = size s.
+Lemma hasNfindlast p s : 
+        ~~ has p s -> 
+        findlast p s = size s.
 Proof. by rewrite has_findlast; case: ltngtP (findlast_size p s). Qed.
 
 Lemma findlast0 p x : findlast p [::] = 0.
@@ -373,14 +443,18 @@ case: (p x)=>/=; first by rewrite andbF addn0.
 by rewrite andbT addn1.
 Qed.
 
-Lemma nth_findlast x0 p s : has p s -> p (nth x0 s (findlast p s)).
+Lemma nth_findlast x0 p s : 
+        has p s -> 
+        p (nth x0 s (findlast p s)).
 Proof.
 rewrite findlastE=>/[dup] E ->; rewrite -has_rev in E.
 rewrite -subnS -nth_rev; last by rewrite -size_rev -has_find.
 by apply: nth_find.
 Qed.
 
-Lemma has_drop p s i : has p s -> has p (drop i s) = (i <= findlast p s).
+Lemma has_drop p s i : 
+        has p s -> 
+        has p (drop i s) = (i <= findlast p s).
 Proof.
 rewrite findlastE=>/[dup] E ->; rewrite -has_rev in E.
 have Hh: 0 < size s - find p (rev s).
@@ -398,7 +472,8 @@ rewrite -ltnNge subnS prednK //.
 by apply/leq_trans/Hi; exact: leq_subr.
 Qed.
 
-Lemma find_geq p s i : has p (drop i s) -> i <= findlast p s.
+Lemma find_geq p s i : 
+        has p (drop i s) -> i <= findlast p s.
 Proof.
 case/boolP: (has p s)=>Hp; first by rewrite (has_drop _ Hp).
 suff: ~~ has p (drop i s) by move/negbTE=>->.
@@ -406,7 +481,8 @@ move: Hp; apply: contra; rewrite -{2}(cat_take_drop i s) has_cat=>->.
 by rewrite orbT.
 Qed.
 
-Lemma find_leq_last p s : find p s <= findlast p s.
+Lemma find_leq_last p s : 
+        find p s <= findlast p s.
 Proof.
 rewrite findlastE.
 case/boolP: (has p s)=>[|_]; last by apply: find_size.
@@ -448,7 +524,7 @@ Qed.
 End FindLast.
 
 Section FindLastEq.
-Variables (T : eqType).
+Variables T : eqType.
 Implicit Type s : seq T.
 
 Definition indexlast (x : T) : seq T -> nat := findlast (pred1 x).
@@ -487,13 +563,16 @@ Lemma indexlast_rcons x y s :
                           else (size s).+1.
 Proof. by rewrite /indexlast findlast_rcons has_pred1. Qed.
 
-Lemma index_geq x s i : x \in drop i s -> i <= indexlast x s.
+Lemma index_geq x s i : 
+        x \in drop i s -> 
+        i <= indexlast x s.
 Proof. by rewrite -has_pred1; apply: find_geq. Qed.
 
 Lemma index_leq_last x s : index x s <= indexlast x s.
 Proof. by apply: find_leq_last. Qed.
 
-Lemma indexlast_count x s : count_mem x s <= 1 <-> index x s = indexlast x s.
+Lemma indexlast_count x s : 
+        count_mem x s <= 1 <-> index x s = indexlast x s.
 Proof.
 elim: s=>//= h t IH; rewrite indexlast_cons.
 case: eqP=>/= ?; last first.
@@ -503,13 +582,17 @@ rewrite add1n ltnS leqn0; split.
 by case: ifP=>//= /count_memPn->.
 Qed.
 
-Corollary index_lt_last x s : 1 < count_mem x s -> index x s < indexlast x s.
+Lemma index_lt_last x s : 
+        1 < count_mem x s -> 
+        index x s < indexlast x s.
 Proof.
 move=>H; move: (index_leq_last x s); rewrite leq_eqVlt.
 by case: eqP=>//= /indexlast_count; case: leqP H.
 Qed.
 
-Corollary indexlast_uniq x s : uniq s -> index x s = indexlast x s.
+Lemma indexlast_uniq x s : 
+        uniq s -> 
+        index x s = indexlast x s.
 Proof.
 move=>H; apply/indexlast_count.
 by rewrite count_uniq_mem //; apply: leq_b1.
@@ -523,7 +606,8 @@ by move=>E; rewrite -indexlast_mem E ltnn.
 Qed.
 
 Lemma index_last_inj x y s :
-        (x \in s) || (y \in s) -> index x s = indexlast y s -> x = y.
+        (x \in s) || (y \in s) -> 
+        index x s = indexlast y s -> x = y.
 Proof.
 elim: s=>[|k s IH] //=; rewrite !inE indexlast_cons !(eq_sym k).
 case: eqP=>[{k}<- _|_ /= S]; first by case: eqP=>//=.
@@ -534,7 +618,9 @@ by case: eqP=>//; rewrite orbF=>_ H []; apply: IH; rewrite H.
 Qed.
 
 Lemma indexlast_inj x y s :
-        x \in s -> indexlast x s = indexlast y s -> x = y.
+        x \in s -> 
+        indexlast x s = indexlast y s -> 
+        x = y.
 Proof.
 elim: s=>[|k s IH] //=; rewrite inE eq_sym !indexlast_cons.
 case: eqP=>[->{k} _|_ /= S] /=.
@@ -569,8 +655,7 @@ End FindLastEq.
 (* finding all occurrences *)
 
 Section FindAll.
-
-Variables (T : Type).
+Variables T : Type.
 Implicit Types (x : T) (p : pred T) (s : seq T).
 
 (* helper function for finding all occurrences in a single pass with difference lists *)
@@ -581,7 +666,8 @@ Lemma findall_auxE oi0 p s :
       (forall s1 s2 : seq nat, oi0.1 (s1 ++ s2) = oi0.1 s1 ++ s2) ->
       let: (rs, ix) := findall_aux oi0 p s in
         (forall s' : seq nat,
-           rs s' = oi0.1 (unzip1 (filter (p \o snd) (zip (iota oi0.2 (size s)) s))) ++ s')
+           rs s' = oi0.1 (unzip1 (filter (p \o snd) 
+                                         (zip (iota oi0.2 (size s)) s))) ++ s')
         /\ ix = oi0.2 + size s.
 Proof.
 move; rewrite /findall_aux; elim: s oi0=>[|x s IH] [o0 i0] /= H0.
@@ -617,14 +703,14 @@ rewrite (eq_filter (a2:=(p \o snd))); last by case.
 by apply: eq_map; case.
 Qed.
 
-Corollary findall_cons p x s :
-            findall p (x::s) =
-            if p x then 0 :: map S (findall p s) else map S (findall p s).
+Lemma findall_cons p x s :
+        findall p (x::s) =
+        if p x then 0 :: map S (findall p s) else map S (findall p s).
 Proof. by rewrite -cat1s findall_cat /= findallE /=; case: (p x). Qed.
 
-Corollary findall_rcons p x s :
-            findall p (rcons s x) =
-            if p x then rcons (findall p s) (size s) else findall p s.
+Lemma findall_rcons p x s :
+        findall p (rcons s x) =
+        if p x then rcons (findall p s) (size s) else findall p s.
 Proof.
 rewrite -cats1 findall_cat /= !findallE /=; case: (p x)=>/=.
 - by rewrite addn0 cats1.
@@ -671,8 +757,7 @@ Qed.
 End FindAll.
 
 Section FindAllEq.
-
-Variables (T : eqType).
+Variables T : eqType.
 Implicit Type s : seq T.
 
 Definition indexall (x : T) : seq T -> seq nat := findall (pred1 x).
@@ -694,12 +779,12 @@ Proof. by rewrite /indexlast /indexall findall_last. Qed.
 
 Lemma indexall_count1 x s :
         count_mem x s <= 1 ->
-        indexall x s = if x \in s then [::index x s] else [::].
+        indexall x s = if x \in s then [:: index x s] else [::].
 Proof. by rewrite /indexall /index -has_pred1; apply: findall_count1. Qed.
 
 Corollary indexall_uniq x s :
             uniq s ->
-            indexall x s = if x \in s then [::index x s] else [::].
+            indexall x s = if x \in s then [:: index x s] else [::].
 Proof. by move=>U; apply: indexall_count1; rewrite (count_uniq_mem _ U) leq_b1. Qed.
 
 End FindAllEq.
@@ -707,10 +792,12 @@ End FindAllEq.
 (* Interaction of filter/last/index *)
 
 Section FilterLastIndex.
-Variables (A : eqType).
+Variables A : eqType.
 
 (* if s has an element, last returns one of them *)
-Lemma last_in x k (s : seq A) : x \in s -> last k s \in s.
+Lemma last_in x k (s : seq A) : 
+        x \in s -> 
+        last k s \in s.
 Proof.
 elim: s k=>[|k s IH] k' //=; rewrite !inE.
 case/orP=>[/eqP <-|/IH ->]; first by apply: mem_last.
@@ -719,48 +806,64 @@ Qed.
 
 Arguments last_in x [k s].
 
-Lemma last_notin x k (s : seq A) : x \in s -> k \notin s -> last k s != k.
+Lemma last_notin x k (s : seq A) : 
+        x \in s -> 
+        k \notin s -> 
+        last k s != k.
 Proof. by move/(last_in _ (k:=k))=>H /negbTE; case: eqP H=>// ->->. Qed.
 
-Lemma last_notin_nilp k (s : seq A) : ~~ nilp s -> k \notin s -> last k s != k.
+Lemma last_notin_nilp k (s : seq A) : 
+        ~~ nilp s -> 
+        k \notin s -> 
+        last k s != k.
 Proof.
 move=>N; apply: (last_notin (x := head k s)).
 by case: s N=>//= x s _; rewrite inE eqxx.
 Qed.
 
 (* last either returns a default, or one of s's elements *)
-Lemma last_change k (s : seq A) : last k s != k -> last k s \in s.
+Lemma last_change k (s : seq A) : 
+        last k s != k -> 
+        last k s \in s.
 Proof. by move: (mem_last k s); rewrite inE; case: eqP. Qed.
 
 Lemma last_changeE1 k (s : seq A) :
-        last k s != k -> forall x, last x s = last k s.
+        last k s != k -> 
+        forall x, last x s = last k s.
 Proof. by elim: s k=>[|k s IH] y //=; rewrite eqxx. Qed.
 
 Lemma last_changeE2 k (s : seq A) :
-        last k s != k -> forall x, x \notin s -> last x s != x.
+        last k s != k -> 
+        forall x, x \notin s -> last x s != x.
 Proof. by move/last_change/last_notin. Qed.
 
 (* common formats of last_change *)
-Lemma last_nochange k (s : seq A) : last k s = k -> (k \in s) || (s == [::]).
+Lemma last_nochange k (s : seq A) : 
+        last k s = k -> 
+        (k \in s) || (s == [::]).
 Proof.
 case: s k=>[|k s] //= k'; rewrite inE; case: eqP=>[->|N L] //.
 by move: (@last_change k s); rewrite L=>-> //; case: eqP N.
 Qed.
 
-Lemma last_nochange_nil k (s : seq A) : last k s = k -> k \notin s -> s = [::].
+Lemma last_nochange_nil k (s : seq A) : 
+        last k s = k -> 
+        k \notin s -> s = [::].
 Proof. by move/last_nochange; case/orP=>[/negbF ->|/eqP]. Qed.
 
 (* last and rcons *)
 
 Lemma rcons_lastX x y (s : seq A) :
-        x \in s -> exists s', s = rcons s' (last y s).
+        x \in s -> 
+        exists s', s = rcons s' (last y s).
 Proof.
 elim/last_ind: s=>[|ks k IH] //=.
 by rewrite last_rcons; exists ks.
 Qed.
 
 Lemma rcons_lastP x (s : seq A) :
-        reflect (exists s', s = rcons s' (last x s)) (last x s \in s).
+        reflect (exists s', s = rcons s' (last x s)) 
+                (last x s \in s).
 Proof.
 case X : (last x s \in s); constructor; first by apply: rcons_lastX X.
 case=>s' E; move/negP: X; elim.
@@ -768,7 +871,8 @@ by rewrite E last_rcons mem_rcons inE eqxx.
 Qed.
 
 Lemma rcons_lastXP x y (s : seq A) :
-        reflect (exists s', s = rcons s' x) ((x == last y s) && (x \in s)).
+        reflect (exists s', s = rcons s' x) 
+                ((x == last y s) && (x \in s)).
 Proof.
 case: eqP=>[->|N]; first by apply: rcons_lastP.
 by constructor; case=>s' E; elim: N; rewrite E last_rcons.
@@ -787,7 +891,9 @@ Qed.
 
 (* last has bigger index than anything in x *)
 Lemma index_last_mono x k (s : seq A) :
-         uniq s -> x \in s -> index x s <= index (last k s) s.
+         uniq s -> 
+         x \in s -> 
+         index x s <= index (last k s) s.
 Proof.
 elim: s k=>[|k s IH] //= k'; rewrite inE !(eq_sym k).
 case/andP=>K U; case: (x =P k)=>//= /eqP N X.
@@ -798,8 +904,10 @@ Qed.
 
 (* if it has bigger index, and is in the list, then it's last *)
 Lemma max_index_last (s : seq A) (x y : A) :
-         uniq s -> x \in s ->
-         (forall z, z \in s -> index z s <= index x s) -> last y s = x.
+         uniq s -> 
+         x \in s ->
+         (forall z, z \in s -> index z s <= index x s) -> 
+         last y s = x.
 Proof.
 elim: s y=>[|k s IH] y //= /andP [Nk U]; rewrite inE (eq_sym k).
 case: (x =P k) Nk=>[<-{k} Nk _|_ Nk /= S] /= D; last first.
@@ -1065,7 +1173,7 @@ End FilterLastIndex.
 (* index and mapping *)
 
 Section IndexPmap.
-Variables (A B : eqType).
+Variables A B : eqType.
 
 Lemma index_pmap_inj (s : seq A) (f : A -> option B) a1 a2 b1 b2 :
         injective f -> 
@@ -1137,11 +1245,76 @@ Qed.
 
 End IndexPmap.
 
+Section Allrel.
+Variables S T : Type.
+
+Lemma allrel_rconsl (r : T -> S -> bool) x xs ys :
+        allrel r (rcons xs x) ys = allrel r xs ys && all (r x) ys.
+Proof. by rewrite -cats1 allrel_catl allrel1l. Qed.
+
+Lemma allrel_rconsr (r : T -> S -> bool) y xs ys :
+        allrel r xs (rcons ys y) = allrel r xs ys && all (r^~ y) xs.
+Proof. by rewrite -cats1 allrel_catr allrel1r. Qed.
+
+End Allrel.
+
+
+Section AllrelEq.
+Variables S T : eqType.
+
+Lemma allrel_in_l (r : T -> S -> bool) (xs xs' : seq T) (ys : seq S) :
+        xs =i xs' ->
+        allrel r xs ys = allrel r xs' ys.
+Proof.
+by move=>H; rewrite !allrel_allpairsE; apply/eq_all_r/mem_allpairs_dep.
+Qed.
+
+Lemma allrel_in_r (r : T -> S -> bool) (xs : seq T) (ys ys' : seq S) :
+        ys =i ys' ->
+        allrel r xs ys = allrel r xs ys'.
+Proof.
+by move=>H; rewrite !allrel_allpairsE; apply/eq_all_r/mem_allpairs_dep.
+Qed.
+
+Lemma allrel_sub_l (r : T -> S -> bool) (xs xs' : seq T) (ys : seq S) :
+        {subset xs' <= xs} ->
+        allrel r xs ys -> allrel r xs' ys.
+Proof.
+move=>H Ha; apply/allrelP=>x y Hx Hy.
+by move/allrelP: Ha; apply=>//; apply: H.
+Qed.
+
+Lemma allrel_sub_r (r : T -> S -> bool) (xs : seq T) (ys ys' : seq S) :
+        {subset ys' <= ys} ->
+        allrel r xs ys -> allrel r xs ys'.
+Proof.
+move=>H Ha; apply/allrelP=>x y Hx Hy.
+by move/allrelP: Ha; apply=>//; apply: H.
+Qed.
+
+Lemma allrel_trans (xs ys : seq S) z r :
+        transitive r ->
+        all (r^~ z) xs -> all (r z) ys -> allrel r xs ys.
+Proof.
+move=>Ht /allP Ha /allP Hp; apply/allrelP=>x y + Hy.
+by move/Ha/Ht; apply; apply: Hp.
+Qed.
+
+End AllrelEq.
+
 Section SeqRel.
-Variable (A : eqType).
-Implicit Type (ltT leT : rel A).
+Variable A : eqType.
+Implicit Type ltT leT : rel A.
 
 (* ordering with path, seq and last *)
+
+(* renaming *)
+#[deprecated(since="fcsl-pcm 1.4.0", note="Use order_path_min instead.")]
+Lemma path_all (xs : seq A) x r :
+        transitive r ->
+        path r x xs -> 
+        all (r x) xs.
+Proof. exact: order_path_min. Qed.
 
 Lemma eq_last (s : seq A) x y :
         x \in s -> 
@@ -1285,6 +1458,20 @@ Proof.
 elim: s=>[|a s IH] //= P H; rewrite rcons_path P /=.
 by apply: H (mem_last _ _).
 Qed.
+
+Lemma sorted_rconsE (leT : rel A) xs x :
+        transitive leT ->
+        sorted leT (rcons xs x) = 
+          all (leT^~ x) xs && sorted leT xs.
+Proof.
+move/rev_trans=>Ht; rewrite -(revK (rcons _ _)) rev_rcons rev_sorted /=.
+by rewrite path_sortedE // all_rev rev_sorted.
+Qed.
+
+Lemma sorted1 (r : rel A) xs : 
+        size xs == 1 -> 
+        sorted r xs.
+Proof. by case: xs=>// x; case. Qed.
 
 Lemma sorted_subset_subseq (s1 s2 : seq A) ltT :
         irreflexive ltT -> 

@@ -2,12 +2,15 @@ From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat seq eqtype path fintype finfun tuple interval perm fingroup.
 From pcm Require Import options prelude ordtype seqext slice.
 
+(*
 Lemma implyb_trans a b c : a ==> b -> b ==> c -> a ==> c.
 Proof. by case: a=>//=->. Qed.
+*)
 
 Section Seq.
 Variable (A : Type).
 
+(*
 Lemma rcons_nseq n (x : A) :
         rcons (nseq n x) x = nseq n.+1 x.
 Proof. by elim: n=>//=n ->. Qed.
@@ -16,12 +19,16 @@ Lemma behead_rcons (xs : seq A) x :
         0 < size xs ->
         behead (rcons xs x) = rcons (behead xs) x.
 Proof. by case: xs. Qed.
+*)
 
+(*
 Lemma path_all (xs : seq A) x r :
         transitive r ->
         path r x xs -> all (r x) xs.
 Proof. by move=>Ht; rewrite path_sortedE; [case/andP | exact: Ht]. Qed.
+*)
 
+(*
 Lemma sorted_rconsE (leT : rel A) xs x :
         transitive leT ->
         sorted leT (rcons xs x) = all (leT^~ x) xs && sorted leT xs.
@@ -29,21 +36,27 @@ Proof.
 move/rev_trans=>Ht; rewrite -(revK (rcons _ _)) rev_rcons rev_sorted /=.
 by rewrite path_sortedE // all_rev rev_sorted.
 Qed.
+*)
 
+(*
 Lemma sorted1 (r : rel A) xs : size xs == 1 -> sorted r xs.
 Proof. by case: xs=>// x; case. Qed.
+*)
 
 End Seq.
 
 Section SeqEq.
 Variable (A : eqType).
 
+(*
 Lemma perm_cons2 (x y : A) s : perm_eq [:: x, y & s] [:: y, x & s].
 Proof.
 by rewrite (_ : [::x,y & s] = [::x] ++ [::y] ++ s) //
   (_ : [::y,x & s] = [::y] ++ [::x] ++ s) // perm_catCA.
 Qed.
+*)
 
+(*
 (* a weaker form of in_split *)
 Lemma mem_split (x : A) s :
         x \in s -> exists s1 s2, s = s1 ++ [:: x] ++ s2.
@@ -59,16 +72,20 @@ move=>/[swap] Hu /mem_split [s1 [s2 H]].
 exists s1, s2; move: Hu.
 by rewrite H uniq_catCA cons_uniq; case/andP.
 Qed.
+*)
 
+(*
 Lemma all_notin (p : pred A) xs y :
         all p xs -> ~~ p y -> y \notin xs.
 Proof. by move/allP=>Ha; apply/contra/Ha. Qed.
 
 Lemma subset_all a (s1 s2 : seq A) : {subset s1 <= s2} -> all a s2 -> all a s1.
 Proof. by move=>Hs /allP Ha1; apply/allP=>s /Hs /Ha1. Qed.
+*)
 
 End SeqEq.
 
+(*
 Section Allrel.
 Variables (S T : Type).
 
@@ -81,7 +98,9 @@ Lemma allrel_rconsr (r : T -> S -> bool) y xs ys :
 Proof. by rewrite -cats1 allrel_catr allrel1r. Qed.
 
 End Allrel.
+*)
 
+(*
 Section AllrelEq.
 Variables (S T : eqType).
 
@@ -124,7 +143,9 @@ by move/Ha/Ht; apply; apply: Hp.
 Qed.
 
 End AllrelEq.
+*)
 
+(*
 Section SeqOrd.
 Variable (A : ordType).
 
@@ -143,9 +164,11 @@ by rewrite (allrel_trans (@trans A) Hl Hr).
 Qed.
 
 End SeqOrd.
+*)
 
 (* surgery on finfuns: slicing & permuting *)
 
+(*
 Section OnthCodom.
 Variable (A : Type).
 
@@ -165,7 +188,9 @@ by rewrite (onth_tnth (fgraph f) i').
 Qed.
 
 End OnthCodom.
+*)
 
+(*
 Section CodomWS.
 Variable (n : nat) (A : Type).
 
@@ -174,7 +199,9 @@ Lemma codom_ux_rcons (f : {ffun 'I_n -> A}) (i : 'I_n) :
 Proof. by rewrite slice_xR // slice_uu onth_codom. Qed.
 
 End CodomWS.
+*)
 
+(*
 Section PermFfun.
 Variables (I : finType) (A : Type).
 
@@ -190,3 +217,4 @@ Lemma pffunEM (p p' : {perm I}) (f : {ffun I -> A}) :
 Proof. by apply/ffunP => i; rewrite !ffunE permM. Qed.
 
 End PermFfun.
+*)
