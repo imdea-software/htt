@@ -1,7 +1,6 @@
 From mathcomp Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype ssrnat seq bigop choice.
 From pcm Require Import pred prelude seqext.
-From htt Require Import interlude.
 
 (* arbitrarily branching tree *)
 Inductive tree A := TNode of A & seq (tree A).

@@ -5,7 +5,6 @@
 From Coq Require Import Recdef ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype choice ssrnat seq bigop fintype finfun.
 From pcm Require Import options prelude ordtype finmap pred seqext.
-From htt Require Import interlude.
 
 Ltac add_morphism_tactic := SetoidTactics.add_morphism_tactic.
 

@@ -2,7 +2,7 @@ From mathcomp Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype.
 From pcm Require Import options axioms prelude pred.
 From pcm Require Import pcm unionmap heap.
-From htt Require Import options interlude model heapauto.
+From htt Require Import options model heapauto.
 
 (* counter that hides local state with an abstract predicate *)
 

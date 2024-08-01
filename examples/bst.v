@@ -2,8 +2,7 @@ From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype ssrnat seq path.
 From pcm Require Import options axioms pred ordtype.
 From pcm Require Import pcm unionmap heap autopcm automap.
-From htt Require Import interlude model heapauto.
-From htt Require Import bintree.
+From htt Require Import model heapauto bintree.
 
 Section BST.
 Context {T : ordType}.

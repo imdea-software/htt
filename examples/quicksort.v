@@ -4,7 +4,7 @@ From mathcomp Require Import fingroup perm.
 From mathcomp Require Import interval.
 From pcm Require Import options axioms prelude pred ordtype slice.
 From pcm Require Import pcm unionmap heap.
-From htt Require Import options interlude model heapauto.
+From htt Require Import options model heapauto.
 From htt Require Import array.
 
 (* hack to avoid "_ *p _" notation clash *)

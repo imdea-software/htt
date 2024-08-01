@@ -2,7 +2,7 @@ From mathcomp Require Import ssreflect ssrbool ssrfun fintype.
 From mathcomp Require Import eqtype ssrnat seq bigop choice.
 From pcm Require Import options axioms pred seqext.
 From pcm Require Import prelude pcm unionmap natmap heap autopcm automap.
-From htt Require Import options interlude model heapauto tree.
+From htt Require Import options model heapauto tree.
 
 (* TODO: remove these after upgrading FCSL-PCM to 1.9+ *)
 Corollary foldr_join A (U : pcm) h (s : seq A) (a : A -> U):
