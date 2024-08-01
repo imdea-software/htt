@@ -1,7 +1,29 @@
+(*
+Copyright 2012 IMDEA Software Institute
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*)
+
+From HB Require Import structures.
 From mathcomp Require Import ssreflect ssrbool ssrfun ssrnat eqtype seq.
 From pcm Require Import options axioms pred prelude.
 From pcm Require Import pcm unionmap heap.
 From htt Require Import domain.
+
+(*********************************************)
+(* Denotational model                        *)
+(* denoting programs as relations            *)
+(* over input/output heaps and output result *)
+(*********************************************)
+
+(* Helper definitions *)
 
 (* Exceptions are an equality type *)
 Inductive exn : Type := exn_from_nat of nat.
@@ -15,21 +37,23 @@ Definition eqexn :=
 Lemma eqexnP : Equality.axiom eqexn.
 Proof. by move=>[x][y]/=; case: eqP=>[->|*]; constructor=>//; case. Qed.
 
-Canonical Structure exn_eqMixin := EqMixin eqexnP.
-Canonical Structure exn_eqType := EqType exn exn_eqMixin.
+HB.instance Definition _ := hasDecEq.Build exn eqexnP.
 
 (* Answer type *)
 Inductive ans (A : Type) : Type := Val of A | Exn of exn.
 Arguments Exn [A].
 
-(* A set of heaps *)
-Notation pre := (Pred heap).
-
-(* A set of (ans A * heap) *)
-(* This models the fact that programs can hang, returning nothing, *)
-(* or produce nondeterministic results (e.g. alloc). *)
-Notation post A := (ans A -> heap -> Prop).
-
+(* precondition is predicate over heaps *)
+Definition pre := Pred heap.
+(* postcondition is relates return result and output heap *)
+(* because it's a relation, it models that programs can produce *)
+(* no results (by looping forever) or produce more than one result *)
+(* non-deterministically. *)
+(* The latter will be used to model the alloc program *)
+Definition post A := ans A -> heap -> Prop.
+(* specification is a pair of precondition and postcondition *)
+(* possibly parameterized by logical variable of type G (ghost) *)
+(* (G may have product type, to allow for context of logical variables) *)
 Definition spec G A := G -> pre * post A : Type.
 
 (*************************************************************)
@@ -37,12 +61,10 @@ Definition spec G A := G -> pre * post A : Type.
 (*************************************************************)
 
 Module Type VrfSig.
-
 Parameter ST : Type -> Type.
-
 Parameter ret : forall A, A -> ST A.
 Parameter throw : forall A, exn -> ST A.
-Parameter bind : forall A B, ST A -> (A -> ST B) -> ST B.
+Parameter bnd : forall A B, ST A -> (A -> ST B) -> ST B.
 Parameter try : forall A B, ST A -> (A -> ST B) -> (exn -> ST B) -> ST B.
 Parameter read : forall A, ptr -> ST A.
 Parameter write : forall A, ptr -> A -> ST unit.
@@ -50,58 +72,62 @@ Parameter alloc : forall A, A -> ST ptr.
 Parameter allocb : forall A, A -> nat -> ST ptr.
 Parameter dealloc : ptr -> ST unit.
 
-Arguments throw [A] e.
-Arguments read [A] x.
+Arguments throw {A}.
+Arguments read {A}.
 
-(* we need program to come first in the argument list
-   so that automation can match on it *)
+(* weakest-pre transformer *)
+(* the order of args is: program, heap, post *)
+(* program must come first so that automation can match on it *)
 Parameter vrf' : forall A, ST A -> heap -> post A -> Prop.
 
-(* recover the usual [pre]prog[post] order with a notation *)
+(* recover the usual order of: pre-heap, prog, post *)
+(* with a notation *)
 Notation vrf i e Q := (vrf' e i Q).
 
 Parameter vrfV : forall A e i (Q : post A),
-            (valid i -> vrf i e Q) -> vrf i e Q.
+  (valid i -> vrf i e Q) -> vrf i e Q.
 Parameter vrf_post : forall A e i (Q1 Q2 : post A),
-            (forall y m, valid m -> Q1 y m -> Q2 y m) ->
-            vrf i e Q1 -> vrf i e Q2.
+  (forall y m, valid m -> Q1 y m -> Q2 y m) ->
+  vrf i e Q1 -> vrf i e Q2.
 Parameter vrf_frame : forall A e i j (Q : post A),
-            vrf i e (fun y m => valid (m \+ j) -> Q y (m \+ j)) ->
-            vrf (i \+ j) e Q.
+  vrf i e (fun y m => valid (m \+ j) -> Q y (m \+ j)) ->
+  vrf (i \+ j) e Q.
 Parameter vrf_ret : forall A x i (Q : post A),
-            (valid i -> Q (Val x) i) -> vrf i (ret x) Q.
+  (valid i -> Q (Val x) i) -> vrf i (ret x) Q.
 Parameter vrf_throw : forall A e i (Q : post A),
-            (valid i -> Q (Exn e) i) -> vrf i (throw e) Q.
-Parameter vrf_bind : forall A B (e1 : ST A) (e2 : A -> ST B) i (Q : post B),
-            vrf i e1 (fun x m =>
-                        match x with
-                        | Val x' => vrf m (e2 x') Q
-                        | Exn e => valid m -> Q (Exn e) m
-                        end) ->
-            vrf i (bind e1 e2) Q.
-Parameter vrf_try : forall A B (e : ST A) (e1 : A -> ST B) (e2 : exn -> ST B) i (Q : post B),
-            vrf i e (fun x m =>
-                       match x with
-                       | Val x' => vrf m (e1 x') Q
-                       | Exn ex => vrf m (e2 ex) Q
-                       end) ->
-            vrf i (try e e1 e2) Q.
+  (valid i -> Q (Exn e) i) -> vrf i (throw e) Q.
+Parameter vrf_bind : forall A B (e1 : ST A) (e2 : A -> ST B) 
+    i (Q : post B),
+  vrf i e1 (fun x m =>
+    match x with
+    | Val x' => vrf m (e2 x') Q
+    | Exn e => valid m -> Q (Exn e) m
+    end) ->
+  vrf i (bnd e1 e2) Q.
+Parameter vrf_try : forall A B (e : ST A) (e1 : A -> ST B) 
+    (e2 : exn -> ST B) i (Q : post B),
+  vrf i e (fun x m =>
+    match x with
+    | Val x' => vrf m (e1 x') Q
+    | Exn ex => vrf m (e2 ex) Q
+  end) ->
+  vrf i (try e e1 e2) Q.
 Parameter vrf_read : forall A x j (v : A) (Q : post A),
-            (valid (x :-> v \+ j) -> Q (Val v) (x :-> v \+ j)) ->
-            vrf (x :-> v \+ j) (read x) Q.
+  (valid (x :-> v \+ j) -> Q (Val v) (x :-> v \+ j)) ->
+  vrf (x :-> v \+ j) (read x) Q.
 Parameter vrf_write : forall A x (v : A) B (u : B) j (Q : post unit),
-            (valid (x :-> v \+ j) -> Q (Val tt) (x :-> v \+ j)) ->
-            vrf (x :-> u \+ j) (write x v) Q.
+  (valid (x :-> v \+ j) -> Q (Val tt) (x :-> v \+ j)) ->
+  vrf (x :-> u \+ j) (write x v) Q.
 Parameter vrf_alloc : forall A (v : A) i (Q : post ptr),
-            (forall x, valid (x :-> v \+ i) -> Q (Val x) (x :-> v \+ i)) ->
-            vrf i (alloc v) Q.
+  (forall x, valid (x :-> v \+ i) -> Q (Val x) (x :-> v \+ i)) ->
+  vrf i (alloc v) Q.
 Parameter vrf_allocb : forall A (v : A) n i (Q : post ptr),
-            (forall x, valid (updi x (nseq n v) \+ i) ->
-               Q (Val x) (updi x (nseq n v) \+ i)) ->
-            vrf i (allocb v n) Q.
+  (forall x, valid (updi x (nseq n v) \+ i) ->
+  Q (Val x) (updi x (nseq n v) \+ i)) ->
+  vrf i (allocb v n) Q.
 Parameter vrf_dealloc : forall x A (v : A) j (Q : post unit),
-            (x \notin dom j -> valid j -> Q (Val tt) j) ->
-            vrf (x :-> v \+ j) (dealloc x) Q.
+  (x \notin dom j -> valid j -> Q (Val tt) j) ->
+  vrf (x :-> v \+ j) (dealloc x) Q.
 
 Definition has_spec G A (s : spec G A) (e : ST A) :=
   forall g i, (s g).1 i -> vrf i e (s g).2.
@@ -114,17 +140,31 @@ Arguments STspec G [A] s.
 
 Notation "'Do' e" := (@STprog _ _ _ e _) (at level 80).
 
-Notation "x '<--' c1 ';' c2" := (bind c1 (fun x => c2))
-  (at level 81, right associativity).
-Notation "c1 ';;' c2" := (bind c1 (fun _ => c2))
-  (at level 81, right associativity).
+(* some notation *)
+
+Notation "x '<--' c1 ';' c2" := (bnd c1 (fun x => c2))
+  (at level 201, right associativity, format
+  "'[v' x  '<--'  c1 ';' '//' c2 ']'").
+Notation "' x '<--' c1 ';' c2" := (bnd c1 (fun x => c2))
+  (at level 201, right associativity, x strict pattern, format
+  "'[v' ' x  '<--'  c1 ';' '//' c2 ']'").
+Notation "c1 ';;' c2" := (bnd c1 (fun _ => c2))
+  (at level 201, right associativity).
 Notation "'!' x" := (read x) (at level 50).
 Notation "x '::=' e" := (write x e) (at level 60).
 
+(* Fixed point constructor *)
+(* We shall make fix work over *monotone closure* of argument function. *)
+(* This is a mathematical hack to avoid spurious monotonicity proofs *)
+(* that's necessary in shallow embedding, as we have no guarantee *)
+(* that the argument function is actually monotone. *)
+(* We *do* prove later on that all constructors are monotone. *)
+(* We also hide model definition so that all functions one can *)
+(* apply ffix to will be built out of monotonicity-preserving *)
+(* constructors (and hence will be monotone). *)
 Parameter Fix : forall G A (B : A -> Type) (s : forall x : A, spec G (B x)),
   ((forall x : A, STspec G (s x)) -> forall x : A, STspec G (s x)) ->
   forall x : A, STspec G (s x).
-
 End VrfSig.
 
 
@@ -137,8 +177,9 @@ Module Vrf : VrfSig.
 Section BasePrograms.
 Variables (P : pre) (A : Type).
 
-(* we carve out the model out of the following base type *)
-Definition prog : Type := forall i : heap, valid i -> i \In P -> post A.
+(* the model is carved out of the following base type *)
+Definition prog : Type := 
+  forall i : heap, valid i -> i \In P -> post A.
 
 (* we take only preconditions and progs with special properties *)
 (* which we define next *)
@@ -149,7 +190,7 @@ Definition safe_mono :=
 
 (* defined heaps map to defined heaps *)
 Definition def_strict (e : prog) :=
-  forall i p v x, Heap.Undef \Notin e i v p x.
+  forall i p v x, undef \Notin e i v p x.
 
 (* frame property *)
 Definition frameable (e : prog) :=
@@ -159,35 +200,44 @@ Definition frameable (e : prog) :=
 
 End BasePrograms.
 
-Section STDef.
-Variable (A : Type).
-
-Structure ST' := Prog {
+(* the model considers programs of base type, given a precondition *)
+(* and adds several properties: *)
+(* - safety monotonicity *)
+(* - strictness of definedness *)
+(* - frameability *)
+Structure ST' (A : Type) := Prog {
   pre_of : pre;
   prog_of : prog pre_of A;
   _ : safe_mono pre_of;
   _ : def_strict prog_of;
   _ : frameable prog_of}.
 
+Arguments prog_of {A}.
+
 (* module field must be a definition, not structure *)
 Definition ST := ST'.
 
-Lemma sfm_st e : safe_mono (pre_of e).
+(* projections *)
+
+Lemma sfm_st A (e : ST A) : safe_mono (pre_of e).
 Proof. by case: e. Qed.
 
-Arguments prog_of : clear implicits.
-
-Lemma dstr_st e : def_strict (prog_of e).
+Lemma dstr_st A (e : ST A) : def_strict (prog_of e).
 Proof. by case: e. Qed.
 
-Corollary dstr_valid e i p v x m :
-            m \In prog_of e i p v x -> valid m.
+Lemma dstr_valid A (e : ST A) i p v x m :
+        m \In prog_of e i p v x -> 
+        valid m.
 Proof. by case: m=>// /dstr_st. Qed.
 
-Lemma fr_st e : frameable (prog_of e).
+Lemma fr_st A (e : ST A) : frameable (prog_of e).
 Proof. by case: e. Qed.
 
-Arguments fr_st [e i j].
+Arguments fr_st {A e i j}.
+
+Section STDef.
+Variable A : Type.
+Implicit Type e : ST A.
 
 (* poset structure on ST *)
 
@@ -196,30 +246,24 @@ Definition st_leq e1 e2 :=
   forall i (v : valid i) (p : i \In pre_of e2),
     prog_of e1 _ v (pf _ p) <== prog_of e2 _ v p.
 
-Lemma st_refl e : st_leq e e.
+Lemma st_is_poset : poset_axiom st_leq.
 Proof.
-exists (poset_refl _)=>i V P y m.
-by rewrite (pf_irr (poset_refl (pre_of e) i P) P).
-Qed.
-
-Lemma st_asym e1 e2 : st_leq e1 e2 -> st_leq e2 e1 -> e1 = e2.
-Proof.
-move: e1 e2=>[p1 e1 S1 D1 F1][p2 e2 S2 D2 F2]; rewrite /st_leq /=.
-case=>E1 R1 [E2 R2].
-move: (poset_asym E1 E2)=>?; subst p2.
-have : e1 = e2.
-- apply: fext=>i; apply: fext=>Vi; apply: fext=>Pi; apply: fext=>y; apply: fext=>m.
-  move: (R2 i Vi Pi y m)=>{}R2; move: (R1 i Vi Pi y m)=>{}R1.
-  apply: pext; split.
-  - by move=>H1; apply: R1; rewrite (pf_irr (E1 i Pi) Pi).
-  by move=>H2; apply: R2; rewrite (pf_irr (E2 i Pi) Pi).
-move=>?; subst e2.
-by congr Prog; apply: pf_irr.
-Qed.
-
-Lemma st_trans e1 e2 e3 : st_leq e1 e2 -> st_leq e2 e3 -> st_leq e1 e3.
-Proof.
-move: e1 e2 e3=>[p1 e1 S1 D1 F1][p2 e2 S2 D2 F2][p3 e3 S3 D3 F3].
+split=>[e|e1 e2|e1 e2 e3].
+- exists (poset_refl _)=>i V P y m.
+  by rewrite (pf_irr (poset_refl (pre_of e) i P) P).
+- case: e1 e2=>p1 e1 S1 D1 F1 [p2 e2 S2 D2 F2].
+  rewrite /st_leq /=; case=>E1 R1 [E2 R2].
+  move: (poset_asym E1 E2)=>?; subst p2.
+  have : e1 = e2.
+  - apply: fext=>i; apply: fext=>Vi; apply: fext=>Pi.
+    apply: fext=>y; apply: fext=>m.
+    move: (R2 i Vi Pi y m)=>{}R2; move: (R1 i Vi Pi y m)=>{}R1.
+    apply: pext; split.
+    - by move=>H1; apply: R1; rewrite (pf_irr (E1 i Pi) Pi).
+    by move=>H2; apply: R2; rewrite (pf_irr (E2 i Pi) Pi).
+  move=>?; subst e2.
+  by congr Prog; apply: pf_irr.
+case: e1 e2 e3=>p1 e1 S1 D1 F1 [p2 e2 S2 D2 F2][p3 e3 S3 D3 F3].
 case=>/= E1 R1 [/= E2 R2]; rewrite /st_leq /=.
 have E3 := poset_trans E2 E1; exists E3=>i V P y m.
 set P' := E2 i P.
@@ -228,7 +272,10 @@ move=>H1; apply/R2/R1.
 by rewrite (pf_irr (E1 i P') (E3 i P)).
 Qed.
 
-(* bottom is a program that can always run but never returns (an endless loop) *)
+HB.instance Definition _ := isPoset.Build (ST A) st_is_poset.
+
+(* bottom is a program that can always run *)
+(* but never returns (infinite loop) *)
 
 Definition pre_bot : pre := top.
 
@@ -247,12 +294,14 @@ Proof. by []. Qed.
 Definition st_bot := Prog sfmono_bot dstrict_bot frame_bot.
 
 Lemma st_botP e : st_leq st_bot e.
-Proof. by case: e=>p e S D F; exists (@pred_topP _ _)=>???; apply: botP. Qed.
-
-Definition stPosetMixin := PosetMixin st_botP st_refl st_asym st_trans.
-Canonical stPoset := Eval hnf in Poset ST stPosetMixin.
+Proof. by case: e=>p e S D F; exists (fun _ _ => I)=>???; apply: botP. Qed.
 
 (* lattice structure on ST *)
+
+Here need that bot is bottom.
+
+
+
 
 (* intersection of preconditions *)
 Definition pre_sup (u : Pred ST) : pre :=
