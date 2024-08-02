@@ -13,7 +13,8 @@ limitations under the License.
 
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq.
-From pcm Require Import options pred prelude auto pcm.
+From pcm Require Import options pred prelude pcm.
+From pcm Require Export auto.
 
 (**************************************************************************)
 (**************************************************************************)
@@ -353,5 +354,10 @@ End Exports.
 End PullX.
 
 Export PullX.Exports.
+
+
+
+
+
 
 

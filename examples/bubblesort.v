@@ -1,7 +1,21 @@
+(*
+Copyright 2022 IMDEA Software Institute
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*)
+
 From Coq Require Import ssreflect ssrbool ssrfun.
-From mathcomp Require Import ssrnat eqtype seq path fintype tuple finfun fingroup perm interval.
+From mathcomp Require Import ssrnat eqtype seq path fintype tuple.
+From mathcomp Require Import finfun fingroup perm interval.
 From pcm Require Import options axioms prelude pred ordtype slice.
-From pcm Require Import pcm unionmap heap.
+From pcm Require Import seqext pcm unionmap heap.
 From htt Require Import options model heapauto.
 From htt Require Import array.
 
@@ -95,7 +109,7 @@ set i0 := Wo i; set i1 := So i.
 rewrite {1}codomE (enum_split i0) /= {2}(enum_split i1) /= /heap.indx
   (index_enum_ord i0) (index_enum_ord i1) drop_cat size_take
   size_enum_ord ltn_ord So_eq ltnn subnn /= map_cat /= map_take map_drop -codomE.
-by rewrite /slice /= addn0 addn1 /= drop0 take_size.
+by rewrite /slice.slice/= addn0 addn1 /= drop0 take_size.
 Qed.
 
 (* TODO generalize? *)
@@ -229,8 +243,8 @@ Lemma swnx_split (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
                                     [:: f (So i); f (Wo i)] ++
                                     &:(fgraph f) `]i.+1, +oo[.
 Proof.
-rewrite /= (codom1_split _ i) /=; set i0 := Wo i; set i1 := So i.
-by rewrite swnx_ao // swnx_oa //= swnxE1 swnxE2.
+rewrite [LHS](codom1_split _ i) /=; set i0 := Wo i; set i1 := So i.
+by rewrite swnx_ao // swnx_oa // swnxE1 swnxE2. 
 Qed.
 
 Lemma swnx_ux_rcons (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
@@ -319,8 +333,8 @@ Opaque Array.write Array.read.
 (*****************************************************)
 
 Program Definition cas_next (a : {array 'I_n.+2 -> A}) (i : 'I_n.+1) :
-  {f : {ffun 'I_n.+2 -> A}},
-  STsep (Array.shape a f,
+  STsep {f : {ffun 'I_n.+2 -> A}}
+        (Array.shape a f,
         [vfun (b : bool) h =>
           exists (p : 'S_n.+2), let i0 := Wo i in let i1 := So i in
             h \In Array.shape a (pffun p f) /\
@@ -353,8 +367,8 @@ Opaque cas_next.
 
 Definition bubble_pass_loop (a : {array 'I_n.+2 -> A}) :=
   forall isw : 'I_n.+1 * bool,
-  {f : {ffun 'I_n.+2 -> A}},
-  STsep (fun h => h \In Array.shape a f /\
+  STsep {f : {ffun 'I_n.+2 -> A}}
+        (fun h => h \In Array.shape a f /\
                   (* if no swaps have happened yet, the prefix is sorted *)
                   ~~ isw.2 ==> sorted oleq (&:(fgraph f) `]-oo, isw.1 : nat]),
         [vfun (b : bool) h =>
@@ -364,13 +378,13 @@ Definition bubble_pass_loop (a : {array 'I_n.+2 -> A}) :=
                 ~~ b ==> (p == 1%g) && sorted oleq (fgraph f)]]).
 
 Program Definition bubble_pass (a : {array 'I_n.+2 -> A}) :
-  {f : {ffun 'I_n.+2 -> A}},
-  STsep (Array.shape a f,
+  STsep {f : {ffun 'I_n.+2 -> A}}
+        (Array.shape a f,
          [vfun (b : bool) h =>
            exists (p : 'S_n.+2),
              h \In Array.shape a (pffun p f) /\
              ~~ b ==> (p == 1%g) && sorted oleq (fgraph f)]) :=
-  Do (let go := Fix (fun (loop : bubble_pass_loop a) '(i, sw) =>
+  Do (let go := ffix (fun (loop : bubble_pass_loop a) '(i, sw) =>
                   Do (sw0 <-- cas_next a i;
                       let sw1 := sw || sw0 in
                       if decP (b := i < n) idP is left pf
@@ -417,15 +431,15 @@ Opaque bubble_pass.
 
 Definition bubble_sort_loop (a : {array 'I_n.+2 -> A}) : Type :=
   unit ->
-  {f : {ffun 'I_n.+2 -> A}},
-  STsep (Array.shape a f,
+  STsep {f : {ffun 'I_n.+2 -> A}}
+        (Array.shape a f,
         [vfun (_ : unit) h =>
            exists (p : 'S_n.+2),
              h \In Array.shape a (pffun p f) /\
              sorted oleq (fgraph (pffun p f))]).
 
 Program Definition bubble_sort (a : {array 'I_n.+2 -> A}) : bubble_sort_loop a :=
-  Fix (fun (go : bubble_sort_loop a) _ =>
+  ffix (fun (go : bubble_sort_loop a) _ =>
     Do (sw <-- bubble_pass a;
         if sw
           then go tt : ST _
@@ -473,8 +487,8 @@ Opaque cas_next.
 
 Definition bubble_pass_opt_loop (a : {array 'I_n.+2 -> A}) (k : 'I_n.+1) :=
   forall isw : 'I_n.+1 * bool,
-  {f : {ffun 'I_n.+2 -> A}},
-  STsep (fun h => [/\ h \In Array.shape a f,
+  STsep {f : {ffun 'I_n.+2 -> A}}
+        (fun h => [/\ h \In Array.shape a f,
                       (* all elements before f(k+2) are smaller than it *)
                       allrel oleq (&:(fgraph f) `]-oo, k.+1])
                                   (&:(fgraph f) `]k.+1, +oo[),
@@ -496,8 +510,8 @@ Definition bubble_pass_opt_loop (a : {array 'I_n.+2 -> A}) (k : 'I_n.+1) :=
               else (p == 1%g) && sorted oleq (fgraph f)]]).
 
 Program Definition bubble_pass_opt (a : {array 'I_n.+2 -> A}) (k : 'I_n.+1) :
-  {f : {ffun 'I_n.+2 -> A}},
-  STsep (fun h => [/\ h \In Array.shape a f,
+  STsep {f : {ffun 'I_n.+2 -> A}}
+        (fun h => [/\ h \In Array.shape a f,
                       allrel oleq (&:(fgraph f) `]-oo, k.+1])
                                   (&:(fgraph f) `]k.+1, +oo[) &
                       sorted oleq (&:(fgraph f) `]k.+1, +oo[)],
@@ -509,17 +523,16 @@ Program Definition bubble_pass_opt (a : {array 'I_n.+2 -> A}) (k : 'I_n.+1) :
                             (&:(fgraph f') `]k : nat, +oo[) &&
                 sorted oleq (&:(fgraph f') `]k : nat, +oo[)
               else (p == 1%g) && sorted oleq (fgraph f)]) :=
-  Do (let go := Fix (fun (loop : bubble_pass_opt_loop a k) '(i, sw) =>
+  Do (let go := ffix (fun (loop : bubble_pass_opt_loop a k) '(i, sw) =>
                   Do (sw0 <-- cas_next a i;
                       let sw1 := sw || sw0 in
                       if decP (b := i < k) idP is left pf
-                        then loop (Sbo (i:=i) pf, sw1)
-                        else ret sw1))
+                      then loop (Sbo (i:=i) pf, sw1)
+                      else ret sw1))
       in go (ord0, false)).
 Next Obligation.
 (* Sbo is always safe *)
-move=>_ k _ _ i _ _ /= E; rewrite E ltnS; symmetry.
-by apply: (leq_trans E); rewrite -ltnS; apply: ltn_ord.
+by move=>_ k _ _ i _ _ /= E; rewrite E ltnS (leq_trans E) // -ltnS ltn_ord.
 Qed.
 Next Obligation.
 move=>a k loop _ i sw [f][] h /= [H Hak Hsk Hik Hai Hsi].
@@ -587,8 +600,8 @@ Opaque bubble_pass_opt.
 
 Definition bubble_sort_opt_loop (a : {array 'I_n.+2 -> A}) : Type :=
   forall (k : 'I_n.+1),
-  {f : {ffun 'I_n.+2 -> A}},
-  STsep (fun h => [/\ h \In Array.shape a f,
+  STsep {f : {ffun 'I_n.+2 -> A}}
+        (fun h => [/\ h \In Array.shape a f,
                       allrel oleq (&:(fgraph f) `]-oo, k.+1])
                                   (&:(fgraph f) `]k.+1, +oo[) &
                       sorted oleq (&:(fgraph f) `]k.+1, +oo[)],
@@ -598,13 +611,13 @@ Definition bubble_sort_opt_loop (a : {array 'I_n.+2 -> A}) : Type :=
             sorted oleq (fgraph f')]).
 
 Program Definition bubble_sort_opt (a : {array 'I_n.+2 -> A}) :
-  {f : {ffun 'I_n.+2 -> A}},
-  STsep (Array.shape a f,
+  STsep {f : {ffun 'I_n.+2 -> A}}
+        (Array.shape a f,
         [vfun (_ : unit) h =>
           exists (p : 'S_n.+2),
             h \In Array.shape a (pffun p f) /\
             sorted oleq (fgraph (pffun p f))]) :=
-  Do (let go := Fix (fun (loop : bubble_sort_opt_loop a) k =>
+  Do (let go := ffix (fun (loop : bubble_sort_opt_loop a) k =>
                      Do (sw <-- bubble_pass_opt a k;
                          if sw
                            then loop (Po k) : ST _
@@ -668,8 +681,8 @@ Opaque cas_next.
 
 Definition bubble_pass_opt2_loop (a : {array 'I_n.+2 -> A}) (k : 'I_n.+1) :=
   forall ils : 'I_n.+1 * 'I_n.+2,
-  {f : {ffun 'I_n.+2 -> A}},
-  STsep (fun h => [/\ h \In Array.shape a f,
+  STsep {f : {ffun 'I_n.+2 -> A}}
+        (fun h => [/\ h \In Array.shape a f,
                       allrel oleq (&:(fgraph f) `]-oo, k.+1])
                                   (&:(fgraph f) `]k.+1, +oo[),
                       sorted oleq (&:(fgraph f) `]k.+1, +oo[),
@@ -686,8 +699,8 @@ Definition bubble_pass_opt2_loop (a : {array 'I_n.+2 -> A}) (k : 'I_n.+1) :=
                 sorted oleq (&:(fgraph f') `[j : nat, +oo[)]]).
 
 Program Definition bubble_pass_opt2 (a : {array 'I_n.+2 -> A}) (k : 'I_n.+1) :
-  {f : {ffun 'I_n.+2 -> A}},
-  STsep (fun h => [ /\ h \In Array.shape a f,
+  STsep {f : {ffun 'I_n.+2 -> A}}
+        (fun h => [ /\ h \In Array.shape a f,
                        allrel oleq (&:(fgraph f) `]-oo, k.+1])
                                    (&:(fgraph f) `]k.+1, +oo[) &
                        sorted oleq (&:(fgraph f) `]k.+1, +oo[)],
@@ -697,7 +710,7 @@ Program Definition bubble_pass_opt2 (a : {array 'I_n.+2 -> A}) (k : 'I_n.+1) :
                   allrel oleq (&:(fgraph f') `]-oo, j : nat[)
                               (&:(fgraph f') `[j : nat, +oo[) &
                   sorted oleq (&:(fgraph f') `[j : nat, +oo[)]]) :=
-  Do (let go := Fix (fun (loop : bubble_pass_opt2_loop a k) '(i, ls) =>
+  Do (let go := ffix (fun (loop : bubble_pass_opt2_loop a k) '(i, ls) =>
                   Do (sw <-- cas_next a i;
                       let ls1 := if sw then So i else ls in
                       if decP (b := i < k) idP is left pf
@@ -706,8 +719,7 @@ Program Definition bubble_pass_opt2 (a : {array 'I_n.+2 -> A}) (k : 'I_n.+1) :
       in go (ord0, ord0)).
 Next Obligation.
 (* show that Sbo is always safe *)
-move=>_ k _ _ i _ _ /= E; rewrite E ltnS; symmetry.
-by apply: (leq_trans E); rewrite -ltnS; apply: ltn_ord.
+by move=>_ k _ _ i _ _ /= E; rewrite E ltnS (leq_trans E) // -ltnS ltn_ord.
 Qed.
 Next Obligation.
 move=>a k loop _ i ls [f][] h /= [Hs Hak Hsk /andP [Hils Hik] Hai Hsi].
@@ -741,7 +753,8 @@ apply: [stepE f]=>//= sw m [p][Hm Hsw]; case: decP=>H.
       suff: all (oleq^~ (f (Wo i))) (&:(codom f) `]-oo, ls:nat[).
       - by apply/sub_all=>z /otrans; apply.
       by move: Hai; rewrite codom1_ax_rcons // allrel_rconsr; case/andP.
-    rewrite codom1_ax_rcons2 // (sorted_rconsE _ _ (@otrans A)) -{2}codom1_ax_rcons // Hsi andbT.
+    rewrite codom1_ax_rcons2 //.
+    rewrite (sorted_rconsE _ _ (@otrans A)) -{2}codom1_ax_rcons // Hsi andbT.
     rewrite all_rcons Hf /=.
     move: Hsi; rewrite codom1_ax_rcons // (sorted_rconsE _ _ (@otrans A)).
     by case/andP=>+ _; apply/sub_all=>z Hz; apply/otrans/Hf.
@@ -761,8 +774,9 @@ step=>Vm; exists p; case: sw Hsw=>/=; case=>Ep Hf.
   - rewrite Ep slice_oSR swnx_ux_rcons swnx_xu_cons allrel_rconsl allrel_consr /=.
     move: Hak; rewrite codom1_ax_rcons2 // !allrel_rconsl -/i0 -/i1 -andbA.
     case/and3P=>-> _ ->; rewrite (ordW Hf) /= !andbT.
-    move: Hai; rewrite codom1_ax_rcons //= allrel_rconsr; case/andP=>_ Hals.
-    move: Hsi; rewrite codom1_ax_rcons // sorted_rconsE //; case/andP =>Halsi _.
+    move: Hai; rewrite codom1_ax_rcons //= allrel_rconsr=>/andP [_ Hals].
+    move: Hsi; rewrite codom1_ax_rcons // sorted_rconsE; last by apply: otrans.
+    case/andP => Halsi _.
     move: Hils; rewrite leq_eqVlt; case/orP=>[/eqP <-|Hlsi] //.
     rewrite (slice_split (x:=ls) _ true); last by rewrite in_itv.
     by rewrite /= all_cat Hals.
@@ -770,18 +784,22 @@ step=>Vm; exists p; case: sw Hsw=>/=; case=>Ep Hf.
   by move: Hak; rewrite codom1_ax_rcons2 // !allrel_rconsl -!andbA; case/and3P.
 (* swap didn't happen on last iteration *)
 rewrite {p}Ep pffunE1 /= in Hm *.
-rewrite (slice_split (x:=i) (i:=`[ls:nat, +oo[) _ false); last by rewrite in_itv /= andbT.
+rewrite (slice_split (x:=i) (i:=`[ls:nat, +oo[) _ false); last first. 
+- by rewrite in_itv /= andbT.
 split=>//=.
-- rewrite allrel_catr Hai /= -slice_oSL codom1_xu_cons allrel_consr; apply/andP; split.
+- rewrite allrel_catr Hai /= -slice_oSL codom1_xu_cons allrel_consr.
+  apply/andP; split.
   - suff: all (oleq^~ (f (Wo i))) (&:(codom f) `]-oo, ls:nat[).
     - by apply/sub_all=>z /otrans; apply.
     apply/sub_all/Hai=>z /allP; apply.
     by rewrite codom1_ax_rcons // mem_rcons inE eqxx.
   apply/allrel_sub_l/Hak/slice_subset.
   by rewrite subitvE /= bnd_simp leEnat; apply/ltnW.
-rewrite (sorted_pairwise (@otrans A)) pairwise_cat -!(sorted_pairwise (@otrans A)) Hsi /=.
+rewrite (sorted_pairwise (@otrans A)) pairwise_cat.
+rewrite -!(sorted_pairwise (@otrans A)) Hsi /=.
 rewrite -slice_oSL codom1_xu_cons /= allrel_consr -andbA; apply/and3P; split.
-- move: Hsi; rewrite (sorted_pairwise (@otrans A)) codom1_ax_rcons // pairwise_rcons.
+- move: Hsi.
+  rewrite (sorted_pairwise (@otrans A)) codom1_ax_rcons // pairwise_rcons.
   case/andP=>H' _; rewrite all_rcons Hf /=.
   by apply/sub_all/H'=>z Hz; apply/otrans/Hf.
 - apply/allrel_sub_l/Hak/slice_subset.
@@ -800,8 +818,8 @@ Opaque bubble_pass_opt2.
 
 Definition bubble_sort_opt2_loop (a : {array 'I_n.+2 -> A}) : Type :=
   forall (k : 'I_n.+1),
-  {f : {ffun 'I_n.+2 -> A}},
-  STsep (fun h => [/\ h \In Array.shape a f,
+  STsep {f : {ffun 'I_n.+2 -> A}}
+        (fun h => [/\ h \In Array.shape a f,
                         allrel oleq (&:(fgraph f) `]-oo, k.+1])
                                     (&:(fgraph f) `]k.+1, +oo[) &
                         sorted oleq (&:(fgraph f) `]k.+1, +oo[)],
@@ -811,13 +829,13 @@ Definition bubble_sort_opt2_loop (a : {array 'I_n.+2 -> A}) : Type :=
             sorted oleq (fgraph f')]).
 
 Program Definition bubble_sort_opt2 (a : {array 'I_n.+2 -> A}) :
-  {f : {ffun 'I_n.+2 -> A}},
-  STsep (Array.shape a f,
+  STsep {f : {ffun 'I_n.+2 -> A}}
+        (Array.shape a f,
          [vfun (_ : unit) h =>
            exists (p : 'S_n.+2), let f' := pffun p f in
              h \In Array.shape a f' /\
              sorted oleq (fgraph f')]) :=
-  Do (let go := Fix (fun (loop : bubble_sort_opt2_loop a) k =>
+  Do (let go := ffix (fun (loop : bubble_sort_opt2_loop a) k =>
                      Do (k1 <-- bubble_pass_opt2 a k;
                          if decP (b := 1 < k1) idP is left pf
                            then loop (M2lo (i:=k1) pf) : ST _

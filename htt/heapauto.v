@@ -13,7 +13,7 @@ limitations under the License.
 
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype seq ssrfun.
 From pcm Require Import options axioms pred prelude.
-From pcm Require Import pcm autopcm unionmap heap.
+From pcm Require Import auto pcm autopcm unionmap heap. 
 From htt Require Import model.
 Import Prenex Implicits.
 
@@ -450,8 +450,10 @@ Notation "[ 'gX' x1 , .. , xn ] @ m" :=
   (gX (existT _ x1 .. (existT _ xn tt) ..) m erefl)
   (at level 0, format "[ 'gX'  x1 ,  .. ,  xn ] @  m").
 
+Definition heapPCM : pcm := heap.
+
 (* combination of gX + vrf_bind *)
-Lemma stepX G A B (s : spec G A) g (m : heap) m0 j tm k wh r2
+Lemma stepX G A B (s : spec G A) g (m : heapPCM) (m0 : heap) (j : ctx heapPCM) tm k wh r2
           (e : STspec G s) (e2 : A -> ST B)
           (fm : Syntactify.form (empx _) j tm)
           (fu : uform m0 (Syntactify.untag fm))
@@ -463,19 +465,19 @@ Lemma stepX G A B (s : spec G A) g (m : heap) m0 j tm k wh r2
         (forall v n, (s g).2 (Val v) n -> vrf (f n) (e2 v) Q) ->
         (forall x n, (s g).2 (Exn x) n ->
            valid (untag (f n)) -> Q (Exn x) (f n)) ->
-        vrf (PullX.unpack fg) (bnd e e2) Q.
+        vrf (fg : heapPCM) (bnd e e2) Q.
 Proof.
 move=>Hm Hp Hv Hx; apply/vrf_bnd/(gX _ _ Hm Hp).
 - by move=>v n H V; apply: Hv.
 by move=>x n H V _; apply: Hx.
 Qed.
 
-Arguments stepX {G A B s} g m {m0 j tm k wh r2 e e2 fm fu f fg Q}.
+Arguments stepX [G A B s] g m {m0 j tm k wh r2 e e2 fm fu f fg Q}.
 
 Notation "[stepX] @ m" := (stepX tt m erefl) (at level 0).
 Notation "[ 'stepX' x1 , .. , xn ] @ m" :=
   (stepX (existT _ x1 .. (existT _ xn tt) ..) m erefl)
-  (at level 0, format "[ 'stepX'  x1 ,  .. ,  xn ] @  m").
+  (at level 0, format "[ 'stepX'  x1 ,  .. ,  xn ] @ m").
 
 (* combination of gX + vrf_try *)
 Lemma tryX G A B (s : spec G A) g (m : heap) m0 j tm k wh r2

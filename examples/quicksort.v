@@ -1,8 +1,21 @@
+(*
+Copyright 2022 IMDEA Software Institute
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*)
+
 From mathcomp Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path fintype tuple finfun finset.
 From mathcomp Require Import fingroup perm.
 From mathcomp Require Import interval.
-From pcm Require Import options axioms prelude pred ordtype slice.
+From pcm Require Import options axioms prelude seqext pred ordtype slice.
 From pcm Require Import pcm unionmap heap.
 From htt Require Import options model heapauto.
 From htt Require Import array.
@@ -13,7 +26,9 @@ Import order.Order.NatOrder order.Order.TTheory.
 
 (* TODO added to mathcomp > 1.16 *)
 Lemma perm_on_id {T : finType} (u : {perm T}) (S : {set T}) :
-        perm_on S u -> #|S| <= 1 -> u = 1%g.
+        perm_on S u -> 
+        #|S| <= 1 -> 
+        u = 1%g.
 Proof.
 rewrite leq_eqVlt ltnS leqn0 => pSu S10; apply/permP => t; rewrite perm1.
 case/orP : S10; last first.
@@ -24,9 +39,10 @@ by apply/eqP; have := perm_closed x pSu; rewrite Sx !inE => ->.
 Qed.
 
 Lemma perm_onC {T : finType} (S1 S2 : {set T}) (u1 u2 : {perm T}) :
-    perm_on S1 u1 -> perm_on S2 u2 ->
-    [disjoint S1 & S2] ->
-  commute u1 u2.
+        perm_on S1 u1 -> 
+        perm_on S2 u2 ->
+        [disjoint S1 & S2] ->
+        commute u1 u2.
 Proof.
 move=> pS1 pS2 S12; apply/permP => t; rewrite !permM.
 case/boolP : (t \in S1) => tS1.
@@ -38,19 +54,21 @@ case/boolP : (t \in S2) => tS2.
 by rewrite (out_perm pS1) // (out_perm pS2) // (out_perm pS1).
 Qed.
 
-Lemma tperm_on {T : finType} (x y : T) : perm_on [set x; y] (tperm x y).
+Lemma tperm_on {T : finType} (x y : T) : 
+        perm_on [set x; y] (tperm x y).
 Proof.
 by apply/subsetP => z /[!inE]; case: tpermP => [->|->|]; rewrite eqxx // orbT.
 Qed.
 
 (* TODO added to fcsl-pcm *)
-Corollary slice_oPR {A : Type} a x (s : seq A) :
+Lemma slice_oPR {A : Type} a x (s : seq A) :
         0 < x ->
         &:s (Interval a (BRight x.-1)) = &:s (Interval a (BLeft x)).
 Proof. by move=>Hx; rewrite -{2}(prednK Hx) slice_oSR. Qed.
 
-Lemma slice_FR {A : Type} (s : seq A) x : &:s (Interval x +oo) = &:s (Interval x (BLeft (size s))).
-Proof. by rewrite /slice /= addn0. Qed.
+Lemma slice_FR {A : Type} (s : seq A) x : 
+        &:s (Interval x +oo) = &:s (Interval x (BLeft (size s))).
+Proof. by rewrite /slice.slice /= addn0. Qed.
 
 Lemma slice_extrude {A : Type} (s : seq A) (i : interval nat) :
         order.Order.lt i.1 i.2 ->
@@ -258,8 +276,8 @@ Variable (n : nat) (A : ordType).
 Opaque Array.write Array.read.
 
 Program Definition swap (a : {array 'I_n -> A}) (i j : 'I_n) :
-  {f : {ffun 'I_n -> A}},
-  STsep (Array.shape a f,
+  STsep {f : {ffun 'I_n -> A}}
+        (Array.shape a f,
         [vfun _ h =>
            h \In Array.shape a (pffun (tperm i j) f)]) :=
   Do (if i == j then skip else
@@ -281,12 +299,13 @@ Qed.
 
 Opaque swap.
 
-Definition partition_lm_loop (a : {array 'I_n -> A}) (pivot : A) (lo hi : 'I_n) :=
+Definition partition_lm_loop (a : {array 'I_n -> A}) (pivot : A) 
+    (lo hi : 'I_n) :=
   forall ij : sigT (fun i : 'I_n => sig (fun j : 'I_n => i <= j /\ j < hi)),
   let i := projT1 ij in
   let j := proj1_sig (projT2 ij) in
-  {f : {ffun 'I_n -> A}},
-  STsep (fun h => [/\ h \In Array.shape a f,
+  STsep {f : {ffun 'I_n -> A}}
+        (fun h => [/\ h \In Array.shape a f,
                       lo <= i,
                       all (oleq^~ pivot) (&:(fgraph f) `[lo : nat, i : nat[) &
                       all (ord    pivot) (&:(fgraph f) `[i : nat, j : nat[)],
@@ -298,9 +317,10 @@ Definition partition_lm_loop (a : {array 'I_n -> A}) (pivot : A) (lo hi : 'I_n) 
                  all (oleq^~ pivot) (&:(fgraph f') `[lo : nat, v : nat[) &
                  all (ord    pivot) (&:(fgraph f') `[v : nat, hi : nat[)]]).
 
-Program Definition partition_lm_pass (a : {array 'I_n -> A}) (pivot : A) (lo hi : 'I_n) (Hlo : lo < hi):
-  {f : {ffun 'I_n -> A}},
-  STsep (Array.shape a f,
+Program Definition partition_lm_pass (a : {array 'I_n -> A}) (pivot : A) 
+    (lo hi : 'I_n) (Hlo : lo < hi):
+  STsep {f : {ffun 'I_n -> A}}
+        (Array.shape a f,
         [vfun (v : 'I_n) h =>
           lo <= v <= hi /\
           exists p, let f' := pffun p f in
@@ -309,7 +329,7 @@ Program Definition partition_lm_pass (a : {array 'I_n -> A}) (pivot : A) (lo hi 
                 all (oleq^~ pivot) (&:(fgraph f') `[lo : nat, v : nat[) &
                 all (ord    pivot) (&:(fgraph f') `[v : nat, hi : nat[)]]) :=
   Do (let go :=
-    Fix (fun (loop : partition_lm_loop a pivot lo hi) '(existT i (exist j (conj Hi Hj))) =>
+    ffix (fun (loop : partition_lm_loop a pivot lo hi) '(existT i (exist j (conj Hi Hj))) =>
       Do (x <-- Array.read a j;
           if oleq x pivot then
             swap a i j;;
@@ -402,9 +422,10 @@ Qed.
 
 Opaque partition_lm_pass.
 
-Program Definition partition_lm (a : {array 'I_n -> A}) (lo hi : 'I_n) (Hlo : lo < hi):
-  {f : {ffun 'I_n -> A}},
-  STsep (Array.shape a f,
+Program Definition partition_lm (a : {array 'I_n -> A}) 
+    (lo hi : 'I_n) (Hlo : lo < hi):
+  STsep {f : {ffun 'I_n -> A}}
+        (Array.shape a f,
         [vfun (v : 'I_n) h =>
           lo <= v <= hi /\
           exists p, let f' := pffun p f in
@@ -457,8 +478,8 @@ Definition quicksort_lm_loop (a : {array 'I_n.+1 -> A}) :=
   forall (lohi : 'I_n.+1 * 'I_n.+1),
   let lo := lohi.1 in
   let hi := lohi.2 in
-  {f : {ffun 'I_n.+1 -> A}},
-  STsep (Array.shape a f,
+  STsep {f : {ffun 'I_n.+1 -> A}}
+        (Array.shape a f,
         [vfun (_ : unit) h =>
            exists p, let f' := pffun p f in
              [/\ perm_on [set ix : 'I_n.+1 | lo <= ix <= hi] p,
@@ -466,14 +487,14 @@ Definition quicksort_lm_loop (a : {array 'I_n.+1 -> A}) :=
                  sorted oleq (&:(fgraph f') `[lo : nat, hi : nat])]]).
 
 Program Definition quicksort_lm (a : {array 'I_n.+1 -> A}) :
-  {f : {ffun 'I_n.+1 -> A}},
-  STsep (Array.shape a f,
+  STsep {f : {ffun 'I_n.+1 -> A}}
+        (Array.shape a f,
         [vfun (_ : unit) h =>
            exists p, let f' := pffun p f in
              h \In Array.shape a f' /\
              sorted oleq (fgraph f')]) :=
   Do (let go :=
-    Fix (fun (loop : quicksort_lm_loop a) '(l,h) =>
+    ffix (fun (loop : quicksort_lm_loop a) '(l,h) =>
       Do (if decP (b:=(l : nat) < h) idP isn't left pf then skip
           else v <-- partition_lm a pf;
                loop (l, Po v);;
@@ -541,13 +562,16 @@ move: (ltn_ord v); rewrite ltnS leq_eqVlt; case/orP=>[/eqP Ev|Nv].
     by rewrite !inE -eqn_leq =>/eqP E; apply/eqP/ord_inj.
   move: Sl Hpl; rewrite Eh Ev Epr mul1g => Sl Hpl.
   rewrite slice_xR; last by rewrite bnd_simp leEnat; move: Hvl; rewrite Ev.
-  rewrite {22}(_ : n = (ord_max : 'I_n.+1)) // onth_codom /= sorted_rconsE //.
+  rewrite {22}(_ : n = (ord_max : 'I_n.+1)) // onth_codom /= sorted_rconsE //; 
+  last by apply: otrans.
   move: Sl; rewrite slice_oPR; last by rewrite lt0n -Ev.
   move=>->; rewrite andbT; move: Al; rewrite Ev.
   have ->: pffun (pl * p) f ord_max = pffun p f ord_max.
-  - by rewrite !ffunE permM (out_perm Hpl) // inE negb_and -!ltnNge /= ltn_predL lt0n -{3}Ev Nv0 orbT.
-  have ->: v = ord_max by apply/ord_inj.
-  rewrite (perm_all (s2:=&:(codom (pffun (pl * p) f)) `[l: nat, n[)) // pffunEM perm_sym.
+  - rewrite !ffunE permM (out_perm Hpl) // inE negb_and -!ltnNge /=.
+    by rewrite ltn_predL lt0n -{3}Ev Nv0 orbT.
+  have ->: v = ord_max by apply/ord_inj. 
+  rewrite [in X in X -> _](perm_all (s2:=&:(codom (pffun (pl * p) f)) `[l: nat, n[)) //.
+  rewrite pffunEM perm_sym. 
   rewrite {8 15}(_ : n = (ord_max : 'I_n.+1)) //; apply: perm_on_fgraph.
   apply/(subset_trans Hpl)/subsetP=>/= z; rewrite 2!inE in_itv /= leEnat ltEnat /=.
   by case/andP=>->/= Hz; apply: (leq_ltn_trans Hz); rewrite ltn_predL lt0n -Ev.
@@ -559,11 +583,13 @@ rewrite (slice_xL (x:=v)) // onth_codom /=.
 have -> : pffun (pr * (pl * p)) f v = pffun p f v.
 - rewrite !ffunE mulgA; suff ->: (pr * pl * p)%g v = p v by [].
   rewrite permM.
-  have Hmul: perm_on [set ix : 'I_n.+1| (l <= ix <= v.-1) || (v < ix <= h)] (pr * pl)%g.
+  have Hmul : perm_on [set ix : 'I_n.+1| (l <= ix <= v.-1) || (v < ix <= h)] 
+                      (pr * pl)%g.
   - apply: perm_onM.
     - by apply/(subset_trans Hpr)/subsetP=>/= z; rewrite !inE=>->; rewrite orbT.
     by apply/(subset_trans Hpl)/subsetP=>/= z; rewrite !inE=>->.
-  by rewrite (out_perm Hmul) // inE negb_or !negb_and -leqNgt -!ltnNge leqnn /= andbT ltn_predL lt0n Nv0 orbT.
+  rewrite (out_perm Hmul) // inE negb_or !negb_and -leqNgt -!ltnNge leqnn /=.
+  by rewrite andbT ltn_predL lt0n Nv0 orbT.
 rewrite {1}pffunEM (perm_on_notin _ Hpr); last first.
 - rewrite disjoint_subset; apply/subsetP=>/= z.
   rewrite 3!inE in_itv /= negb_and leEnat ltEnat /= -leqNgt -ltnNge.
@@ -577,11 +603,13 @@ rewrite -mulgA (pffunEM _ (pr * p)%g) (perm_on_notin _ Hpl) in Sr *; last first.
 - rewrite disjoint_subset; apply/subsetP=>/= z.
   rewrite 3!inE in_itv /= negb_and leEnat /= -leqNgt -ltnNge.
   case/andP=>_ Hz; apply/orP; left; apply: (leq_trans Hz).
-  by exact: leq_pred.
-rewrite sorted_pairwise // pairwise_cat /= allrel_consr -andbA -!sorted_pairwise //.
+  exact: leq_pred.
+rewrite sorted_pairwise // pairwise_cat /=.
+rewrite allrel_consr -andbA -!sorted_pairwise //.
 apply/and5P; split=>//.
 - move: Al; congr (_ = _); apply/esym/perm_all; rewrite pffunEM.
-  apply/perm_on_fgraph/(subset_trans Hpl)/subsetP=>/= z; rewrite 2!inE in_itv /= leEnat ltEnat /=.
+  apply/perm_on_fgraph/(subset_trans Hpl)/subsetP=>/= z.
+  rewrite 2!inE in_itv /= leEnat ltEnat /=.
   by case/andP=>->/= Hz; apply: (leq_ltn_trans Hz); rewrite ltn_predL lt0n.
 - apply/allrelP=>x y Hx Hy; apply: (otrans (y:=pffun p f v)).
   - move/allP: Al=>/(_ x); apply.

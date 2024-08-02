@@ -1,7 +1,7 @@
 -Q core pcm
 -Q pcm pcm
--Q htt htt
 -Q examples htt
+-Q htt htt
 -docroot docs # where the documentation should go
 
 -arg -w -arg -notation-overridden

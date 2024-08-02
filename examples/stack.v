@@ -1,3 +1,16 @@
+(*
+Copyright 2022 IMDEA Software Institute
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*)
+
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype seq.
 From pcm Require Import options axioms pred.
@@ -49,19 +62,19 @@ Program Definition free s : STsep (shape s [::],
                                    [vfun _ h => h = Unit]) :=
   Do (dealloc s).
 Next Obligation.
-by move=>s [] ? /= [?][?][V -> [_ ->]]; step=>_; rewrite unitR.
+by case=>i [?][?][V ->][_ ->]; step=>_; rewrite unitR.
 Qed.
 
 (* pushing to the stack is inserting into the list and updating the pointer *)
 
-Program Definition push s x : {xs}, STsep (shape s xs,
+Program Definition push s x : STsep {xs} (shape s xs,
                                           [vfun _ => shape s (x :: xs)]) :=
   Do (l <-- !s;
       l' <-- insert l x;
       s ::= l').
 Next Obligation.
 (* pull out ghost + precondition, get the list *)
-move=>s x [xs][] _ /= [l][h][V -> H]; step.
+case=>xs [] _ /= [l][h][V -> H]; step.
 (* run the insert procedure with the ghost, deconstruct the new list *)
 apply: [stepX xs]@h=>//= x0 _ [r][h'][-> H'].
 (* store the new list *)
@@ -73,10 +86,10 @@ Qed.
 (* 2. removing it from the list and updating the pointer on success *)
 
 Program Definition pop s :
-  {xs}, STsep (shape s xs,
-               fun y h => shape s (behead xs) h /\
-                 match y with Val v => xs = v :: behead xs
-                            | Exn e => e = EmptyStack /\ xs = [::] end) :=
+  STsep {xs} (shape s xs,
+              fun y h => shape s (behead xs) h /\
+                match y with Val v => xs = v :: behead xs
+                           | Exn e => e = EmptyStack /\ xs = [::] end) :=
   Do (l <-- !s;
       try (head l)
         (fun x =>
@@ -86,7 +99,7 @@ Program Definition pop s :
         (fun _ => throw EmptyStack)).
 Next Obligation.
 (* pull out ghost vars and precondition *)
-move=>s [xs][] _ /= [p][h0][V -> H].
+case=>xs [] _ /= [p][h0][V -> H].
 (* get the list and invoke head on it, deal with exception first *)
 step; apply/[tryX xs]@h0=>//= [x|ex] m [Hm]; last first.
 - (* throw the stack exception *)
