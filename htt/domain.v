@@ -227,7 +227,8 @@ End Repack.
 Section Infimum.
 Variable T : lattice.
 
-Definition inf (s : Pred T) := sup [Pred x : T | forall y, y \In s -> x <== y].
+Definition inf (s : Pred T) := 
+  sup [Pred x : T | forall y, y \In s -> x <== y].
 
 Lemma infP s x : x \In s -> inf s <== x.
 Proof. by move=>H; apply: supM=>y; apply. Qed.

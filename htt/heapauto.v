@@ -1,3 +1,16 @@
+(*
+Copyright 2012 IMDEA Software Institute
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*)
+
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype seq ssrfun.
 From pcm Require Import options axioms pred prelude.
 From pcm Require Import pcm autopcm unionmap heap.
@@ -23,7 +36,7 @@ Import Prenex Implicits.
 (* Currently, it doesn't deal with weak pointers. I.e. if it sees terms   *)
 (* like x :-> v1 and x :-> v2, it will reduce to v1 = v2 only if v1, v2   *)
 (* are of the same type. A more general tactic would emit obligation      *)
-(* dyn v1 = dyn v2, but I don't bother with this now.                     *)
+(* dyn v1 = dyn v2, but that's left for future work.                      *)
 (*                                                                        *)
 (**************************************************************************)
 
@@ -108,8 +121,8 @@ Lemma try_retR e1 e2 (v : A) i (r : post B) :
 Proof. by move=>H; apply/vrf_try/val_retR. Qed.
 
 Lemma bnd_retR e (v : A) i (r : post B) :
-        vrf i (e v) r -> vrf i (bind (ret v) e) r.
-Proof. by move=>H; apply/vrf_bind/val_retR. Qed.
+        vrf i (e v) r -> vrf i (bnd (ret v) e) r.
+Proof. by move=>H; apply/vrf_bnd/val_retR. Qed.
 
 End EvalRetR.
 
@@ -126,8 +139,8 @@ Proof. by move=>H; apply/vrf_try/val_throwR. Qed.
 
 Lemma bnd_throwR e e1 i (r : post B) :
         (valid i -> r (Exn e) i) ->
-        vrf i (bind (@throw A e) e1) r.
-Proof. by move=>H; apply/vrf_bind/val_throwR. Qed.
+        vrf i (bnd (@throw A e) e1) r.
+Proof. by move=>H; apply/vrf_bnd/val_throwR. Qed.
 
 End EvalThrowR.
 
@@ -147,8 +160,8 @@ Proof. by move=>H; apply/vrf_try/val_readR. Qed.
 
 Lemma bnd_readR e v x i (f : form (x :-> v) i) (r : post B) :
         vrf f (e v) r ->
-        vrf f (bind (@read A x) e) r.
-Proof. by move=>H; apply/vrf_bind/val_readR. Qed.
+        vrf f (bnd (@read A x) e) r.
+Proof. by move=>H; apply/vrf_bnd/val_readR. Qed.
 
 End EvalReadR.
 
@@ -169,8 +182,8 @@ Proof. by move=>H; apply/vrf_try/val_writeR. Qed.
 
 Lemma bnd_writeR e (v : A) (w : B) x i (f : forall k, form k i) (r : post C) :
         vrf (f (x :-> v)) (e tt) r ->
-        vrf (f (x :-> w)) (bind (write x v) e) r.
-Proof. by move=>H; apply/vrf_bind/val_writeR. Qed.
+        vrf (f (x :-> w)) (bnd (write x v) e) r.
+Proof. by move=>H; apply/vrf_bnd/val_writeR. Qed.
 
 End EvalWriteR.
 
@@ -187,8 +200,8 @@ Proof. by move=>H; apply/vrf_try/val_allocR. Qed.
 
 Lemma bnd_allocR e (v : A) i (r : post B) :
         (forall x, vrf (x :-> v \+ i) (e x) r) ->
-        vrf i (bind (alloc v) e) r.
-Proof. by move=>H; apply/vrf_bind/val_allocR. Qed.
+        vrf i (bnd (alloc v) e) r.
+Proof. by move=>H; apply/vrf_bnd/val_allocR. Qed.
 
 End EvalAllocR.
 
@@ -205,8 +218,8 @@ Proof. by move=>H; apply/vrf_try/val_allocbR. Qed.
 
 Lemma bnd_allocbR e (v : A) n i (r : post B) :
         (forall x, vrf (updi x (nseq n v) \+ i) (e x) r) ->
-        vrf i (bind (allocb v n) e) r.
-Proof. by move=>H; apply/vrf_bind/val_allocbR. Qed.
+        vrf i (bnd (allocb v n) e) r.
+Proof. by move=>H; apply/vrf_bnd/val_allocbR. Qed.
 
 End EvalAllocbR.
 
@@ -226,8 +239,8 @@ Proof. by move=>H; apply/vrf_try/val_deallocR. Qed.
 
 Lemma bnd_deallocR e (v : A) x i (f : forall k, form k i) (r : post B) :
         vrf (f Unit) (e tt) r ->
-        vrf (f (x :-> v)) (bind (dealloc x) e) r.
-Proof. by move=>H; apply/vrf_bind/val_deallocR. Qed.
+        vrf (f (x :-> v)) (bnd (dealloc x) e) r.
+Proof. by move=>H; apply/vrf_bnd/val_deallocR. Qed.
 
 End EvalDeallocR.
 
@@ -246,7 +259,7 @@ Structure val_form A i r (p : Prop):=
 
 Structure bnd_form A B i (e : A -> ST B) r (p : Prop) :=
   BndForm {bnd_pivot :> ST A;
-           _ : p -> vrf i (bind bnd_pivot e) r}.
+           _ : p -> vrf i (bnd bnd_pivot e) r}.
 
 Structure try_form A B i (e1 : A -> ST B)
                          (e2 : exn -> ST B) r (p : Prop) :=
@@ -264,7 +277,7 @@ Proof. by case:e=>[?]; apply. Qed.
 (* continue searching for a val_form. *)
 
 Lemma bnd_case_pf A B i (s : A -> ST B) r p (e : bnd_form i s r p) :
-        p -> vrf i (bind e s) r.
+        p -> vrf i (bnd e s) r.
 Proof. by case:e=>[?]; apply. Qed.
 
 Canonical Structure
@@ -407,20 +420,20 @@ End Uncons.
 (* These issues can be circumvented by falling back to simpler (automated)   *)
 (* lemmas `gU`, `gR` and their variants.                                     *)
 
-Lemma gX G A (s : spec G A) g (m : heapPCM) m0 j tm k wh r2
-             (e : STspec G s)
-             (fm : Syntactify.form (empx _) j tm)
-             (fu : uform m0 (Syntactify.untag fm))
-             (f : forall q, form q r2)
-             (fg : PullX.rform j k tm wh (Some (untag (heap_of (f m0)))))
-             (Q : post A) :
+Lemma gX G A (s : spec G A) g (m : heap) m0 j tm k wh r2
+          (e : STspec G s)
+          (fm : Syntactify.form (empx _) j tm)
+          (fu : uform m0 (Syntactify.untag fm))
+          (f : forall q, form q r2)
+          (fg : PullX.rform j k tm wh (Some (untag (heap_of (f m0)))))
+          (Q : post A) :
         untagU fu = m ->
         (valid m -> (s g).1 m) ->
         (forall v n, (s g).2 (Val v) n ->
            valid (untag (f n)) -> Q (Val v) (f n)) ->
         (forall x n, (s g).2 (Exn x) n ->
            valid (untag (f n)) -> Q (Exn x) (f n)) ->
-        vrf (fg : heapPCM) e Q.
+        vrf (PullX.unpack fg) e Q.
 Proof.
 case: e=>e /= H; case: fu=>_ ->/= Em Hp Hv Hx; rewrite -{}Em in Hp.
 rewrite (pullX (Syntactify.untag fm)) formE joinCA joinA.
@@ -429,7 +442,7 @@ apply/vrf_frame/vrf_post/V.
 by case=>[v|x] n _=>[/Hv|/Hx]; rewrite formE.
 Qed.
 
-Arguments gX [G A s] g m {m0 j tm k wh r2 e fm fu f fg Q} _ _ _ _.
+Arguments gX {G A s} g m {m0 j tm k wh r2 e fm fu f fg Q}.
 
 Notation "[gX] @ m" := (gX tt m erefl) (at level 0).
 
@@ -437,55 +450,55 @@ Notation "[ 'gX' x1 , .. , xn ] @ m" :=
   (gX (existT _ x1 .. (existT _ xn tt) ..) m erefl)
   (at level 0, format "[ 'gX'  x1 ,  .. ,  xn ] @  m").
 
-(* a combination of gX + vrf_bind *)
-Lemma stepX G A B (s : spec G A) g (m : heapPCM) m0 j tm k wh r2
-             (e : STspec G s) (e2 : A -> ST B)
-             (fm : Syntactify.form (empx _) j tm)
-             (fu : uform m0 (Syntactify.untag fm))
-             (f : forall q, form q r2)
-             (fg : PullX.rform j k tm wh (Some (untag (heap_of (f m0)))))
-             (Q : post B) :
+(* combination of gX + vrf_bind *)
+Lemma stepX G A B (s : spec G A) g (m : heap) m0 j tm k wh r2
+          (e : STspec G s) (e2 : A -> ST B)
+          (fm : Syntactify.form (empx _) j tm)
+          (fu : uform m0 (Syntactify.untag fm))
+          (f : forall q, form q r2)
+          (fg : PullX.rform j k tm wh (Some (untag (heap_of (f m0)))))
+          (Q : post B) :
         untagU fu = m ->
         (valid m -> (s g).1 m) ->
         (forall v n, (s g).2 (Val v) n -> vrf (f n) (e2 v) Q) ->
         (forall x n, (s g).2 (Exn x) n ->
            valid (untag (f n)) -> Q (Exn x) (f n)) ->
-        vrf (fg : heapPCM) (bind e e2) Q.
+        vrf (PullX.unpack fg) (bnd e e2) Q.
 Proof.
-move=>Hm Hp Hv Hx.
-by apply/vrf_bind/(gX _ _ Hm Hp)=>[v n H V|x n H V _]; [apply: Hv| apply: Hx].
+move=>Hm Hp Hv Hx; apply/vrf_bnd/(gX _ _ Hm Hp).
+- by move=>v n H V; apply: Hv.
+by move=>x n H V _; apply: Hx.
 Qed.
 
-Arguments stepX [G A B s] g m {m0 j tm k wh r2 e e2 fm fu f fg Q} _ _ _ _.
+Arguments stepX {G A B s} g m {m0 j tm k wh r2 e e2 fm fu f fg Q}.
 
 Notation "[stepX] @ m" := (stepX tt m erefl) (at level 0).
-
 Notation "[ 'stepX' x1 , .. , xn ] @ m" :=
   (stepX (existT _ x1 .. (existT _ xn tt) ..) m erefl)
   (at level 0, format "[ 'stepX'  x1 ,  .. ,  xn ] @  m").
 
-(* a combination of gX + vrf_try *)
-Lemma tryX G A B (s : spec G A) g (m : heapPCM) m0 j tm k wh r2
-             (e : STspec G s) (e1 : A -> ST B) (e2 : exn -> ST B)
-             (fm : Syntactify.form (empx _) j tm)
-             (fu : uform m0 (Syntactify.untag fm))
-             (f : forall q, form q r2)
-             (fg : PullX.rform j k tm wh (Some (untag (heap_of (f m0)))))
-             (Q : post B) :
+(* combination of gX + vrf_try *)
+Lemma tryX G A B (s : spec G A) g (m : heap) m0 j tm k wh r2
+          (e : STspec G s) (e1 : A -> ST B) (e2 : exn -> ST B)
+          (fm : Syntactify.form (empx _) j tm)
+          (fu : uform m0 (Syntactify.untag fm))
+          (f : forall q, form q r2)
+          (fg : PullX.rform j k tm wh (Some (untag (heap_of (f m0)))))
+          (Q : post B) :
         untagU fu = m ->
         (valid m -> (s g).1 m) ->
         (forall v n, (s g).2 (Val v) n -> vrf (f n) (e1 v) Q) ->
         (forall x n, (s g).2 (Exn x) n -> vrf (f n) (e2 x) Q) ->
-        vrf (fg : heapPCM) (try e e1 e2) Q.
+        vrf (PullX.unpack fg) (try e e1 e2) Q.
 Proof.
-move=>Hm Hp Hv Hx.
-by apply/vrf_try/(gX _ _ Hm Hp)=>[x|ex] n H V; [apply: Hv|apply: Hx].
+move=>Hm Hp Hv Hx; apply/vrf_try/(gX _ _ Hm Hp).
+- by move=>x n H V; apply: Hv.
+by move=>ex n H V; apply: Hx.
 Qed.
 
-Arguments tryX [G A B s] g m {m0 j tm k wh r2 e e1 e2 fm fu f fg Q} _ _ _ _.
+Arguments tryX {G A B s} g m {m0 j tm k wh r2 e e1 e2 fm fu f fg Q}.
 
 Notation "[tryX] @ m" := (stepX tt m erefl) (at level 0).
-
 Notation "[ 'tryX' x1 , .. , xn ] @ m" :=
   (tryX (existT _ x1 .. (existT _ xn tt) ..) m erefl)
   (at level 0, format "[ 'tryX'  x1 ,  .. ,  xn ] @  m").
@@ -494,7 +507,7 @@ Notation "[ 'tryX' x1 , .. , xn ] @ m" :=
 (* Simplified ghost lemma automations *)
 (**************************************)
 
-(* A simpler version of an automated framing+ghost lemma which only works on *)
+(* simpler version of an automated framing+ghost lemma which only works on *)
 (* literal heap subexpressions (here `m`) but preserves associativity.       *)
 Lemma gR G A (s : spec G A) g m r (e : STspec G s)
           (f : forall k, form k r) (Q : post A) :
@@ -511,40 +524,38 @@ apply/vrf_frame/vrf_post/V.
 by case=>[x|ex] n _ =>[/Hv|/Hx]; rewrite formE.
 Qed.
 
-Arguments gR [G A s] g m {r e f Q} _ _ _.
+Arguments gR {G A s} g m {r e f Q}.
 
 Notation "[gR] @ m" := (gR tt m) (at level 0).
-
 Notation "[ 'gR' x1 , .. , xn ] @ m" :=
   (gR (existT _ x1 .. (existT _ xn tt) ..) m)
   (at level 0, format "[ 'gR'  x1 ,  .. ,  xn ] @  m").
 
-(* a combination of gR + vrf_bind *)
+(* combination of gR + vrf_bind *)
 Lemma stepR G A B (s : spec G A) g i j (e : STspec G s) (e2 : A -> ST B)
-             (f : forall k, form k j) (Q : post B) :
+          (f : forall k, form k j) (Q : post B) :
         (valid i -> (s g).1 i) ->
         (forall x m, (s g).2 (Val x) m -> vrf (f m) (e2 x) Q) ->
         (forall x m, (s g).2 (Exn x) m ->
            valid (untag (f m)) -> Q (Exn x) (f m)) ->
-        vrf (f i) (bind e e2) Q.
+        vrf (f i) (bnd e e2) Q.
 Proof.
-move=>Hi H1 H2.
-apply/vrf_bind/(gR _ _ Hi)=>[x m H V|ex m H V _].
-- by apply: H1 H.
-by apply: H2.
+move=>Hi H1 H2; apply/vrf_bnd/(gR _ _ Hi). 
+- by move=>x m H V; apply: H1 H.
+by move=>ex m H V _; apply: H2.
 Qed.
 
-Arguments stepR [G A B s] g i [j e e2 f Q] _ _ _.
+Arguments stepR {G A B s} g i {j e e2 f Q}.
 
 Notation "[stepR] @ i" := (stepR tt i) (at level 0).
-
 Notation "[ 'stepR' x1 , .. , xn ] @ i" :=
   (stepR (existT _ x1 .. (existT _ xn tt) ..) i)
   (at level 0, format "[ 'stepR'  x1 ,  .. ,  xn ] @  i").
 
-(* a combination of gR + vrf_try *)
-Lemma tryR G A B (s : spec G A) g i j (e : STspec G s) (e1 : A -> ST B) (e2 : exn -> ST B)
-             (f : forall k, form k j) (Q : post B) :
+(* combination of gR + vrf_try *)
+Lemma tryR G A B (s : spec G A) g i j (e : STspec G s) 
+          (e1 : A -> ST B) (e2 : exn -> ST B)
+          (f : forall k, form k j) (Q : post B) :
         (valid i -> (s g).1 i) ->
         (forall x m, (s g).2 (Val x) m -> vrf (f m) (e1 x) Q) ->
         (forall x m, (s g).2 (Exn x) m -> vrf (f m) (e2 x) Q) ->
@@ -556,17 +567,16 @@ apply/vrf_try/(gR _ _ Hi)=>[x|ex] m H V.
 by apply: H2.
 Qed.
 
-Arguments tryR [G A B s] g i [j e e1 e2 f Q] _ _ _.
+Arguments tryR {G A B s} g i {j e e1 e2 f Q}.
 
 Notation "[tryR] @ i" := (tryR tt i) (at level 0).
-
 Notation "[ 'tryR' x1 , .. , xn ] @ i" :=
   (tryR (existT _ x1 .. (existT _ xn tt) ..) i)
   (at level 0, format "[ 'tryR'  x1 ,  .. ,  xn ] @  i").
 
-(* This is really brittle, but I didn't get around yet to substitute it *)
-(* with Mtac or overloaded lemmas. So for now, let's stick with the hack *)
-(* in order to support the legacy proofs *)
+(* The following is brittle, and should eventually be substituted *)
+(* with overloaded lemmas. For now, sticking with the hack *)
+(* for the purpose of supporting legacy proofs *)
 
 (* First cancelation in hypotheses *)
 

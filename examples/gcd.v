@@ -1,6 +1,19 @@
+(*
+Copyright 2021 IMDEA Software Institute
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*)
+
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype div.
-From pcm Require Import axioms pred pcm heap.
+From pcm Require Import axioms pred ordtype pcm heap.
 From htt Require Import options model heapauto.
 
 (* classical mutable Euclid's algorithm for computing GCD with subtractions *)
@@ -13,12 +26,12 @@ Definition shape (p q : ptr) (x y : nat) :=
 (* (`unit` is needed because `Fix` always requires a single parameter) *)
 Definition gcd_loopT (p q : ptr) : Type :=
   unit ->
-  {x y : nat}, STsep (shape p q x y,
+  STsep {x y : nat} (shape p q x y,
                      [vfun (_ : unit) h =>
                         h \In shape p q (gcdn x y) (gcdn x y)]).
 
 Program Definition gcd_loop (p q : ptr) :=
-  Fix (fun (go : gcd_loopT p q) _ =>
+  ffix (fun (go : gcd_loopT p q) _ =>
     Do (x <-- !p;
         y <-- !q;
         if (x : nat) != y then
@@ -48,11 +61,11 @@ suff {p q go m}: gcdn x (y - x) = gcdn x y by move=>->.
 by rewrite -gcdnDr subnK //; apply: ltnW.
 Qed.
 
-(* note that there's no guarantee on termination, so we have only partial correctness *)
-(* i.e. the algorithm will get stuck if u = 0 /\ v != 0 or vice versa *)
+(* There's no guarantee on termination, as this is partial correctness. *)
+(* The algorithm loops if u = 0 /\ v != 0 or vice versa *)
 Program Definition gcd u v :
   STsep (PredT, [vfun r _ => r = gcdn u v]) :=
-  (* we allocate in the reverse order because the symbolic heap behaves as a stack *)
+  (* allocate in the reverse order because the symbolic heap behaves as a stack *)
   (* this way it'll match the specification perfectly, removing a bit of bureaucracy *)
   Do (q <-- alloc v;
       p <-- alloc u;

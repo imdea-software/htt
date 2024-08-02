@@ -39,6 +39,7 @@ Lemma iffC p q : (p <-> q) <-> (q <-> p). Proof. by intuition. Qed.
 Declare Scope rel_scope.
 Delimit Scope rel_scope with rel.
 Open Scope rel_scope.
+Open Scope fun_scope.
 
 (**************************************************************************)
 (* We follow ssrbool, and provide four different types of predicates.     *)

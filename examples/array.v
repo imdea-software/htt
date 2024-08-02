@@ -1,3 +1,16 @@
+(*
+Copyright 2010 IMDEA Software Institute
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*)
+
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path fintype tuple finfun finset.
 From pcm Require Import options axioms prelude pred.
@@ -6,8 +19,6 @@ From htt Require Import options model heapauto.
 
 Definition indx {I : finType} (x : I) := index x (enum I).
 
-Prenex Implicits indx.
-
 (***********************************)
 (* Arrays indexed by a finite type *)
 (***********************************)
@@ -15,7 +26,7 @@ Prenex Implicits indx.
 (* an array is a pointer to a contiguous memory region holding its values *)
 
 Record array (I : finType) (T : Type) : Type := Array {orig :> ptr}.
-Arguments Array [I T].
+Arguments Array {I T}.
 
 Definition array_for (I : finType) (T : Type) of phant (I -> T) := array I T.
 Identity Coercion array_for_array : array_for >-> array.
@@ -70,11 +81,11 @@ Program Definition newf (f : {ffun I -> T}) :
         (* preallocate a new array *)
         x <-- new (f v);
         (* fill it with values of f on I *)
-        let fill := Fix (fun (loop : fill_loop x f) s =>
-                      Do (if s is k::t return _ then
+        let fill := ffix (fun (loop : fill_loop x f) s =>
+                       Do (if s is k::t return _ then
                              x .+ (indx k) ::= f k;;
                              loop t
-                          else ret (Array x)))
+                           else ret (Array x)))
         in fill (enum I)
       else ret (Array null)).
 (* first the loop *)
@@ -124,10 +135,10 @@ Definition free_loop (a : array) : Type :=
 Program Definition free (a : array) :
   STsep (fun i => exists f, i \In shape a f,
          [vfun _ : unit => emp]) :=
-  Do (let go := Fix (fun (loop : free_loop a) k =>
-                     Do (if k == #|I| then ret tt
-                         else dealloc a.+k;;
-                              loop k.+1))
+  Do (let go := ffix (fun (loop : free_loop a) k =>
+                   Do (if k == #|I| then ret tt
+                       else dealloc a.+k;;
+                            loop k.+1))
       in go 0).
 (* first the loop *)
 Next Obligation.
@@ -136,8 +147,8 @@ move=>a loop k [] i /= [[|v xs]][->] /= _; first by rewrite add0n=>/eqP ->; step
 (* the suffix is non-empty so k < #|I| *)
 case: eqP=>[->|_ H]; first by move/eqP; rewrite -{2}(add0n #|I|) eqn_add2r.
 (* run the program, simplify *)
-step; apply: vrfV=>V; apply: [gE]=>//=.
-by exists xs; rewrite V ptrA addn1 -addSnnS unitL.
+step; apply: vrfV=>V; apply: [gE]=>//=; exists xs.
+by rewrite V unitL -addSnnS H -addnS. 
 Qed.
 (* now the outer program *)
 Next Obligation.
@@ -151,8 +162,8 @@ Qed.
 (* reading from an array, doesn't modify the heap *)
 
 Program Definition read (a : array) (k : I) :
-   {f h}, STsep (fun i => i = h /\ i \In shape a f,
-                 [vfun (y : T) m => m = h /\ y = f k]) :=
+   STsep {f h} (fun i => i = h /\ i \In shape a f,
+                [vfun (y : T) m => m = h /\ y = f k]) :=
   Do (!a .+ (indx k)).
 Next Obligation.
 (* pull out ghost vars *)
@@ -164,8 +175,8 @@ Qed.
 (* writing to an array, updates the spec function with a new value *)
 
 Program Definition write (a : array) (k : I) (x : T) :
-  {f}, STsep (shape a f,
-              [vfun _ : unit => shape a (finfun [eta f with k |-> x])]) :=
+  STsep {f} (shape a f,
+             [vfun _ : unit => shape a (finfun [eta f with k |-> x])]) :=
   Do (a .+ (indx k) ::= x).
 Next Obligation.
 (* pull out ghost vars, split the heap *)
