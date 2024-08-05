@@ -1,3 +1,16 @@
+(*
+Copyright 2010 IMDEA Software Institute
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*)
+
 From mathcomp Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype.
 From pcm Require Import options axioms prelude pred.
@@ -10,8 +23,8 @@ Prenex Implicits exist.
 
 Record cnt : Type :=
   Counter {inv : nat -> Pred heap;
-           method : {v : nat}, STsep (inv v,
-                                     [vfun y m => y = v /\ m \In inv v.+1])}.
+           method : STsep {v : nat} (inv v,
+                                    [vfun y m => y = v /\ m \In inv v.+1])}.
 
 Program Definition new : STsep (emp, [vfun y m => m \In inv y 0]) :=
   Do (x <-- alloc 0;
@@ -28,7 +41,7 @@ move=>[] _ /= ->.
 (* but it doesn't; we suspect because universe levels are off *)
 (* but error messages aren't helpful *)
 (* one can still finish the step manually *)
-apply/vrf_bind/vrf_alloc=>x; rewrite unitR=>_.
+apply/vrf_bnd/vrf_alloc=>x; rewrite unitR=>_.
 (* after which, automation proceeds to work *)
 by step.
 Qed.
@@ -53,8 +66,8 @@ Definition interp (r : rep) : Pred heap := [Pred h | h = rptr r :-> rval r].
 
 Record scnt : Type :=
   SCount {sinv : nat -> rep;
-          smethod : {v : nat}, STsep (interp (sinv v),
-                                      [vfun y m => y = v /\ m \In interp (sinv v.+1)])}.
+          smethod : STsep {v : nat} (interp (sinv v),
+                                    [vfun y m => y = v /\ m \In interp (sinv v.+1)])}.
 
 Program Definition snew : STsep (emp,
                                 [vfun y m => m \In interp (sinv y 0)]) :=
@@ -69,7 +82,7 @@ by do 3!step.
 Qed.
 Next Obligation.
 move=>[] _ /= ->.
-apply/vrf_bind/vrf_alloc=>x; rewrite unitR=>_.
+apply/vrf_bnd/vrf_alloc=>x; rewrite unitR=>_.
 by step.
 Qed.
 
@@ -93,7 +106,7 @@ Definition pinterp (R : rep -> Prop) : Pred heap :=
 
 Record pcnt : Type :=
   PCount {pinv : nat -> rep -> Prop;
-          pmethod : {v : nat}, STsep (pinterp (pinv v),
+          pmethod : STsep {v : nat} (pinterp (pinv v),
                                      [vfun y m => y = v /\ m \In pinterp (pinv v.+1)])}.
 
 Program Definition pnew : STsep (emp,
@@ -109,7 +122,7 @@ by do 3!step; move=>?; split=>// _ ->.
 Qed.
 Next Obligation.
 move=>[] _ /= ->.
-apply/vrf_bind/vrf_alloc=>x; rewrite unitR=>_.
+apply/vrf_bnd/vrf_alloc=>x; rewrite unitR=>_.
 by step=>_ /= _  ->.
 Qed.
 

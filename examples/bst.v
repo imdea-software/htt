@@ -1,8 +1,21 @@
+(*
+Copyright 2021 IMDEA Software Institute
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*)
+
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype ssrnat seq path.
-From pcm Require Import options axioms pred ordtype.
+From pcm Require Import options axioms pred ordtype seqext.
 From pcm Require Import pcm unionmap heap autopcm automap.
-From htt Require Import model heapauto bintree.
+From htt Require Import options model heapauto bintree.
 
 Section BST.
 Context {T : ordType}.
@@ -47,7 +60,7 @@ Lemma bst_to_sorted (t : tree T) :
         bst t = sorted ord (inorder t).
 Proof.
 elim: t=>//=l -> a r ->.
-by rewrite sorted_cat_cons_cat /= cats1 sorted_rconsE //
+by rewrite sorted_cat_cons_cat /= cats1 sorted_rconsE //= 
   (path_sortedE (@trans T)) andbACA -andbA.
 Qed.
 
@@ -123,9 +136,9 @@ by apply: (perm_trans Hi2); rewrite Hx2.
 Qed.
 
 (* Moreover, such representations are equal *)
-Corollary insert_insert x1 x2 (t : tree T) :
-            bst t ->
-            inorder (insert x1 (insert x2 t)) = inorder (insert x2 (insert x1 t)).
+Lemma insert_insert x1 x2 (t : tree T) :
+        bst t ->
+        inorder (insert x1 (insert x2 t)) = inorder (insert x2 (insert x1 t)).
 Proof.
 move=>H; apply: ord_sorted_eq.
 - by rewrite -bst_to_sorted; do 2!apply: bst_insert.
@@ -157,24 +170,24 @@ Opaque mknode.
 
 Definition inserttreeT x : Type :=
   forall p,
-    {t : tree T}, STsep (shape p t,
-                        [vfun p' => shape p' (insert x t)]).
+    STsep {t : tree T} (shape p t,
+                       [vfun p' => shape p' (insert x t)]).
 
 Program Definition inserttree x : inserttreeT x :=
-  Fix (fun (go : inserttreeT x) p =>
+  ffix (fun (go : inserttreeT x) p =>
     Do (if p == null
           then n <-- mknode x;
                ret n
-          else a <-- !(p.+ 1);
+          else a <-- !p.+1;
                if x == a then ret p
                  else if ord x a
                    then l <-- !p;
                         l' <-- go l;
                         p ::= l';;
                         ret p
-                   else r <-- !(p.+ 2);
+                   else r <-- !p.+2;
                         r' <-- go r;
-                        p.+ 2 ::= r';;
+                        p.+2 ::= r';;
                         ret p)).
 Next Obligation.
 (* pull out ghost + precondition, branch on null check *)
@@ -202,19 +215,19 @@ Qed.
 (* lopp invariant: the tree is unchanged, return true if the element is found *)
 Definition searchtreeT x : Type :=
   forall p,
-    {t : tree T}, STsep (shape p t,
-                        [vfun b h => shape p t h /\ b == search t x]).
+    STsep {t : tree T} (shape p t,
+                       [vfun b h => shape p t h /\ b == search t x]).
 
 Program Definition searchtree x : searchtreeT x :=
-  Fix (fun (go : searchtreeT x) p =>
+  ffix (fun (go : searchtreeT x) p =>
     Do (if p == null
           then ret false
-          else a <-- !(p.+ 1);
+          else a <-- !p.+1;
                if x == a then ret true
                  else if ord x a
                    then l <-- !p;
                         go l
-                   else r <-- !(p.+ 2);
+                   else r <-- !p.+2;
                         go r)).
 Next Obligation.
 (* pull out ghost + precondition, branch on null check *)
@@ -236,10 +249,10 @@ Qed.
 (* test that the API is consistent, i.e. BST invariant is preserved *)
 (* and lookup finds previously inserted elements *)
 Program Definition test p x1 x2 :
-  {t : tree T}, STsep (fun h => shape p t h /\ bst t,
-                       [vfun (pb : ptr * bool) h =>
-                         let t' := insert x2 (insert x1 t) in
-                         [/\ shape pb.1 t' h, bst t' & pb.2]]) :=
+  STsep {t : tree T} (fun h => shape p t h /\ bst t,
+                      [vfun (pb : ptr * bool) h =>
+                        let t' := insert x2 (insert x1 t) in
+                        [/\ shape pb.1 t' h, bst t' & pb.2]]) :=
   Do (p1 <-- inserttree x1 p;
       p2 <-- inserttree x2 p1;
       b <-- searchtree x1 p2;

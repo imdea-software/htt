@@ -1,3 +1,17 @@
+(*
+Copyright 2023 IMDEA Software Institute
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*)
+
+From HB Require Import structures.
 From mathcomp Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype ssrnat seq bigop choice.
 From pcm Require Import pred prelude seqext.
@@ -94,8 +108,9 @@ Qed.
 
 End EncodeDecodeTree.
 
-Definition tree_eqMixin (A : eqType) := PcanEqMixin (@pcancel_tree A).
-Canonical tree_eqType (A : eqType) := Eval hnf in EqType _ (@tree_eqMixin A).
+
+HB.instance Definition _ (A : eqType) := 
+  Equality.copy (tree A) (pcan_type (pcancel_tree A)).
 
 Section TreeEq.
 Context {A : eqType}.
@@ -134,7 +149,7 @@ Lemma in_preorder t : preorder t =i t.
 Proof.
 elim/tree_ind1: t=>t cs IH x.
 rewrite preorderE in_tnode /= inE; case: eqVneq=>//= N.
-rewrite big_cat_mem_seq; apply: eq_in_has=>z Hz.
+rewrite big_cat_mem_has; apply: eq_in_has=>z Hz.
 by rewrite IH //; apply/mem_seqP.
 Qed.
 

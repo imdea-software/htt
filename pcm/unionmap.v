@@ -97,7 +97,6 @@ From pcm Require Import options axioms prelude finmap seqperm pred seqext.
 From pcm Require Export ordtype.
 From pcm Require Import pcm morphism.
 
-
 (****************************)
 (****************************)
 (* Reference Implementation *)
@@ -2500,7 +2499,20 @@ Proof. by move=>H; case/In_dom/um_eta: (H)=>w [/In_find/(In_fun H) ->]. Qed.
 End MapMembership.
 
 Arguments In_condPt {K C V U k}.
-Prenex Implicits InPt In_eta InPtUn In_dom InPtUnEL.
+Prenex Implicits InPt In_eta InPtUn In_dom InPtUnEL In_findE.
+
+(* Umap and fset are special cases of union_map but are *)
+(* defined before membership structure is declared. *)
+(* Their membership structures aren't directly inheritted from that *)
+(* of union_map, but must be declared separately *)
+Canonical umap_PredType (K : ordType) V : PredType (K * V) :=
+  Mem_UmMap_PredType (umap K V).
+Coercion Pred_of_umap K V (x : umap K V) : Pred_Class := 
+  [eta Mem_UmMap x].
+Canonical fset_PredType (K : ordType) : PredType (K * unit) :=
+  Mem_UmMap_PredType (fset K).
+Coercion Pred_of_fset K (x : fset K) : Pred_Class := 
+  [eta Mem_UmMap x].
 
 Section MorphMembership.
 Variables (K : ordType) (C : pred K) (V : Type).
@@ -2510,15 +2522,22 @@ Section PlainMorph.
 Variable f : pcm_morph U1 U2.
 
 Lemma InpfL e (x y : U1) :
-        valid (x \+ y) -> sep f x y -> e \In f x -> e \In f (x \+ y).
+        valid (x \+ y) -> 
+        sep f x y -> 
+        e \In f x -> 
+        e \In f (x \+ y).
 Proof. by move=>W H1 H2; rewrite pfjoin //=; apply: InL=>//; rewrite pfV2. Qed.
 
 Lemma InpfR e (x y : U1) :
-        valid (x \+ y) -> sep f x y -> e \In f y -> e \In f (x \+ y).
+        valid (x \+ y) -> 
+        sep f x y -> 
+        e \In f y -> 
+        e \In f (x \+ y).
 Proof. by move=>W H1 H2; rewrite pfjoin //=; apply: InR=>//; rewrite pfV2. Qed.
 
 Lemma InpfUn e (x y : U1) :
-        valid (x \+ y) -> sep f x y -> 
+        valid (x \+ y) -> 
+        sep f x y -> 
         e \In f (x \+ y) <-> e \In f x \/ e \In f y.
 Proof. 
 move=>W H; rewrite pfjoin //; split; first by case/InUn; eauto.
@@ -2530,14 +2549,21 @@ End PlainMorph.
 Section FullMorph.
 Variable f : full_pcm_morph U1 U2.
 
-Lemma InpfLT e (x y : U1) : valid (x \+ y) -> e \In f x -> e \In f (x \+ y).
+Lemma InpfLT e (x y : U1) : 
+        valid (x \+ y) -> 
+        e \In f x -> 
+        e \In f (x \+ y).
 Proof. by move=>W; apply: InpfL. Qed.
 
-Lemma InpfRT e (x y : U1) : valid (x \+ y) -> e \In f y -> e \In f (x \+ y).
+Lemma InpfRT e (x y : U1) : 
+        valid (x \+ y) -> 
+        e \In f y -> 
+        e \In f (x \+ y).
 Proof. by move=>W; apply: InpfR. Qed.
 
 Lemma InpfUnT e (x y : U1) : 
-        valid (x \+ y) -> e \In f (x \+ y) <-> e \In f x \/ e \In f y.
+        valid (x \+ y) -> 
+        e \In f (x \+ y) <-> e \In f x \/ e \In f y.
 Proof. by move=>W; apply: InpfUn. Qed.
 End FullMorph.
 
@@ -3267,13 +3293,22 @@ by case: (f _)=>// w; rewrite unitL.
 Qed.
 
 Lemma omapUn x1 x2 : 
-        valid (x1 \+ x2) -> omap (x1 \+ x2) = omap x1 \+ omap x2.
+        valid (x1 \+ x2) -> 
+        omap (x1 \+ x2) = omap x1 \+ omap x2.
 Proof.
 move=>W; rewrite /omap W (validL W) (validR W); set o := fun z kv => _.
 have H (x y : U') kv : o (x \+ y) kv = o x kv \+ y.
 - by rewrite /o; case: (f kv)=>// w; rewrite joinAC.
 rewrite (foldl_perm H _ (assocs_perm W)) foldl_cat.
 by rewrite joinC -(foldl_init H) unitL.
+Qed.
+
+Lemma omapVUn x1 x2 : 
+        omap (x1 \+ x2) =
+        if valid (x1 \+ x2) then omap x1 \+ omap x2 else undef.
+Proof.
+case: (normalP (x1 \+ x2))=>[->|W]; 
+by [rewrite omap_undef|apply: omapUn].
 Qed.
 
 Lemma omapPtUn k v x :

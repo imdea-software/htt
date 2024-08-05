@@ -1,8 +1,22 @@
+(*
+Copyright 2010 IMDEA Software Institute
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*)
+
+From HB Require Import structures.
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq fintype tuple finfun finset.
 From pcm Require Import options axioms prelude pred ordtype finmap.
 From pcm Require Import pcm unionmap heap autopcm.
-From htt Require Import model heapauto.
+From htt Require Import options model heapauto.
 From htt Require Import array kvmaps.
 
 Module HashTab.
@@ -41,7 +55,7 @@ Definition new_loopinv x := forall k,
 
 Program Definition new : STsep (emp, [vfun y => shape y nil]) :=
   Do (t <-- Array.new _ (KVmap.default buckets);
-      let go := Fix (fun (loop : new_loopinv t) k =>
+      let go := ffix (fun (loop : new_loopinv t) k =>
                   Do (if decP (b := k < n) idP is left pf then
                         b <-- KVmap.new buckets;
                         Array.write t (Ordinal pf) b;;
@@ -69,7 +83,8 @@ exists [ffun z => if z == Ordinal pf then b else tab z], m2, (m \+ h2); split=>/
 (* remove the new bucket from the heap *)
 rewrite (sepitS (Ordinal pf)) in_set leqnn {1}/table ffunE eq_refl; exists m, h2; do!split=>{m Hm}//.
 apply: tableP2 H2=>{h2}//.
-- by case=>x Hx; rewrite !in_set -val_eqE /= ltnS (leq_eqVlt x); case: ltngtP.
+- case=>x Hx; rewrite !in_set in_set1 -val_eqE /= ltnS (leq_eqVlt x).
+  by case: ltngtP.
 (* removing k from the domain of the new table gives the old table back *)
 by move=>x _; rewrite in_set ffunE; case: eqP=>//->; rewrite ltnn.
 Qed.
@@ -97,10 +112,10 @@ Definition free_loopinv x := forall k,
                   sepit [set x:'I_n | x >= k] (table t b),
          [vfun _ : unit => emp]).
 
-Program Definition free x : {s}, STsep (shape x s,
-                                        [vfun _ : unit => emp]) :=
+Program Definition free x : STsep {s} (shape x s,
+                                       [vfun _ : unit => emp]) :=
   (* we add an extra Do here so we can derive the precondition from the loop *)
-  Do (Fix (fun (loop : free_loopinv x) k =>
+  Do (ffix (fun (loop : free_loopinv x) k =>
         Do (if decP (b := k < n) idP is left pf then
               b <-- Array.read x (Ordinal pf);
               KVmap.free b;;
@@ -127,7 +142,7 @@ apply: [stepX (bf (Ordinal pf))] @ h3=>{h3 H3}//= _ _ ->; rewrite unitL.
 apply: [gE]=>//=; split=>//; exists tf, bf, h1, h4; split=>//.
 (* drop the k-th entry from the table *)
 apply/tableP2/H4=>//.
-move=>z; rewrite !in_set; case: eqP=>/=.
+move=>z; rewrite !in_set in_set1; case: eqP=>/=.
 - by move=>->/=; rewrite ltnn.
 by move/eqP; rewrite -val_eqE /=; case: ltngtP.
 Qed.
@@ -142,8 +157,8 @@ Qed.
 (* returning the pointer is technically not needed, as the array is not moved *)
 (* but we need to fit the KV map API *)
 
-Program Definition insert x k v : {s}, STsep (shape x s,
-                                              [vfun y => shape y (ins k v s)]) :=
+Program Definition insert x k v : STsep {s} (shape x s,
+                                             [vfun y => shape y (ins k v s)]) :=
   Do (let hk := hash k in
       b  <-- Array.read x hk;
       b' <-- KVmap.insert b k v;
@@ -177,14 +192,14 @@ exists m3, (m2 \+ h4); split=>{Hf Hh m3 E3 V3}//.
 (* split out the modified bucket *)
 rewrite (sepitT1 (hash k)) /table /= ffunE eq_refl; exists m2, h4; split=>{m2 H2}//.
 (* the table fits too *)
-by apply/tableP/H4=>/= x0; rewrite !in_set andbT ?ffunE =>/negbTE->.
+by apply/tableP/H4=>/= x0; rewrite !in_set in_set1 andbT ?ffunE =>/negbTE->.
 Qed.
 
 (* removing from a hashmap is removing from corresponding bucket + updating the array *)
 (* returning the pointer is again not needed except for the API fit *)
 
 Program Definition remove x k :
-  {s}, STsep (shape x s,
+  STsep {s} (shape x s,
              [vfun y => shape y (rem k s)]) :=
   Do (let hk := hash k in
       b  <-- Array.read x hk;
@@ -219,13 +234,13 @@ exists m3, (m2\+ h4); split=>{m3 E3 V3 Hf Hh}//.
 (* split out the modified bucket *)
 rewrite (sepitT1 (hash k)) /table /= ffunE eq_refl; exists m2, h4; split=>{m2 H2}//.
 (* the table fits too *)
-by apply/tableP/H4=>/= x0; rewrite !in_set andbT ?ffunE =>/negbTE->.
+by apply/tableP/H4=>/= x0; rewrite !in_set in_set1 andbT ?ffunE =>/negbTE->.
 Qed.
 
 (* looking up in a hashmap is looking up in the corresponging bucket *)
 
 Program Definition lookup x k :
-  {s}, STsep (shape x s,
+  STsep {s} (shape x s,
              [vfun y m => m \In shape x s /\ y = fnd k s]) :=
   Do (b <-- Array.read x (hash k);
       KVmap.lookup b k).

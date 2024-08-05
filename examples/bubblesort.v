@@ -775,7 +775,7 @@ step=>Vm; exists p; case: sw Hsw=>/=; case=>Ep Hf.
     move: Hak; rewrite codom1_ax_rcons2 // !allrel_rconsl -/i0 -/i1 -andbA.
     case/and3P=>-> _ ->; rewrite (ordW Hf) /= !andbT.
     move: Hai; rewrite codom1_ax_rcons //= allrel_rconsr=>/andP [_ Hals].
-    move: Hsi; rewrite codom1_ax_rcons // sorted_rconsE; last by apply: otrans.
+    move: Hsi; rewrite codom1_ax_rcons // sorted_rconsE //=. 
     case/andP => Halsi _.
     move: Hils; rewrite leq_eqVlt; case/orP=>[/eqP <-|Hlsi] //.
     rewrite (slice_split (x:=ls) _ true); last by rewrite in_itv.

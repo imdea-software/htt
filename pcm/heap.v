@@ -197,9 +197,17 @@ Lemma hcancelPtV2 A x1 x2 (v1 v2 : A) :
 Proof. by move=>V /(cancelPt2 V) [->] /dyn_inj ->. Qed.
 
 Lemma heap_eta x h :
-        x \in dom h -> exists A (v : A),
-        find x h = Some (idyn v) /\ h = x :-> v \+ free h x. 
+        x \in dom h -> 
+        exists A (v : A),
+          find x h = Some (idyn v) /\ 
+          h = x :-> v \+ free h x. 
 Proof. by case/um_eta; case=>A v H; exists A, v. Qed.
+
+(* restatement of um_eta2, to avoid showing idyn's *)
+Lemma heap_eta2 A x h (v : A) :
+        find x h = Some (idyn v) -> 
+        h = x :-> v \+ free h x.
+Proof. exact: um_eta2. Qed.
 
 Lemma hcancelT A1 A2 x (v1 : A1) (v2 : A2) h1 h2 :
         valid (x :-> v1 \+ h1) ->
@@ -222,6 +230,7 @@ Proof. by move=>V /(cancel2 V); case: ifP=>// _ [/dyn_inj]. Qed.
 
 End HeapPointsToLemmas.
 
+Prenex Implicits heap_eta heap_eta2.
 
 (*******************************************)
 (* Block update for reasoning about arrays *)

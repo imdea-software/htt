@@ -562,8 +562,7 @@ move: (ltn_ord v); rewrite ltnS leq_eqVlt; case/orP=>[/eqP Ev|Nv].
     by rewrite !inE -eqn_leq =>/eqP E; apply/eqP/ord_inj.
   move: Sl Hpl; rewrite Eh Ev Epr mul1g => Sl Hpl.
   rewrite slice_xR; last by rewrite bnd_simp leEnat; move: Hvl; rewrite Ev.
-  rewrite {22}(_ : n = (ord_max : 'I_n.+1)) // onth_codom /= sorted_rconsE //; 
-  last by apply: otrans.
+  rewrite {22}(_ : n = (ord_max : 'I_n.+1)) // onth_codom /= sorted_rconsE //=.
   move: Sl; rewrite slice_oPR; last by rewrite lt0n -Ev.
   move=>->; rewrite andbT; move: Al; rewrite Ev.
   have ->: pffun (pl * p) f ord_max = pffun p f ord_max.

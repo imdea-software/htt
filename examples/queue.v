@@ -1,8 +1,21 @@
+(*
+Copyright 2021 IMDEA Software Institute
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*)
+
 From Coq Require Import ssreflect ssrbool ssrfun.
-From mathcomp Require Import eqtype seq.
+From mathcomp Require Import eqtype ssrnat seq.
 From pcm Require Import options axioms pred.
 From pcm Require Import pcm unionmap heap automap.
-From htt Require Import model heapauto.
+From htt Require Import options model heapauto.
 From htt Require Import llist.
 
 Record queue (T : Type) : Type := Queue {front: ptr; back: ptr}.
@@ -18,8 +31,8 @@ Definition is_queue (fr bq : ptr) (xs : seq T) :=
   if fr == null then [Pred h | [/\ bq = null, xs = [::] & h = Unit]]
   else [Pred h | exists xt x h',
                  [/\ xs = rcons xt x,
-                     valid (h' \+ (bq :-> x \+ bq .+ 1 :-> null)),
-                     h = h' \+ (bq :-> x \+ bq .+ 1 :-> null) &
+                     valid (h' \+ (bq :-> x \+ bq.+1 :-> null)),
+                     h = h' \+ (bq :-> x \+ bq.+1 :-> null) &
                      h' \In lseg fr bq xt]].
 
 (* the structure itself is a pair of pointers to body + last node *)
@@ -38,7 +51,8 @@ Proof. by case=>h1[bq][h'] [] D ->. Qed.
 (* empty queue is a pair of null pointers *)
 
 Lemma is_queue_nil fr bq h :
-        h \In is_queue fr bq [::] -> [/\ fr = null, bq = null & h = Unit].
+        h \In is_queue fr bq [::] -> 
+        [/\ fr = null, bq = null & h = Unit].
 Proof.
 by rewrite /is_queue; case: eqP=>[->[-> _ ->] | _ [[|y xt][x][h'][]]].
 Qed.
@@ -47,8 +61,8 @@ Qed.
 
 Lemma is_queue_rcons fr bq xt x h :
          h \In is_queue fr bq (rcons xt x) <->
-         (exists h', [/\ valid (h' \+ (bq :-> x \+ bq .+ 1 :-> null)),
-                         h = h' \+ (bq :-> x \+ bq .+ 1 :-> null) &
+         (exists h', [/\ valid (h' \+ (bq :-> x \+ bq.+1 :-> null)),
+                         h = h' \+ (bq :-> x \+ bq.+1 :-> null) &
                          h' \In lseg fr bq xt]).
 Proof.
 rewrite /is_queue; split.
@@ -62,7 +76,8 @@ Qed.
 (* pointers should agree in a well-formed queue *)
 
 Lemma backfront fr bq xs h :
-        h \In is_queue fr bq xs -> (fr == null) = (bq == null).
+        h \In is_queue fr bq xs -> 
+        (fr == null) = (bq == null).
 Proof.
 rewrite /is_queue; case: ifP=>[E [->]_ _| E [xt][x][h'][_] D] //.
 by case: eqP D=>// -> /validR; rewrite validPtUn.
@@ -92,7 +107,7 @@ Program Definition free (q : queue) :
       dealloc (back q)).
 Next Obligation.
 (* pull out ghosts and precondition *)
-move=>q [] _ /= [fr][bq][h][/[swap]->/[swap]].
+move=>q [_][fr][bq][h][/[swap] -> /[swap]].
 (* both pointers are null *)
 case/is_queue_nil=>->->->; rewrite unitR=>V.
 (* run the program *)
@@ -104,15 +119,15 @@ Qed.
 (* enqueuing is adding a node at the end *)
 
 Program Definition enq (q : queue) (x : T) :
-  {xs}, STsep (shape q xs,
-               [vfun _ => shape q (rcons xs x)]) :=
+  STsep {xs} (shape q xs,
+              [vfun _ => shape q (rcons xs x)]) :=
   Do (next <-- allocb null 2;
       next ::= x;;
       ba <-- !back q;
       back q ::= next;;
       (if (ba : ptr) == null
          then front q
-         else ba .+ 1) ::= next).
+         else ba.+1) ::= next).
 Next Obligation.
 (* pull out ghosts + precondition *)
 move=>q x [xs][] _ /= [fr][bq][h'][D -> H].
@@ -123,17 +138,17 @@ rewrite -(backfront H) unitR; case: ifP H=>Ef; rewrite /is_queue ?Ef.
 - (* the queue was empty, set the front pointer to new node *)
   case=>_->->; step; rewrite unitR=>V.
   (* massage the heap and restructure the goal *)
-  exists next, next, (next :-> x \+ next.+ 1 :-> null).
+  exists next, next, (next :-> x \+ next.+1 :-> null).
   rewrite joinA joinC; split=>//; apply/(@is_queue_rcons _ _ [::]).
   by exists Unit; rewrite unitL; split=>//; exact: (validL V).
 (* the queue wasn't empty, link the new node to the last one *)
 case=>s2[x2][i2][->] {}D -> H2; step=>V.
 (* massage the heap and simplify the goal *)
-exists fr, next, (i2 \+ bq :-> x2 \+ bq.+ 1 :-> next \+ next :-> x \+ next.+ 1 :-> null).
+exists fr, next, (i2 \+ bq :-> x2 \+ bq.+1 :-> next \+ next :-> x \+ next.+1 :-> null).
 split; first by apply: (validX V).
 - by rewrite joinC !joinA.
 (* the new node conforms to the queue spec *)
-apply/is_queue_rcons; exists (i2 \+ bq :-> x2 \+ bq.+ 1 :-> next).
+apply/is_queue_rcons; exists (i2 \+ bq :-> x2 \+ bq.+1 :-> next).
 rewrite joinA; split=>//; first by apply: (validX V).
 (* assemble the old queue back *)
 by apply/lseg_rcons; exists bq, i2; rewrite joinA.
@@ -142,18 +157,18 @@ Qed.
 (* dequeuing is removing the head node and adjusting pointers *)
 
 Program Definition deq (q : queue) :
-  {xs}, STsep (shape q xs,
-               fun y h => shape q (behead xs) h /\
-                 match y with Val v => xs = v :: behead xs
-                            | Exn e => e = EmptyQueue /\ xs = [::] end) :=
+  STsep {xs} (shape q xs,
+              fun y h => shape q (behead xs) h /\
+                match y with Val v => xs = v :: behead xs
+                           | Exn e => e = EmptyQueue /\ xs = [::] end) :=
   Do (fr <-- !front q;
       if (fr : ptr) == null then throw EmptyQueue
       else
         x <-- !fr;
-        next <-- !fr .+ 1;
+        next <-- !fr.+1;
         front q ::= next;;
         dealloc fr;;
-        dealloc fr .+ 1;;
+        dealloc fr.+1;;
         if (next : ptr) == null
           then back q ::= null;;
                ret x
@@ -182,7 +197,7 @@ case: ifP H=>[/eqP ->|N] H.
   case/(lseg_null (validX V2)): H D=>/=-> _ _ /validR.
   by rewrite validPtUn.
 (* return the segment head and simplify *)
-step=>V; split=>//; exists next, bq, (h2 \+ (bq :-> x \+ bq .+ 1 :-> null)).
+step=>V; split=>//; exists next, bq, (h2 \+ (bq :-> x \+ bq.+1 :-> null)).
 by rewrite N; split=>//; vauto; apply: (validX V).
 Qed.
 

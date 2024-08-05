@@ -1,7 +1,21 @@
+(*
+Copyright 2010 IMDEA Software Institute
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*)
+
 (**********************)
 (* Congruence closure *)
 (**********************)
 
+From HB Require Import structures.
 From Coq Require Import Recdef ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype choice ssrnat seq bigop fintype finfun.
 From pcm Require Import options prelude ordtype finmap pred seqext.
@@ -17,8 +31,8 @@ Inductive constant : Type := const_with_arity of nat & nat.
 (* constants are an equality type *)
 Definition eqcnst (c1 c2 : constant) : bool :=
   match c1, c2 with
-    | const_with_arity s1 n1, const_with_arity s2 n2 =>
-        (s1 == s2) && (n1 == n2)
+  | const_with_arity s1 n1, const_with_arity s2 n2 => 
+    (s1 == s2) && (n1 == n2)
   end.
 
 Lemma eqconstantP : Equality.axiom eqcnst.
@@ -28,8 +42,7 @@ do ![case: eqP=>/=[->|H]; last by apply: ReflectF; case].
 by apply: ReflectT.
 Qed.
 
-Canonical Structure constant_eqMixin := EqMixin eqconstantP.
-Canonical Structure constant_eqType := EqType _ constant_eqMixin.
+HB.instance Definition _ := hasDecEq.Build constant eqconstantP.
 
 (* constants are a countable type *)
 
@@ -42,25 +55,27 @@ Definition consttag (u : {i : nat & nat}) :=
 Lemma tagconstK : cancel tagconst consttag.
 Proof. by case. Qed.
 
+(*
 Lemma consttagK : cancel consttag tagconst.
 Proof. by case. Qed.
+*)
 
-Definition const_countMixin := CanCountMixin tagconstK.
-Definition const_choiceMixin := CountChoiceMixin const_countMixin.
-Canonical Structure const_choiceType := Eval hnf in ChoiceType _ const_choiceMixin.
-Canonical Structure const_countType := Eval hnf in CountType _ const_countMixin.
+HB.instance Definition _ := Countable.copy constant (can_type tagconstK). 
 
 (***********************************************************)
 (* The symbols are a predetermined finite set of constants *)
 (***********************************************************)
-
 Variable symbs : seq constant.
-Definition symb := @seq_sub const_choiceType symbs.
-Canonical Structure symb_eqType := [eqType of symb].
-Canonical Structure symb_finType := [finType of symb for @seq_sub_finType _ _].
-(* symb is an ordered type *)
-Definition symb_ordMixin :=  [fin_ordMixin of symb].
-Canonical Structure symb_ordType := OrdType _ symb_ordMixin.
+Definition symb := seq_sub symbs.
+
+HB.instance Definition _ := Equality.on symb.
+HB.instance Definition _ := Finite.on symb.
+
+HB.instance Definition symb_ord_mix := 
+  isOrdered.Build symb (fintype_is_ordtype symb). 
+(* manual canonical declaration, as HB fails to declare it *)
+Canonical symb_ordType : ordType :=
+  Ordered.Pack (sort:=symb) (Ordered.Class symb_ord_mix).
 
 (****************************)
 (* Expressions over symbols *)
@@ -86,8 +101,7 @@ case: IH2=>[->|H]; last by apply: ReflectF; case.
 by apply: ReflectT.
 Qed.
 
-Canonical Structure exp_eqMixin := EqMixin eqexpP.
-Canonical Structure exp_eqType := EqType _ exp_eqMixin.
+HB.instance Definition _ := hasDecEq.Build exp eqexpP.
 
 (****************************************)
 (* Congruence relations over expression *)
@@ -258,8 +272,7 @@ do ![case: eqP=>[->|H]; last by apply: ReflectF; case];
 by apply: ReflectT.
 Qed.
 
-Canonical Structure Eq_eqMixin := EqMixin eqEqP.
-Canonical Structure Eq_eqType := EqType _ Eq_eqMixin.
+HB.instance Definition _ := hasDecEq.Build Eq eqEqP.
 
 (* interpreting equations as relations *)
 Definition eq2rel (eq : Eq) : rel_exp :=
@@ -320,8 +333,7 @@ do ![case: eqP=>[->|H]; last by apply: ReflectF; case];
 by apply: ReflectT.
 Qed.
 
-Canonical Structure pend_eqMixin := EqMixin eq_pendP.
-Canonical Structure pend_eqType := EqType _ pend_eqMixin.
+HB.instance Definition _ := hasDecEq.Build pend eq_pendP.
 
 (* pending equations are interpreted as follows for *)
 (* purposes of computing the relations they encode  *)

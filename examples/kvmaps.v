@@ -1,10 +1,23 @@
+(*
+Copyright 2020 IMDEA Software Institute
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*)
+
 (******************)
 (* Key-Value maps *)
 (******************)
 
 From Coq Require Import ssreflect ssrbool ssrfun.
-From mathcomp Require Import eqtype seq path.
-From pcm Require Import options axioms pred ordtype finmap.
+From mathcomp Require Import eqtype seq path ssrnat.
+From pcm Require Import options axioms pred ordtype finmap seqext.
 From pcm Require Import pcm unionmap heap autopcm automap.
 From htt Require Import options model heapauto.
 
@@ -15,27 +28,20 @@ From htt Require Import options model heapauto.
 Module KVmap.
 Record Sig (K : ordType) (V : Type) : Type :=
   make {tp :> Type;
-
         default : tp;
-
         shape : tp -> {finMap K -> V} -> Pred heap;
-
         new : STsep (emp, [vfun x => shape x (nil K V)]);
-
-        free : forall x, {s}, STsep (shape x s,
-                                     [vfun _ : unit => emp]);
-
+        free : forall x, STsep {s} (shape x s,
+                                    [vfun _ : unit => emp]);
         insert : forall x k v,
-                   {s}, STsep (shape x s,
-                               [vfun y => shape y (ins k v s)]);
-
+                   STsep {s} (shape x s,
+                              [vfun y => shape y (ins k v s)]);
         remove : forall x k,
-                   {s}, STsep (shape x s,
-                               [vfun y => shape y (rem k s)]);
-
+                   STsep {s} (shape x s,
+                              [vfun y => shape y (rem k s)]);
         lookup : forall x k,
-                   {s}, STsep (shape x s,
-                               [vfun y m => m \In shape x s /\ y = fnd k s])}.
+                   STsep {s} (shape x s,
+                              [vfun y m => m \In shape x s /\ y = fnd k s])}.
 End KVmap.
 
 (**********************************************************)
@@ -44,8 +50,7 @@ End KVmap.
 
 Module AssocList.
 Section AssocList.
-
-Variable (K : ordType) (V : Set).
+Variables (K : ordType) (V : Set).
 Notation fmap := (finMap K V).
 Notation nil := (nil K V).
 
@@ -72,8 +77,9 @@ Definition shape (x : ptr) (s : fmap) : Pred heap :=
 (* null pointer represents an empty map *)
 
 Lemma shape_null (s : fmap) h :
-  valid h -> h \In shape null s ->
-  s = nil /\ h = Unit.
+        valid h -> 
+        h \In shape null s ->
+        s = nil /\ h = Unit.
 Proof.
 move=>D; case: s; case=>/=.
 - by move=>? [_ ->] //; rewrite fmapE.
@@ -85,30 +91,34 @@ Qed.
 (* a head entry respecting the key order can be pulled out of the map *)
 
 Lemma shape_cont (s : fmap) p h :
-  p != null -> h \In shape p s ->
-  exists k v q h',
-   [/\ s = ins k v (behd s),            (* k:->v is the head entry *)
-       all (ord k) (supp (behd s)),
-       h = entry p q k v \+ h' &
-       h' \In shape q (behd s)].
+        p != null -> 
+        h \In shape p s ->
+        exists k v q h',
+          [/\ s = ins k v (behd s),            (* k:->v is the head entry *)
+              all (ord k) (supp (behd s)),
+              h = entry p q k v \+ h' &
+              h' \In shape q (behd s)].
 Proof.
 move=>E; case: s=>xs srt /=.
 elim: xs srt=>/=.
 - by move=>? [E0]; rewrite E0 in E.
 move=>[k v] /= l IH srt [q][h'][-> H].
-exists k,v,q,h'; split=>//; last by apply: path_all.
+exists k,v,q,h'; split=>//; last by apply: order_path_min.
 by rewrite fmapE /= last_ins'.
 Qed.
 
 (* TODO move to finmap? *)
-Lemma all_path (s : fmap) k : all (ord k) (supp s) -> path ord k (supp s).
+Lemma all_path (s : fmap) k : 
+        all (ord k) (supp s) -> 
+        path ord k (supp s).
 Proof. by rewrite path_sortedE // =>->/=; case: s. Qed.
 
 (* inserting an entry with minimal key is prepending to the list *)
 
 Lemma shape_cons (s : fmap) p q h k v :
-   all (ord k) (supp s) -> h \In shape q s ->
-   entry p q k v \+ h \In shape p (ins k v s).
+        all (ord k) (supp s) -> 
+        h \In shape q s ->
+        entry p q k v \+ h \In shape p (ins k v s).
 Proof.
 move/all_path=>S H.
 suff: ins k v s = @FinMap _ _ ((k,v)::seq_of s) S by move=>->; exists q,h.
@@ -119,10 +129,10 @@ Qed.
 (* inserting an entry with maximal key is appending to the list *)
 
 Lemma shape_seg_rcons (s : fmap) x p q h k v :
-  (* conceptually last s < k *)
-  all (ord^~ k) (supp s) ->
-  h \In shape_seg x p s ->
-  (h \+ entry p q k v) \In shape_seg x q (ins k v s).
+        (* conceptually last s < k *)
+        all (ord^~ k) (supp s) ->
+        h \In shape_seg x p s ->
+        (h \+ entry p q k v) \In shape_seg x q (ins k v s).
 Proof.
 case: s=>xs; elim: xs h x=>/=.
 - move=>??? _ [->->]; rewrite unitL.
@@ -137,10 +147,11 @@ Qed.
 (* disjoint maps can be concatenated if the order is respected *)
 
 Lemma shape_fcat s1 s2 h1 h2 x y :
-  (* conceptually last s1 < head s2 *)
-  allrel ord (supp s1) (supp s2) ->
-  h1 \In shape_seg x y s1 -> h2 \In shape y s2 ->
-  h1 \+ h2 \In shape x (fcat s1 s2).
+        (* conceptually last s1 < head s2 *)
+        allrel ord (supp s1) (supp s2) ->
+        h1 \In shape_seg x y s1 -> 
+        h2 \In shape y s2 ->
+        h1 \+ h2 \In shape x (fcat s1 s2).
 Proof.
 move=>O1 H1.
 case: s2 O1=>xs; elim: xs h1 y h2 s1 H1=>/=.
@@ -149,7 +160,7 @@ move=>[k' v'] xs; rewrite /fcat /= => IH /= h1 y h2 s1 H1 srt O2 H2.
 case: H2=>z[h'][-> H']; rewrite joinA; apply: IH; first 1 last.
 - by apply/path_sorted/srt.
 - move=>H0; rewrite (allrel_in_l (xs':=k'::supp s1) _); last by apply: supp_ins.
-  rewrite allrel_consl path_all //=.
+  rewrite allrel_consl order_path_min //=.
   by apply/allrel_sub_r/O2=>?; rewrite inE orbC=>->.
 - by move=>?; apply: H'.
 apply: shape_seg_rcons=>//.
@@ -167,15 +178,15 @@ Next Obligation. by move=>[] /= _ ->; step. Qed.
 (* freeing a map is deallocating all its elements *)
 
 Definition freeT : Type :=
-  forall p, {fm}, STsep (shape p fm, [vfun _ : unit => emp]).
+  forall p, STsep {fm} (shape p fm, [vfun _ : unit => emp]).
 
 Program Definition free : freeT :=
-  Fix (fun (loop : freeT) p =>
+  ffix (fun (loop : freeT) p =>
        Do (if p == null then ret tt
-           else pnext <-- !(p.+2);
+           else pnext <-- !p.+2;
                 dealloc p;;
-                dealloc (p.+1);;
-                dealloc (p.+2);;
+                dealloc p.+1;;
+                dealloc p.+2;;
                 loop pnext)).
 Next Obligation.
 (* pull out ghost var, precondition, branch *)
@@ -193,21 +204,21 @@ Qed.
 (* looking up an element in the map *)
 
 Definition lookupT k : Type :=
-  forall p, {fm}, STsep (shape p fm,
-                        [vfun y m => m \In shape p fm /\ y = fnd k fm]).
+  forall p, STsep {fm} (shape p fm,
+                       [vfun y m => m \In shape p fm /\ y = fnd k fm]).
 
 Program Definition lookup x (k : K) :
-  {fm}, STsep (shape x fm,
-              [vfun y m => m \In shape x fm /\ y = fnd k fm]) :=
-  Fix (fun (loop : lookupT k) (cur : ptr) =>
+  STsep {fm} (shape x fm,
+             [vfun y m => m \In shape x fm /\ y = fnd k fm]) :=
+  ffix (fun (loop : lookupT k) (cur : ptr) =>
        Do (if cur == null then ret None
            else
              k' <-- !cur;
              if k == k'
-               then v <-- !(cur.+1);
+               then v <-- !cur.+1;
                     ret (Some v)
                else if ord k' k
-                 then next <-- !(cur.+2);
+                 then next <-- !cur.+2;
                       loop next
                  else ret None)) x.
 Next Obligation.
@@ -228,7 +239,7 @@ case: ifP=>Ho'.
   step; apply/[gR (behd fm)] @ h'=>//= v0 h0' [H0 E0] _.
   by rewrite Ef fnd_ins (negbTE Ek); split=>//; exact: shape_cons.
 (* head key is bigger than the needed one, abort *)
-move: (semiconnex Ek); rewrite {}Ho' orbC /= =>Ho'; step=>_; split=>//.
+move: (connex Ek); rewrite {}Ho' orbC /= =>Ho'; step=>_; split=>//.
 (* k is not in the head entry *)
 apply/esym/fnd_supp; rewrite Ef supp_ins inE negb_or; apply/andP; split=>//.
 (* nor it is in the tail *)
@@ -244,7 +255,7 @@ Qed.
 (* the focus is needed so that we can connect the remainder of the map to it after removal *)
 Definition removeT p k : Type :=
   forall (prevcur : ptr * ptr),
-    {fm}, STsep (fun h => exists fml fmr k' v',
+    STsep {fm} (fun h => exists fml fmr k' v',
                   [/\ fm = fcat (ins k' v' fml) fmr,
                       all (ord^~ k') (supp fml) /\ all (ord k') (supp fmr),
                       k \notin supp fml /\ k != k' &
@@ -255,33 +266,33 @@ Definition removeT p k : Type :=
                   [vfun _ : unit => shape p (rem k fm)]).
 
 Program Definition remove x (k : K) :
-  {fm}, STsep (shape x fm,
-              [vfun y => shape y (rem k fm)]) :=
-  Do (let go := Fix (fun (loop : removeT x k) '(prev, cur) =>
+  STsep {fm} (shape x fm,
+             [vfun y => shape y (rem k fm)]) :=
+  Do (let go := ffix (fun (loop : removeT x k) '(prev, cur) =>
                      Do (if cur == null then ret tt
                          else k' <-- !cur;
                               if k == k'
-                                then next <-- !(cur.+2);
+                                then next <-- !cur.+2;
                                      dealloc cur;;
-                                     dealloc (cur.+1);;
-                                     dealloc (cur.+2);;
+                                     dealloc cur.+1;;
+                                     dealloc cur.+2;;
                                      prev.+2 ::= (next : ptr);;
                                      ret tt
                                 else if ord k' k
-                                     then next <-- !(cur.+2);
+                                     then next <-- !cur.+2;
                                           loop (cur, next)
                                      else ret tt))
       in
       if x == null then ret null
         else k' <-- !x;
              if k == k'
-                then next <-- !(x.+2);
+                then next <-- !x.+2;
                      dealloc x;;
-                     dealloc (x.+1);;
-                     dealloc (x.+2);;
+                     dealloc x.+1;;
+                     dealloc x.+2;;
                      ret next
                 else if ord k' k
-                     then next <-- !(x.+2);
+                     then next <-- !x.+2;
                           go (x, next);;
                           ret x
                      else ret x).
@@ -313,8 +324,8 @@ step; case: eqP=>[|/eqP] Ek.
   rewrite joinC; apply/shape_fcat/Hr'; last by apply: shape_seg_rcons.
   (* the ordering is respected as well *)
   rewrite (allrel_in_l (xs':=k::supp fml) _); last by apply: supp_ins.
-  rewrite allrel_consl path_all //=.
-  by apply/(allrel_trans (z:=k))/path_all=>//; exact: trans.
+  rewrite allrel_consl order_path_min //=.
+  by apply/(allrel_trans (z:=k))/order_path_min=>//=.
 (* k <> k', now branch on order comparison *)
 case: ifP=>Ho0.
 - (* k' is less than k, invoke the loop, shifting the focus to the right *)
@@ -325,7 +336,7 @@ case: ifP=>Ho0.
       rewrite (eq_all_r (s2:=k::supp fml)) /= ?Ho' /=; last by apply: supp_ins.
       by apply/sub_all/Ol=>? /trans; apply.
     - (* new focus comes before the new suffix *)
-      by apply: path_all.
+      by apply: order_path_min.
     - (* the needed key is not in fml ++ old focus *)
       by rewrite supp_ins inE negb_or E.
     (* heap shape is respected *)
@@ -336,12 +347,12 @@ case: ifP=>Ho0.
   move=>_ m Hm Vm; rewrite Efr.
   by rewrite fcat_inss // -?fcat_sins // in Hm; apply: notin_path.
 (* k' is bigger than k, abort *)
-move: (semiconnex Ek); rewrite {}Ho0 orbC /= =>Ho0.
+move: (connex Ek); rewrite {}Ho0 orbC /= =>Ho0.
 step=>_; rewrite rem_supp.
 - (* the shape is preserved *)
   rewrite joinC; apply: shape_fcat; first 1 last.
   - by apply: shape_seg_rcons.
-  - by rewrite Efr; apply: shape_cons=>//; apply: path_all.
+  - by rewrite Efr; apply: shape_cons=>//; apply: order_path_min.
   (* ordering is preserved *)
   rewrite (allrel_in_l (xs':=k::supp fml) _); last by apply: supp_ins.
   rewrite allrel_consl Or /=.
@@ -375,7 +386,7 @@ case: ifP=>Ho0.
   - by rewrite fcat_inss; [rewrite fcat0s|apply/notin_path/all_path].
   by exists Unit, (entry x next k v \+ h'); split=>//; [rewrite unitL | vauto].
 (* k' is bigger than k, abort *)
-move: (semiconnex Ek); rewrite {}Ho0 orbC /= =>Ho0.
+move: (connex Ek); rewrite {}Ho0 orbC /= =>Ho0.
 (* return the old head, invariants are preserved *)
 step=>_; rewrite -Eh rem_supp // Ef supp_ins !inE negb_or Ek /=.
 by apply/notin_path/path_le/all_path/Of.
@@ -390,7 +401,7 @@ Qed.
 (* the focus is needed so that we can connect the new element to it after insertion *)
 Definition insertT p k v : Type :=
   forall (prevcur : ptr * ptr),
-    {fm}, STsep (fun h => exists fml fmr k' v',
+    STsep {fm} (fun h => exists fml fmr k' v',
                   [/\ fm = fcat (ins k' v' fml) fmr,
                       all (ord^~ k') (supp fml) /\ all (ord k') (supp fmr),
                       k \notin supp fml /\ ord k' k &
@@ -401,9 +412,9 @@ Definition insertT p k v : Type :=
                  [vfun _ : unit => shape p (ins k v fm)]).
 
 Program Definition insert x (k : K) (v : V) :
-  {fm}, STsep (shape x fm,
+  STsep {fm} (shape x fm,
               [vfun y => shape y (ins k v fm)]) :=
-  Do (let go := Fix (fun (loop : insertT x k v) '(prev, cur) =>
+  Do (let go := ffix (fun (loop : insertT x k v) '(prev, cur) =>
                      Do (if cur == null
                            then new <-- allocb k 3;
                                 new.+1 ::= v;;
@@ -415,7 +426,7 @@ Program Definition insert x (k : K) (v : V) :
                                   then cur.+1 ::= v;;
                                        ret tt
                                   else if ord k' k
-                                       then next <-- !(cur.+2);
+                                       then next <-- !cur.+2;
                                             loop (cur, next)
                                        else new <-- allocb k 3;
                                             new.+1 ::= v;;
@@ -433,7 +444,7 @@ Program Definition insert x (k : K) (v : V) :
                then x.+1 ::= v;;
                     ret x
                else if ord k' k
-                    then next <-- !(x.+2);
+                    then next <-- !x.+2;
                          go (x, next);;
                          ret x
                     else new <-- allocb k 3;
@@ -449,7 +460,7 @@ move=>x k0 v0 loop _ prev cur [_][] _ /= [fml][fmr][k][v][-> [Ol Or][El Ho0]][hl
 case: eqP=>[|/eqP] Ec.
 - (* cur = null, insert as the last element *)
   rewrite {}Ec in Hr; apply: vrfV=>Vh.
-  step=>p; rewrite ptrA unitR; do 2!step; rewrite joinC; do 2![step]=>_.
+  step=>p; rewrite unitR; do 2!step; rewrite joinC; do 2![step]=>_.
   (* fmr is empty *)
   case: (shape_null (validX Vh) Hr)=>/=->->.
   rewrite fcats0 unitR [X in _ \+ entry _ _ _ _ \+ X]joinA.
@@ -460,7 +471,8 @@ case: eqP=>[|/eqP] Ec.
 (* cur <> null, pull out the head entry from fmr *)
 case: (shape_cont Ec Hr)=>k'[v'][next][hr'][Efr Or' {hr Hr Ec}-> Hr']; rewrite joinA joinC.
 (* derive ordering facts *)
-move/all_path: (Or); rewrite {1}Efr; case/(path_supp_ins_inv (all_path Or'))/andP=>Ho' /(path_all (@trans _)) Or''.
+move/all_path: (Or); rewrite {1}Efr; case/(path_supp_ins_inv (all_path Or'))/andP=>Ho'.
+move/(order_path_min (@trans _))=>Or''.
 (* get new key, branch on equality comparison *)
 step; case: eqP=>[|/eqP] Ek.
 - (* k = k', update the value at this position *)
@@ -494,15 +506,15 @@ case: ifP=>Ho'0.
   rewrite fcat_inss // in Hm; first by rewrite -fcat_sins in Hm.
   by apply/notin_path/all_path.
 (* k' is bigger than k, insert at this position *)
-move: (semiconnex Ek); rewrite {}Ho'0 orbC /= =>Ho0'.
+move: (connex Ek); rewrite {}Ho'0 orbC /= =>Ho0'.
 (* run the allocation and assignments *)
-step=>new; rewrite ptrA unitR; do 2!step; rewrite joinA joinC; do 2![step]=>_.
+step=>new; rewrite unitR; do 2!step; rewrite joinA joinC; do 2![step]=>_.
 rewrite Efr -fcat_sins; apply: shape_fcat; first 1 last.
 - (* shape is respected for the prefix fml ++ old focus *)
   by apply: shape_seg_rcons.
 - (* shape is satisfed for new element + suffix *)
   rewrite [X in X \+ (entry _ _ _ _ \+ _)]joinA; apply/shape_cons/shape_cons=>//.
-  by apply/path_all/path_supp_ins=>//; apply/path_le/all_path/Or'.
+  by apply/order_path_min=>//; apply/path_supp_ins=>//; apply/path_le/all_path/Or'.
 (* ordering is respected *)
 rewrite (allrel_in_l (xs':=k::supp fml) _); last by apply: supp_ins.
 rewrite (allrel_in_r (ys':=k0::k'::supp (behd fmr)) _ _); last first.
@@ -521,7 +533,7 @@ move=>/= x k0 v0 [fm][]h /= H; case: eqP=>[|/eqP] Ex.
 - (* x = null, insert as the only element, heap and spec are empty *)
   apply: vrfV=>Vh; move: H; rewrite Ex=>/(shape_null Vh) [->->].
   (* run *)
-  step=>p; rewrite ptrA !unitR; do 3![step]=>_.
+  step=>p; rewrite !unitR; do 3![step]=>_.
   by exists null, Unit; rewrite unitR joinA.
 (* x <> null, pull out the head entry *)
 case: (shape_cont Ex H)=>{Ex}k[v][next][h'][Ef Of {h H}-> H].
@@ -539,12 +551,12 @@ case: ifP=>Ho0.
   - by rewrite fcat_inss; [rewrite fcat0s|apply/notin_path/all_path].
   by exists Unit, (entry x next k v \+ h'); split=>//; [rewrite unitL | vauto].
 (* k' is bigger than k, insert after the head *)
-move: (semiconnex Ek); rewrite {}Ho0 orbC /= =>Ho0.
+move: (connex Ek); rewrite {}Ho0 orbC /= =>Ho0.
 (* run allocation and assignments, return the old head *)
-step=>q; rewrite ptrA unitR; do 3![step]=>_.
+step=>q; rewrite unitR; do 3![step]=>_.
 (* invariants are preserved *)
 rewrite Ef [X in X \+ (entry _ _ _ _ \+ _)]joinA; apply/shape_cons/shape_cons=>//.
-by apply/path_all/path_supp_ins=>//; apply/path_le/all_path/Of.
+by apply/order_path_min=>//; apply/path_supp_ins=>//; apply/path_le/all_path/Of.
 Qed.
 
 (* ordered association list is a KV map *)
