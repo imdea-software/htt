@@ -275,83 +275,107 @@ elim: n=>[|n IHn] /= in x y v * => Hv Uv Sv Ny Dx.
   - by rewrite Dx /= if_same Ny; apply: ReflectF.
   by case=>/= xs E Ey; rewrite Ev Dx.
 rewrite Dx /=; have [Vx|Vx] := ifPn.
-- rewrite (negbTE Ny); apply: ReflectF.
-  by case=>xs /=; rewrite Vx. 
+- by rewrite (negbTE Ny); apply: ReflectF; case=>xs /=; rewrite Vx. 
 set v1 := x :: v; set a := children g x; have [->|Nyx] := eqVneq y x.
-- rewrite subset_dfs ?inE ?eqxx //.
-  by apply/ReflectT/dfs_path_id.
+- by rewrite subset_dfs ?inE ?eqxx //; apply/ReflectT/dfs_path_id.
 apply: (@equivP (exists2 x1, x1 \in a & dfs_path g v1 x1 y))=>/=; last first.
-
-
-UP TO HERE
-
-
-
-  by move=>_ Ey Hy; move/linksF/negbTE: Epl; rewrite Hy.
-have [Vx|] := ifPn.
-- rewrite (negbTE Ny); apply: ReflectF; case=>/= xs.
-  by rewrite Vx.
-rewrite negb_or; case/andP=>Nx Px.
-set v1 := x :: v; have [-> | Nyx] := eqVneq y x.
-- rewrite subset_dfs; last by rewrite inE eq_refl.
-  apply: ReflectT; apply: dfs_path_id=>//.
-  by case/linksT: Epl.
-apply: (@equivP (exists2 x1, x1 \in ls & dfs_path p g v1 x1 y)); last first.
-- split=> {IHn} [[x1 Hx1 [p1 P1 Ey Py]] | [p1 /shortenP []]] /=.
-  - case/andP; rewrite !inE !negb_or -andbA; case/and3P=>Ex1 Ex1v Nx1 Ha1; apply: (DfsPath (xs:=x1::p1))=>//=.
-    - by rewrite P1 andbT (links_edge _ Epl).
-    rewrite !inE !negb_or Nx Px Ex1v Nx1 /=.
-    by apply/sub_all/Ha1=>z; rewrite !inE !negb_or -andbA; case/and3P=>_->->.
-  case=>[_ _ _ /= Eyx | x1 xs /=]; first by case/eqP: Nyx.
-  rewrite (links_edge _ Epl) /=; case/andP=>Hx1 Hp1 /and3P [H11 H12 H13] H2 H3 H4 /andP [H5 H6].
-  exists x1=>//; apply: (DfsPath (xs:=xs))=>//.
-  - by apply/implyP=>_; case/linksT: Epl=>_ /allP /(_ _ Hx1).
-  apply/allP=>z /[dup] Hz /H2; move/allP: H6=>/(_ z) /[apply].
-  rewrite !inE !negb_or; case/andP=>->->/=; rewrite !andbT; apply/negP=>/eqP Ez.
-  by rewrite -Ez Hz in H11.
-have{Nyx Ny}: y \notin v1 by apply/norP.
-have{Nx Uv}: uniq v1 by rewrite /= Nx.
-have{Sv}: {subset v1 <= dom g}.
-- move=>z; rewrite inE; case/orP; last by move/Sv.
-  by move/eqP=>{z}->; case/linksT: Epl.
-have{Hv}: size (dom g) <= size v1 + n by rewrite addSnnS.
-case/linksT: Epl=>_ Hl.
-elim: {x Px v}ls Hl v1 => /= [_|x a IHa /andP [Ha Hl]] v /= Hv Sv Uv Nv.
-- by rewrite (negPf Nv); apply: ReflectF; case.
-set v2 := dfs p g n v x; have v2v: {subset v <= v2} := @subset_dfs p g n v [:: x].
+- split=> {IHn} [[x1 Hx1 [p1 P1 E1]] | [p /shortenP[]]] /=.
+  - case/and3P=>/andP [H1 H2 H3 H4]; apply: (DfsPath (xs:=x1::p1))=>//=.
+    - by rewrite edge_children -/a Hx1.
+    rewrite Vx /= -!andbA; apply/and3P; split.
+    - by apply: contra H1; rewrite /v1 inE orbC=>->.
+      by apply: sub_all H2=>z; apply: contra; rewrite /v1 inE orbC=>->.
+    apply/allP=>z /= V; move/allP/(_ z V): H4=>/= H4.
+    rewrite inE (negbTE H4) orbF.
+    by case: (z =P x) V=>// ->; rewrite (negbTE Vx).
+  case=>[_ _ _ /= Eyx|x1 xs /=]; first by case/eqP: Nyx.
+  case/andP=>Hx1 Hp1 /and3P [H1 H2 H3] H4 H5 /andP [/andP [_ /allP H6] H7].
+  exists x1=>//; apply: (DfsPath (xs:=xs))=>//=.
+  rewrite inE negb_or in H1; case/andP: H1=>H11 H12.
+  rewrite -!andbA; apply/and4P; split.
+  - by rewrite /v1 inE negb_or eq_sym H11; apply/H6/H4; rewrite inE eqxx.
+  - apply/allP=>/= z Z; rewrite /v1 inE negb_or.
+    have /H6 -> : z \in p by apply/H4; rewrite inE Z orbT.
+    by case: (z =P x) Z H12=>// ->->.
+  - by rewrite inE negb_or H11 H12.
+   by apply: sub_all H7=>z; apply: contra=>/H4; rewrite inE orbC=>->. 
+move: (Dx).
+have {Nyx Ny}: y \notin v1 by apply/norP.
+have {Sv Dx}: {subset v1 <= dom g}.
+- by move=>z; rewrite inE; case/orP=>[/eqP ->//|/Sv].
+have {Vx Uv}: uniq v1 by rewrite /= Vx.
+have {Hv}: size (dom g) <= size v1 + n by rewrite addSnnS.
+have : {subset a <= dom g} by apply: childrenD.
+elim: {x v}a (x) v1=>[|x a IHa] x' v /= Dxa leq_v'_n U Sv Nv Dx'. 
+- by rewrite (negbTE Nv); apply: ReflectF; case.
+have Dx : x \in dom g by apply: Dxa; rewrite inE eqxx.
+have Da : {subset a <= dom g} by move=>z Z; apply: Dxa; rewrite inE Z orbT.
+set v2 := dfs g n v x.
+have v2v : {subset v <= v2} := @subset_dfs g n v [:: x].
 have [Hy2 | Ny2] := boolP (y \in v2).
-- rewrite subset_dfs //; apply: ReflectT; exists x; first by rewrite inE eq_refl.
-  by apply/IHn.
-apply: {IHa}(equivP (IHa Hl _ _ _ _ Ny2)).
-- by apply: (leq_trans Hv); rewrite leq_add2r; apply: uniq_leq_size.
-- by apply: subset_dfs_dom.
+- rewrite subset_dfs //; apply: ReflectT. 
+  by exists x; [rewrite inE eq_refl|apply/IHn].
+apply: {IHa} (equivP (IHa _ _ _ _ _ _ Ny2 Dx))=>//.
+- by apply/(leq_trans leq_v'_n); rewrite leq_add2r; apply: uniq_leq_size.
 - by apply: uniq_dfs.
-split=> [] [x1 Hx1 [p1 P1 Ey Py Nay]].
+- by apply: subset_dfs_dom.
+split=>[][x1 Hx1 [p1 P1 Ey]].
+- rewrite -!andbA=>/and3P [H1 H2 H3].
   exists x1; first by rewrite inE Hx1 orbT.
-  apply: (DfsPath (xs:=p1))=>//; apply/sub_all/Nay=>z; apply: contra.
-  by rewrite !inE; case/orP; [move/v2v=>->|move=>->; rewrite orbT].
-suff Nv2: all (fun z => z \notin v2) (x1 :: p1).
-- move: Hx1; rewrite inE; case/orP=>[/eqP Ex1|Hx1]; last first.
-  - exists x1=>//; apply: (DfsPath (xs:=p1))=>//.
-    apply/allP=>z Hz; rewrite inE negb_or; apply/andP; split.
-    - by move/allP: Nv2; apply.
-    by move/allP: Nay=>/(_ _ Hz); rewrite inE negb_or; case/andP.
-  rewrite {x1}Ex1 in P1 Py Ey Nay Nv2.
-  exfalso; move: Nv2=>/=; case/andP=>+ _; move/negbTE/negP; apply.
-  suff [Nx Nxp]: (x \notin v) /\ (x \notin dom p).
-  - by apply/IHn=>//; apply: dfs_path_id.
-  by move: Nay=>/=; case/andP; rewrite inE negb_or; case/andP.
-apply: contraR Ny2; case/allPn => x2 Hx2 /negbNE Hx2v.
-case/splitPl: Hx2 Ey P1 Nay => p0 p2 p0x2.
-rewrite last_cat cat_path -cat_cons lastI cat_rcons {}p0x2 => p2y /andP[_ g_p2].
-rewrite all_cat /=; case/and3P=> {p0}_; rewrite inE negb_or; case/andP=>Nx2v Nx2p Np2.
-have{Nx2v Hx2v} [p3 g_p1 p1_x2 V2 not_p1v] := (IHn _ _ v Hv Uv Sv Nx2v Hx2v).
-apply/IHn=>//; exists (p3 ++ p2)=>//.
+  apply: (DfsPath (xs:=p1))=>//=. 
+  rewrite -!andbA; apply/and3P; split.
+  - by apply: contra H1=>/v2v.
+  - by apply: sub_all H2=>z; apply: contra=>/v2v.
+  by apply/allP=>/= z /v2v; apply: (allP H3).
+rewrite /= -!andbA; case/and3P=>H1 H2 H3.
+suff [N1 N2] : all (fun z : node => z \notin v2) (x1 :: p1) /\ 
+  all (fun z : node => z \notin x1 :: p1) v2.
+- move: Hx1; rewrite inE; case/orP=>[/eqP Ex1|Hx1].
+  - subst x1; exfalso; move: N1=>/= /andP [+ _].
+    by move/negbTE/negP; apply; apply/IHn=>//; apply: dfs_path_id.
+  exists x1=>//; apply: (DfsPath (xs:=p1))=>//=.
+  rewrite -!andbA; apply/and3P; split=>//; last by case/andP: N1.
+  by rewrite (allP N1) // inE eqxx.
+split.
+- apply: contraR Ny2; case/allPn => x2 Hx2 /negbNE Hx2v.
+  have {H1 H2} H12 : all (fun z : node => z \notin v) (x1 :: p1).
+  - by simpl; rewrite H1 H2.
+  case/splitPl: Hx2 Ey P1 H12 H3=>p0 p2 p0x2. 
+  rewrite last_cat cat_path -cat_cons lastI cat_rcons {}p0x2 => p2y /andP [_ g_p2].
+  rewrite all_cat /=. case/and3P=>H2 H3 H4 H5.
+  have [p3 g_p1 p1_x2 /= /andP [/andP [V1 V2] V3]] := (IHn _ _ v leq_v'_n U Sv H3 Dx Hx2v). 
+  apply/IHn=>//; exists (p3 ++ p2).
+  - by rewrite cat_path g_p1 -p1_x2.
+  - by rewrite last_cat -p1_x2.
+  simpl. rewrite V1 /=.
+  rewrite all_cat V2 H4 /=. 
+  rewrite -cat_cons. apply/allP=>z V.
+  rewrite mem_cat negb_or. apply/andP. split.
+  - by apply: (allP V3).
+  move/allP: H5. move/(_ z V). simpl. rewrite mem_cat negb_or. simpl.
+  rewrite inE negb_or.  case/and3P. by [].
+
+apply: contraR Ny2; case/allPn=>x2 Hx2 /negbNE Hx2v.
+have {H1 H2} H12: all (fun z : node => z \notin v) (x1 :: p1).
+- by simpl; rewrite H1 H2.
+case/splitPl: Hx2v Ey P1 H12 H3=>p0 p2 p0x2.
+rewrite last_cat cat_path -cat_cons lastI cat_rcons {}p0x2 => p2y /andP [_ g_p2].
+rewrite all_cat /=. case/and3P=>H2 H3 H4 H5.
+have [p3 g_p1 p1_x2 /= /andP [/andP [V1 V2] V3]] := (IHn _ _ v leq_v'_n U Sv H3 Dx Hx2).
+apply/IHn=>//; exists (p3 ++ p2).
 - by rewrite cat_path g_p1 -p1_x2.
 - by rewrite last_cat -p1_x2.
-- by rewrite cat_nilp; apply/implyP; case/andP=>+ _; apply/implyP.
-by rewrite -cat_cons all_cat not_p1v.
+simpl.
+rewrite V1 /=. apply/andP. split.
+- by rewrite all_cat V2 /= H4.
+rewrite -cat_cons. apply/allP=>z V.
+rewrite mem_cat negb_or. apply/andP; split.
+- by apply: (allP V3).
+move/allP: H5. move/(_ z V). rewrite mem_cat negb_or. simpl.
+rewrite inE negb_or. by case/and3P.
 Qed.
+
+UP TO HERE
 
 
 
