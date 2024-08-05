@@ -274,12 +274,19 @@ elim: n=>[|n IHn] /= in x y v * => Hv Uv Sv Ny Dx.
   suff: ~ dfs_path g v x y. 
   - by rewrite Dx /= if_same Ny; apply: ReflectF.
   by case=>/= xs E Ey; rewrite Ev Dx.
+rewrite Dx /=; have [Vx|Vx] := ifPn.
+- rewrite (negbTE Ny); apply: ReflectF.
+  by case=>xs /=; rewrite Vx. 
+set v1 := x :: v; set a := children g x; have [->|Nyx] := eqVneq y x.
+- rewrite subset_dfs ?inE ?eqxx //.
+  by apply/ReflectT/dfs_path_id.
+apply: (@equivP (exists2 x1, x1 \in a & dfs_path g v1 x1 y))=>/=; last first.
+
 
 UP TO HERE
 
-case Epl: (links g x)=>[ls|] /=; last first.
-- rewrite if_same (negbTE Ny); apply: ReflectF; case=>/= xs.
-  case: xs=>[|??]/=; last by rewrite (negbTE (links_edge_not _ Epl)).
+
+
   by move=>_ Ey Hy; move/linksF/negbTE: Epl; rewrite Hy.
 have [Vx|] := ifPn.
 - rewrite (negbTE Ny); apply: ReflectF; case=>/= xs.
