@@ -18,6 +18,147 @@ From pcm Require Import options axioms pred prelude.
 From pcm Require Import pcm unionmap natmap autopcm automap.
 From pcm Require Import seqext.
 
+
+(* disjointness and subset stuff *)
+
+Definition disjoint {A : eqType} (s1 s2 : seq A) := 
+  all (fun x => x \notin s1) s2.
+
+Arguments disjoint {A} : simpl never.
+
+Lemma disjointC (A : eqType) (s1 s2 : seq A) :
+        disjoint s1 s2 = disjoint s2 s1.
+Proof. 
+apply/idP/idP=>/allP S; apply/allP=>x X; 
+by apply/negP=>/S; rewrite X.
+Qed.
+
+Lemma disjoint_catR (A : eqType) (s s1 s2 : seq A) : 
+        disjoint s (s1 ++ s2) = 
+        disjoint s s1 && disjoint s s2.
+Proof. by rewrite /disjoint all_cat. Qed.
+
+Lemma disjoint_catL (A : eqType) (s s1 s2 : seq A) : 
+        disjoint (s1 ++ s2) s = 
+        disjoint s1 s && disjoint s2 s.
+Proof. by rewrite -!(disjointC s) disjoint_catR. Qed.
+
+Lemma disjoint1L (A : eqType) x (s : seq A) :
+        disjoint [:: x] s = (x \notin s).
+Proof.
+apply/idP/idP.
+- by apply: contraL=>X; apply/allPn; exists x=>//; rewrite negbK inE.
+by apply: contraR=>/allPn [y H]; rewrite inE negbK =>/eqP <-.
+Qed.
+
+Lemma disjoint1R (A : eqType) x (s : seq A) :
+        disjoint s [:: x] = (x \notin s).
+Proof. by rewrite disjointC disjoint1L. Qed.
+
+Lemma disjoint_consL (A : eqType) x (s1 s2 : seq A) :
+        disjoint (x :: s1) s2 = 
+        (x \notin s2) && disjoint s1 s2.
+Proof. by rewrite -cat1s disjoint_catL disjoint1L. Qed.
+
+Lemma disjoint_consR (A : eqType) x (s1 s2 : seq A) :
+        disjoint s1 (x :: s2) = 
+        (x \notin s1) && disjoint s1 s2.
+Proof. by rewrite -cat1s disjoint_catR disjoint1R. Qed.
+
+Lemma disjoint_consLI (A : eqType) x (s1 s2 : seq A) :
+        x \notin s2 ->
+        disjoint s1 s2 ->
+        disjoint (x :: s1) s2.
+Proof. by rewrite disjoint_consL=>->->. Qed.
+
+Lemma disjoint_consRI (A : eqType) x (s1 s2 : seq A) :
+        x \notin s1 ->
+        disjoint s1 s2 ->
+        disjoint s1 (x :: s2).
+Proof. by rewrite disjoint_consR=>->->. Qed.
+
+Lemma disjoint_consLE (A : eqType) x (s1 s2 : seq A) :
+        disjoint (x :: s1) s2 ->
+        (x \notin s2) * (disjoint s1 s2).
+Proof. by rewrite disjoint_consL=>/andX. Qed.
+
+Lemma disjoint_consRE (A : eqType) x (s1 s2 : seq A) :
+        disjoint s1 (x :: s2) ->
+        (x \notin s1) * (disjoint s1 s2).
+Proof. by rewrite disjoint_consR=>/andX. Qed.
+
+Lemma disjoint_subL (A : eqType) (s s1 s2 : seq A) : 
+        {subset s2 <= s1} ->
+        disjoint s s1 ->
+        disjoint s s2.
+Proof. by move=>X /allP H; apply/allP=>z /X /H. Qed.
+
+Lemma disjoint_subR (A : eqType) (s s1 s2 : seq A) : 
+        {subset s2 <= s1} ->
+        disjoint s1 s ->
+        disjoint s2 s.
+Proof. 
+move=>X; rewrite disjointC=>/(disjoint_subL X).
+by rewrite disjointC.
+Qed.
+
+Lemma disjoint_eqL {A : eqType} {s s1 s2 : seq A} :
+        s1 =i s2 ->
+        disjoint s1 s = disjoint s2 s.
+Proof. by move=>X; apply/idP/idP; apply: disjoint_subR=>z; rewrite X. Qed.
+
+Lemma disjoint_eqR {A : eqType} {s s1 s2 : seq A} :
+        s1 =i s2 ->
+        disjoint s s1 = disjoint s s2.
+Proof. by move=>X; apply/idP/idP; apply: disjoint_subL=>z; rewrite X. Qed.
+
+Lemma disjointN (A : eqType) (s1 s2 : seq A) : 
+        ~~ disjoint s1 s2 ->
+        exists2 x, x \in s1 & x \in s2.
+Proof. by case/allPn=>x; rewrite negbK; exists x. Qed.
+
+Lemma subset_consL (A : eqType) x (s1 s2 : seq A) : 
+        {subset x :: s1 <= s2} <->
+        x \in s2 /\ {subset s1 <= s2}.
+Proof.
+split=>[S|[X S]].
+- by split=>[|z Z]; apply: S; rewrite inE ?eqxx ?Z ?orbT.
+by move=>z; rewrite inE; case/orP=>[/eqP ->|/S//].
+Qed.
+
+Lemma subset_consLI (A : eqType) x (s1 s2 : seq A) : 
+        x \in s2 ->
+        {subset s1 <= s2} ->
+        {subset x :: s1 <= s2}.
+Proof. by move=>H1 H2; rewrite subset_consL. Qed.
+
+Lemma subset_consR (A : eqType) x (s : seq A) : 
+        {subset s <= x :: s}.
+Proof. by move=>z E; rewrite inE E orbT. Qed.
+
+Lemma subset_consLR (A : eqType) x (s1 s2 : seq A) : 
+        {subset s1 <= s2} ->
+        {subset x :: s1 <= x :: s2}.
+Proof.
+move=>X z; rewrite !inE; case/orP=>[|/X] -> //.
+by rewrite orbT.
+Qed.
+
+Hint Resolve subset_consR : core.
+
+Lemma subset_refl (A : Type) (s : pred A) : 
+        {subset s <= s}.
+Proof. by []. Qed.
+
+Lemma subset_trans (A : eqType) (s1 s2 s3 : pred A) :
+        {subset s1 <= s2} ->
+        {subset s2 <= s3} ->
+        {subset s1 <= s3}. 
+Proof. by move=>S1 S2 z /S1/S2. Qed.
+
+
+
+
 (* Pregraphs are natmaps, mapping nodes into *)
 (* seq node listing the children of the node (adjacency list) *)
 (* Technically pregraph's a "prequiver", because this representation *)
@@ -66,14 +207,14 @@ Coercion Pred_of_history (x : pregraph) : Pred_Class :=
 
 Notation "x &-> v" := (ptsT pregraph x v) (at level 30).
 
-(* p is out-node if no edge goes into it *)
-Definition out_node (g : pregraph) (p : node) := 
-  all (fun s => p \notin s) (range g).
+(* x is out-node if no edge goes into it *)
+Definition out_node (g : pregraph) (x : node) := 
+  all (fun s => x \notin s) (range g).
 
 (* pregraph is graph if valid, and *)
 (* all nodes in all adjacency lists are good *)
 Definition graph_axiom (g : pregraph) := 
-  valid g && all (all (fun p : node => (p == null) || (p \in dom g))) (range g). 
+  valid g && all (all (fun x : node => (x == null) || (x \in dom g))) (range g). 
 
 HB.mixin Record isGraph (g : pregraph) := {
   graph_subproof : graph_axiom g}.
@@ -82,26 +223,26 @@ HB.structure Definition Graph := {g of isGraph g }.
 
 (* removing out-node causes no dangling edges; *)
 (* hence preserves graph axiom *)
-Lemma graphF g p :
-        out_node g p ->
+Lemma graphF g x :
+        out_node g x ->
         graph_axiom g ->
-        graph_axiom (free g p).
+        graph_axiom (free g x).
 Proof.
 move/allP=>/= Hna /andP [V /allP/= Ha].
 rewrite /graph_axiom validF V /=.
 apply/allP=>/= s /rangeF Hs; apply/allP=>q Hq.
 move/allP: (Ha _ Hs) (Hna _ Hs)=>/(_ _ Hq) {}Hs. 
-by rewrite domF inE; case: (p =P q) Hq=>//= ->->.
+by rewrite domF inE; case: (x =P q) Hq=>//= ->->.
 Qed.
 
-(* children of node p obtained by non-dangingle edges *)
-Definition children (g : pregraph) p : seq node :=
-  oapp (filter (mem (dom g))) [::] (find p g).
+(* children of node x obtained by non-dangingle edges *)
+Definition children (g : pregraph) x : seq node :=
+  oapp (filter (mem (dom g))) [::] (find x g).
 
-Lemma children_undef p : children undef p = [::].
+Lemma children_undef x : children undef x = [::].
 Proof. by []. Qed.
 
-Lemma children_unit p : children Unit p = [::].
+Lemma children_unit x : children Unit x = [::].
 Proof. by []. Qed.
 
 Lemma childrenND g x :
@@ -178,10 +319,10 @@ Qed.
 
 Lemma path_dom g x xs :
         path (edge g) x xs ->
-        all (mem (dom g)) xs.
+        {subset xs <= dom g}.
 Proof.
-elim: xs x=>[|a xs IH] x //= /andP [He Hp].
-by apply/andP; split; [case/edge_dom: He|apply: IH Hp].
+elim: xs x=>[|a xs IH] x //= /andP [/edge_dom [_ He] /IH].
+by apply: subset_consLI He. 
 Qed.
 
 (* lifting the theory of finite graphs to unbounded pregraphs *)
@@ -192,6 +333,11 @@ Fixpoint dfs (g : pregraph) (n : nat) (v : seq node) x :=
   if (x \notin dom g) || (x \in v) then v else
   if n is n'.+1 then foldl (dfs g n') (x :: v) (children g x) else v.
 
+Lemma dfs_notin g n v x : 
+        x \notin dom g ->
+        dfs g n v x = v.
+Proof. by elim: n=>[|n IH] /= ->. Qed.
+
 Lemma subset_dfs g n v x : 
         {subset v <= foldl (dfs g n) v x}.
 Proof.
@@ -201,7 +347,7 @@ move=>y Hy; apply: IHx; case: ifP=>//= _.
 by apply: IHn; rewrite inE Hy orbT.
 Qed.
 
-(* accumulator is bound by g *)
+(* avoidance set is bound by g *)
 Lemma subset_foldl_dfs_dom g n v x :
         {subset v <= dom g} ->
         {subset foldl (dfs g n) v x <= dom g}.
@@ -246,18 +392,14 @@ Inductive dfs_path g (v : seq node) x y : Prop :=
   DfsPath xs of 
     path (edge g) x xs & 
     y = last x xs & 
-    (* v and x :: xs are disjoint sequences *)
-    all (fun z => z \notin v) (x :: xs) &&
-    all (fun z => z \notin x :: xs) v.
+    disjoint v (x :: xs).
 
 Lemma dfs_path_id g v x :
-        x \in dom g ->
         x \notin v -> 
         dfs_path g v x x.
 Proof.
-move=>Gx Vx; apply: (DfsPath (xs:=[::]))=>//=.
-rewrite andbT Vx /=; apply/allP=>z; rewrite inE. 
-by case: (z =P x) Vx=>//= -> /negbTE ->.
+move=>Vx; apply: (DfsPath (xs:=[::]))=>//=.
+by rewrite disjoint1R.
 Qed.
 
 Lemma dfs_pathP g n x y v :
@@ -269,111 +411,292 @@ Lemma dfs_pathP g n x y v :
         reflect (dfs_path g v x y) (y \in dfs g n v x).
 Proof.
 elim: n=>[|n IHn] /= in x y v * => Hv Uv Sv Ny Dx. 
-- rewrite addn0 in Hv.
-  case: (uniq_min_size Uv Sv Hv) Ny=>_ Ev /negbTE Ny.
-  suff: ~ dfs_path g v x y. 
-  - by rewrite Dx /= if_same Ny; apply: ReflectF.
-  by case=>/= xs E Ey; rewrite Ev Dx.
-rewrite Dx /=; have [Vx|Vx] := ifPn.
-- by rewrite (negbTE Ny); apply: ReflectF; case=>xs /=; rewrite Vx. 
-set v1 := x :: v; set a := children g x; have [->|Nyx] := eqVneq y x.
+- rewrite addn0 in Hv; case: (uniq_min_size Uv Sv Hv) Ny=>_ Ev /negbTE Ny.
+  suff: ~ dfs_path g v x y by rewrite Dx if_same Ny; apply: ReflectF.
+  by case=>xs E _; rewrite disjoint_consR Ev Dx.
+rewrite Dx /=; have [Vx|Vx] := ifPn. 
+- by rewrite (negbTE Ny); apply: ReflectF=>[[xs]]; rewrite disjoint_consR Vx.
+set v1 := x :: v; set a := children g x; have [->|/eqP Nyx] := eqVneq y x.
 - by rewrite subset_dfs ?inE ?eqxx //; apply/ReflectT/dfs_path_id.
-apply: (@equivP (exists2 x1, x1 \in a & dfs_path g v1 x1 y))=>/=; last first.
-- split=> {IHn} [[x1 Hx1 [p1 P1 E1]] | [p /shortenP[]]] /=.
-  - case/and3P=>/andP [H1 H2 H3 H4]; apply: (DfsPath (xs:=x1::p1))=>//=.
-    - by rewrite edge_children -/a Hx1.
-    rewrite Vx /= -!andbA; apply/and3P; split.
-    - by apply: contra H1; rewrite /v1 inE orbC=>->.
-      by apply: sub_all H2=>z; apply: contra; rewrite /v1 inE orbC=>->.
-    apply/allP=>z /= V; move/allP/(_ z V): H4=>/= H4.
-    rewrite inE (negbTE H4) orbF.
-    by case: (z =P x) V=>// ->; rewrite (negbTE Vx).
-  case=>[_ _ _ /= Eyx|x1 xs /=]; first by case/eqP: Nyx.
-  case/andP=>Hx1 Hp1 /and3P [H1 H2 H3] H4 H5 /andP [/andP [_ /allP H6] H7].
-  exists x1=>//; apply: (DfsPath (xs:=xs))=>//=.
-  rewrite inE negb_or in H1; case/andP: H1=>H11 H12.
-  rewrite -!andbA; apply/and4P; split.
-  - by rewrite /v1 inE negb_or eq_sym H11; apply/H6/H4; rewrite inE eqxx.
-  - apply/allP=>/= z Z; rewrite /v1 inE negb_or.
-    have /H6 -> : z \in p by apply/H4; rewrite inE Z orbT.
-    by case: (z =P x) Z H12=>// ->->.
-  - by rewrite inE negb_or H11 H12.
-   by apply: sub_all H7=>z; apply: contra=>/H4; rewrite inE orbC=>->. 
+apply: (@equivP (exists2 x1, x1 \in a & dfs_path g v1 x1 y))=>/=; last first. 
+- split=>{IHn} [[x1 Hx1 [p1 P1 E1 D1]]|[p /shortenP []]]. 
+  - apply: (DfsPath (xs:=x1::p1))=>//=; first by rewrite edge_children -/a Hx1.
+    by rewrite disjoint_consR Vx (disjoint_consLE D1).
+  case=>[_ _ _ /Nyx|] //= x1 xs /andP [Hx1 Hp1] /and3P [N1 _ _] S1 E1 D1. 
+  exists x1=>//; apply: (DfsPath (xs:=xs))=>//; rewrite disjoint_consL N1.
+  by rewrite (disjoint_consRE (disjoint_subL (subset_consLR S1) D1)).
 move: (Dx).
-have {Nyx Ny}: y \notin v1 by apply/norP.
-have {Sv Dx}: {subset v1 <= dom g}.
-- by move=>z; rewrite inE; case/orP=>[/eqP ->//|/Sv].
-have {Vx Uv}: uniq v1 by rewrite /= Vx.
-have {Hv}: size (dom g) <= size v1 + n by rewrite addSnnS.
+have {Nyx Ny} : y \notin v1 by apply/norP; move/eqP: Nyx.
+have {Sv Dx} : {subset v1 <= dom g} by apply: subset_consLI.
+have {Vx Uv} : uniq v1 by rewrite /= Vx.
+have {Hv} : size (dom g) <= size v1 + n by rewrite addSnnS.
 have : {subset a <= dom g} by apply: childrenD.
-elim: {x v}a (x) v1=>[|x a IHa] x' v /= Dxa leq_v'_n U Sv Nv Dx'. 
+elim: {x v}a (x) v1=>[|x xs IHa] x' v /= Dxs Hv U Sv Nv Dx'. 
 - by rewrite (negbTE Nv); apply: ReflectF; case.
-have Dx : x \in dom g by apply: Dxa; rewrite inE eqxx.
-have Da : {subset a <= dom g} by move=>z Z; apply: Dxa; rewrite inE Z orbT.
+have Dx : x \in dom g by apply: Dxs; rewrite inE eqxx. 
+have Da : {subset xs <= dom g} by apply/subset_trans/Dxs/subset_consR.
 set v2 := dfs g n v x.
-have v2v : {subset v <= v2} := @subset_dfs g n v [:: x].
-have [Hy2 | Ny2] := boolP (y \in v2).
+have Sv2 : {subset v <= v2} := @subset_dfs g n v [:: x].
+have [Hy2|Ny2] := boolP (y \in v2).
 - rewrite subset_dfs //; apply: ReflectT. 
   by exists x; [rewrite inE eq_refl|apply/IHn].
 apply: {IHa} (equivP (IHa _ _ _ _ _ _ Ny2 Dx))=>//.
-- by apply/(leq_trans leq_v'_n); rewrite leq_add2r; apply: uniq_leq_size.
-- by apply: uniq_dfs.
+- by rewrite (leq_trans Hv) ?leq_add2r ?uniq_leq_size.
+- by rewrite uniq_dfs.
 - by apply: subset_dfs_dom.
-split=>[][x1 Hx1 [p1 P1 Ey]].
-- rewrite -!andbA=>/and3P [H1 H2 H3].
-  exists x1; first by rewrite inE Hx1 orbT.
-  apply: (DfsPath (xs:=p1))=>//=. 
-  rewrite -!andbA; apply/and3P; split.
-  - by apply: contra H1=>/v2v.
-  - by apply: sub_all H2=>z; apply: contra=>/v2v.
-  by apply/allP=>/= z /v2v; apply: (allP H3).
-rewrite /= -!andbA; case/and3P=>H1 H2 H3.
-suff [N1 N2] : all (fun z : node => z \notin v2) (x1 :: p1) /\ 
-  all (fun z : node => z \notin x1 :: p1) v2.
-- move: Hx1; rewrite inE; case/orP=>[/eqP Ex1|Hx1].
-  - subst x1; exfalso; move: N1=>/= /andP [+ _].
-    by move/negbTE/negP; apply; apply/IHn=>//; apply: dfs_path_id.
-  exists x1=>//; apply: (DfsPath (xs:=p1))=>//=.
-  rewrite -!andbA; apply/and3P; split=>//; last by case/andP: N1.
-  by rewrite (allP N1) // inE eqxx.
-split.
-- apply: contraR Ny2; case/allPn => x2 Hx2 /negbNE Hx2v.
-  have {H1 H2} H12 : all (fun z : node => z \notin v) (x1 :: p1).
-  - by simpl; rewrite H1 H2.
-  case/splitPl: Hx2 Ey P1 H12 H3=>p0 p2 p0x2. 
-  rewrite last_cat cat_path -cat_cons lastI cat_rcons {}p0x2 => p2y /andP [_ g_p2].
-  rewrite all_cat /=. case/and3P=>H2 H3 H4 H5.
-  have [p3 g_p1 p1_x2 /= /andP [/andP [V1 V2] V3]] := (IHn _ _ v leq_v'_n U Sv H3 Dx Hx2v). 
-  apply/IHn=>//; exists (p3 ++ p2).
-  - by rewrite cat_path g_p1 -p1_x2.
-  - by rewrite last_cat -p1_x2.
-  simpl. rewrite V1 /=.
-  rewrite all_cat V2 H4 /=. 
-  rewrite -cat_cons. apply/allP=>z V.
-  rewrite mem_cat negb_or. apply/andP. split.
-  - by apply: (allP V3).
-  move/allP: H5. move/(_ z V). simpl. rewrite mem_cat negb_or. simpl.
-  rewrite inE negb_or.  case/and3P. by [].
-
-apply: contraR Ny2; case/allPn=>x2 Hx2 /negbNE Hx2v.
-have {H1 H2} H12: all (fun z : node => z \notin v) (x1 :: p1).
-- by simpl; rewrite H1 H2.
-case/splitPl: Hx2v Ey P1 H12 H3=>p0 p2 p0x2.
-rewrite last_cat cat_path -cat_cons lastI cat_rcons {}p0x2 => p2y /andP [_ g_p2].
-rewrite all_cat /=. case/and3P=>H2 H3 H4 H5.
-have [p3 g_p1 p1_x2 /= /andP [/andP [V1 V2] V3]] := (IHn _ _ v leq_v'_n U Sv H3 Dx Hx2).
-apply/IHn=>//; exists (p3 ++ p2).
-- by rewrite cat_path g_p1 -p1_x2.
-- by rewrite last_cat -p1_x2.
-simpl.
-rewrite V1 /=. apply/andP. split.
-- by rewrite all_cat V2 /= H4.
-rewrite -cat_cons. apply/allP=>z V.
-rewrite mem_cat negb_or. apply/andP; split.
-- by apply: (allP V3).
-move/allP: H5. move/(_ z V). rewrite mem_cat negb_or. simpl.
-rewrite inE negb_or. by case/and3P.
+split=>[][x1 Hx1 [p1 P1 Ey D1]].
+- exists x1; first by rewrite inE Hx1 orbT.
+  by apply: DfsPath (disjoint_subR Sv2 D1).
+have Nx1 : x1 \notin v by rewrite (disjoint_consRE D1).
+suff D2 : disjoint v2 (x1 :: p1).
+- move: Hx1; rewrite inE; case/orP=>[/eqP ?|Hx1]; last first.
+  - by exists x1=>//; apply: DfsPath D2.
+  subst x1; have : x \notin v2 by rewrite (disjoint_consRE D2).
+  by move/negP; elim; apply/IHn=>//; apply: dfs_path_id. 
+apply: contraR Ny2=>/disjointN [/= x2 Hx2v Hx2].
+case/splitPl: Hx2 Ey P1 D1=>/= pl pr Ex2.
+rewrite last_cat cat_path -cat_cons lastI cat_rcons {}Ex2.
+move=>Ey /andP [_ P1]; rewrite disjoint_catR=>/andP [D1 D2].
+have Nx2 : x2 \notin v by rewrite (disjoint_consRE D2). 
+have [p P E D] := IHn _ _ v Hv U Sv Nx2 Dx Hx2v.
+apply/IHn=>//; exists (p ++ pr).
+- by rewrite cat_path P -E P1.
+- by rewrite last_cat -E.
+by rewrite -cat_cons disjoint_catR D (disjoint_consRE D2).
 Qed.
+
+(* start dfs with p as avoidance set, then filter out p. *)
+(* this computes only the nodes visited during dfs. *)
+(* not for client use, hence primed name *)
+Definition component' (p : pred node) g x : seq node := 
+  filter (predC p) (dfs g (size (dom g)) (filter p (dom g)) x).
+
+(* y is connected from x if y is visited during dfs *)
+(* under assumption that x is in dom g *)
+Definition connect p (g : pregraph) := 
+  [rel x y | (x \in dom g) && (y \in component' p g x)].
+
+Lemma connectP p (g : pregraph) x y :
+        reflect [/\ x \in dom g, ~~ p x & exists xs, 
+          [/\ path (edge g) x xs, y = last x xs &
+              {in xs, forall z, ~~ p z}]]
+          (y \in connect p g x).
+Proof.
+rewrite /connect/component' inE mem_filter /= andbA.
+case: (boolP (x \in dom g))=>Dx; last by constructor; case.
+case: (boolP (p y))=>Py.
+- constructor; case=>_ Px [xs][P E Pxs].
+  suff : ~~ p y by rewrite Py.
+  have : y \in x :: xs by rewrite E mem_last.
+  by rewrite inE=>/orP [/eqP ->|/Pxs]. 
+apply: (iffP (dfs_pathP _ _ _ _ _))=>//.
+- by rewrite leq_addl.
+- by rewrite filter_uniq.
+- by move=>z; rewrite mem_filter=>/andP [].
+- by rewrite mem_filter negb_and Py.
+- case=>xs P E /disjoint_consRE [].
+  rewrite mem_filter Dx andbT => Px D.
+  split=>//; exists xs; split=>// z Xz; move: (allP D z Xz).
+  by rewrite mem_filter (path_dom P Xz) andbT.
+case=>_ Px [xs][P E Pxs]; exists xs=>//.
+rewrite disjoint_consR mem_filter negb_and Px /=.
+by apply/allP=>z /Pxs; rewrite mem_filter negb_and=>->.
+Qed. 
+
+
+Lemma connect_undef p x : connect p undef x =i pred0.
+Proof. by move=>y; apply/connectP; case; rewrite dom_undef. Qed.
+
+Lemma connect_unit p x : connect p Unit x =i pred0.
+Proof. by move=>y; apply/connectP; case; rewrite dom0. Qed.
+
+
+Lemma connectDx p g x y : 
+        y \in connect p g x ->
+        (x \in dom g) * ~~ p x.
+Proof. by case/connectP. Qed.
+
+Lemma connectDy p g x y : 
+        y \in connect p g x -> 
+        (y \in dom g) * ~~ p y.
+Proof.
+case/connectP=>Dx Px [xs][P E Pxs].
+have : y \in x :: xs by rewrite E mem_last.
+rewrite inE; case/orP=>[/eqP ->|Dy].
+- by rewrite Dx Px.
+by rewrite (path_dom P) // Pxs.
+Qed.
+
+Lemma connectD p g x y : 
+        y \in connect p g x ->
+        (x \in dom g) * (y \in dom g).
+Proof. by move=>C; rewrite (connectDx C) (connectDy C). Qed.
+
+Lemma connectX p g x y : 
+        y \in connect p g x ->
+        (~~ p x) * (~~ p y).
+Proof. by move=>C; rewrite (connectDx C) (connectDy C). Qed.
+
+Lemma connectDN p g x : 
+        x \notin dom g -> 
+        connect p g x =i pred0.
+Proof.
+move=>Dx y; apply/negP=>/connectD [].  
+by rewrite (negbTE Dx).
+Qed.
+
+Lemma connectXN (p : pred node) g x : 
+        p x -> 
+        connect p g x =i pred0.
+Proof.
+move=>Hx y; apply/negP=>/connectX [].
+by rewrite Hx.
+Qed.
+
+Lemma connect0 p g x :
+        x \in connect p g x = (x \in dom g) && ~~ p x.
+Proof. by apply/connectP/andP; case=>// H1 H2; split=>//; exists [::]. Qed.
+
+Lemma connect0I p g x :
+        x \in dom g ->
+        ~~ p x ->
+        x \in connect p g x.
+Proof. by rewrite connect0=>->->. Qed.
+
+Lemma connect0N p g x y : 
+        x \in dom g -> 
+        ~~ p x ->
+        y \notin connect p g x ->
+        x != y.
+Proof. by move=>Gx Px; apply: contra=>/eqP <-; rewrite connect0 Gx. Qed.
+
+Lemma connect_trans p g : transitive (connect p g).
+Proof.
+move=>x y z /connectP [Dy Hy][ys][Py Ey Hys].
+case/connectP=>Dx Hx [xs][Px Ex Hxs].
+apply/connectP; split=>//.
+exists (ys ++ xs); split=>[||w].
+- by rewrite cat_path -Ey Py Px. 
+- by rewrite last_cat -Ey.
+by rewrite mem_cat; case/orP; [apply: Hys|apply: Hxs].
+Qed.
+
+Lemma connectUnL p g1 g2 x :
+        valid (g1 \+ g2) ->
+        {subset connect p g1 x <= 
+                connect p (g1 \+ g2) x}.
+Proof.
+move=>V y /connectP [Dx Hx][xs][Px Ey Hxs]. 
+apply/connectP; split=>//; first by rewrite domUn inE V Dx.
+exists xs; split=>//.
+by apply: sub_path Px=>z w; apply: edgeUnL V.
+Qed.
+
+Lemma connectUnR p g1 g2 x :
+        valid (g1 \+ g2) ->
+        {subset connect p g2 x <= 
+                connect p (g1 \+ g2) x}.
+Proof. by rewrite joinC; apply: connectUnL. Qed.
+
+Lemma connect_sub g p1 p2 x :
+        {subset p2 <= p1} ->
+        {subset connect p1 g x <= connect p2 g x}.
+Proof.
+move=>S y /connectP [Dx Hx][xs][Px Ey Hxs].
+apply/connectP; split=>//; first by apply: contra (S x) Hx. 
+by exists xs; split=>// z /Hxs; apply/contra/S.
+Qed.
+
+(* exteding connecting path from left *)
+Lemma edge_connectI p g x y z : 
+        x \in dom g ->
+        ~~ p x ->
+        edge g x y ->
+        z \in connect p g y ->
+        z \in connect p g x.
+Proof.
+move=>Dx Hx H /connectP [Dy Hy][ys][Py Ez Hys]. 
+apply/connectP; split=>//; exists (y::ys).
+split=>[||w] //=; first by rewrite H Py.
+by rewrite inE; case/orP=>[/eqP ->|/Hys].
+Qed.
+
+(* exteding connecting path from right *)
+Lemma connect_edgeI p g x y z : 
+        y \in connect p g x ->
+        edge g y z ->
+        ~~ p z ->
+        z \in connect p g x.
+Proof.
+case/connectP=>Dx Hx [xs][Px Ey Hxs] H Hz.
+apply/connectP; split=>//.
+exists (rcons xs z); split=>/=.
+- by rewrite rcons_path Px -Ey H.
+- by rewrite last_rcons.
+by move=>w; rewrite mem_rcons inE; case/orP=>[/eqP ->|/Hxs].
+Qed.
+
+(* destructing connecting path from left *)
+Lemma edge_connectE p g x y :
+        y \in connect p g x -> 
+        y = x \/ 
+        exists2 z, edge g x z & y \in connect p g z.
+Proof.
+case/connectP=>Dx H [[|a xs]][/= Px Ey Hxs]; first by left.
+right; case/andP: Px=>Px Pxs; exists a=>//.
+apply/connectP; split. 
+- by rewrite (edge_dom Px).
+- by apply: Hxs; rewrite inE eqxx.
+exists xs; split=>// z Z; apply: Hxs.
+by rewrite inE Z orbT.
+Qed.
+
+(* deconstructing connecting path from right *)
+Lemma connect_edgeE p g x y :
+        y \in connect p g x -> 
+        y = x \/ 
+        exists2 z, z \in connect p g x & edge g z y.
+Proof.
+case/connectP=>Dx H [xs].
+case: {xs}(lastP xs)=>[|xs a][/= Px Ey Hxs]; first by left.
+right; rewrite last_rcons in Ey; rewrite -{a}Ey in Px Hxs.
+rewrite rcons_path in Px; case/andP: Px=>Pxs Px.
+exists (last x xs)=>//; apply/connectP; split=>//.
+exists xs; split=>// z Z; apply: Hxs.
+by rewrite mem_rcons inE Z orbT.
+Qed.
+
+(* part of g reachable from x (avoiding nothing) *)
+Definition subconnect g x : pregraph := 
+  um_filterk (connect pred0 g x) g.
+
+(* part of g unreachable from x (avoiding nothing) *)
+Definition subdisconnect g x : pregraph := 
+  um_filterk (negb \o connect pred0 g x) g.
+
+Lemma connect_split g x : 
+        g = subconnect g x \+ subdisconnect g x.
+Proof. by apply: umfilt_predC. Qed.
+
+(* reachable component of a graph is a graph *)
+Lemma graph_subconnect g x :
+        graph_axiom g -> 
+        graph_axiom (subconnect g x).
+Proof.
+have E := connect_split g x.
+case/andP=>V Ha; apply/andP; split; first by rewrite pfV. 
+apply/allP=>/= xs Hxs; move/allP: Ha=>/(_ xs).
+rewrite {1}E rangeUn inE -E V Hxs /= => /(_ erefl) Ha.
+case/mem_rangeX: Hxs=>k /In_umfiltX [/= Hk] /In_find Hf.
+apply/allP=>n Hn; move/allP: Ha=>/(_ _ Hn).
+case/boolP: (n == null)=>//= Hnn.
+rewrite /subconnect dom_umfiltk inE /= => En.
+rewrite En andbT /=; apply: (connect_trans Hk).
+apply/connectP; split=>//=; first by rewrite (connectD Hk).
+exists [:: n]; split=>//=.
+by rewrite (find_edge _ Hf) En Hn.
+Qed.
+
 
 UP TO HERE
 
@@ -385,333 +708,6 @@ UP TO HERE
 
 (*******************)
 
-
-
-Variant dfs_path (p : nodeset) g (v : seq ptr) x y : Prop :=
-  DfsPath xs of
-    path (edge g) x xs &
-    y = last x xs &
-    nilp xs ==> (x \in dom g) &
-    all (fun z => z \notin [predU v & (dom p)]) (x::xs).
-
-
-
-
-(* ps : nodes that stop the traversal *)
-(* g : pregraph to traverse in dfs *)
-(* n : traversal depth *)
-(* acc : accumulator; currently observed sequence of nodes *)
-(* x : starting node *)
-
-Fixpoint dfs (ps : fset node) (g : pregraph) (n : nat) (acc : seq node) x :=
-  if [|| x \notin dom g, x \in acc | x \in dom ps] then acc else
-  if n is n'.+1 then foldl (dfs ps g n') (x :: acc) (children g x) else acc.
-
-(*
-Fixpoint dfs (ps : fset node) (g : pregraph) (n : nat) (acc : seq node) x :=
-  if (x \in acc) || (x \in dom ps) then acc 
-  else 
-    if x \in dom g then 
-      if n is n'.+1 then foldl (dfs' ps g n') (x :: acc) (children g x) 
-      else acc
-  else acc.
-
-Fixpoint dfs (p : fset node) (g : pregraph) n (v : seq node) x :=
-  if x \in [predU v & (dom p)] then v else
-  if x \in dom g then 
-  if n is n'.+1 then foldl (dfs p g n') (x :: v) (children g x) else v
-  else v.
-*)
-
-(* accumulator grows *)
-Lemma subset_dfs ps g n acc x : 
-        {subset acc <= foldl (dfs ps g n) acc x}.
-Proof.
-elim: n x acc => [|n IHn] /=; elim=>[|x xs IHx] acc //=.
-- by case: ifP.
-move=>y Hy; apply: IHx; case: ifP=>//= _.
-by apply: IHn; rewrite inE Hy orbT.
-Qed.
-
-(* accumulator is bounded by g *)
-Lemma subset_foldl_dfs_dom ps g n acc x :
-        {subset acc <= dom g} ->
-        {subset foldl (dfs ps g n) acc x <= dom g}.
-Proof.
-elim: n x acc=>[|n IHn]; elim=>[|x xs IHx] acc //=.
-- by case: ifP=>_; apply: IHx.
-case: ifP; first by case: (x \in dom g)=>//= H; apply: IHx.
-case Dx: (x \in dom g)=>//= H Gx; apply/IHx/IHn. 
-by move=>z; rewrite inE; case/orP=>[/eqP ->|/Gx].
-Qed.
-
-Lemma subset_dfs_dom ps g n acc x :
-        {subset acc <= dom g} ->
-        {subset dfs ps g n acc x <= dom g}.
-Proof.
-case: n=>[|n] H /=; case: ifP=>//=.
-case Dx : (x \in dom g)=>//= _; apply: subset_foldl_dfs_dom.
-by move=>z; rewrite inE; case/orP=>[/eqP ->|/H].
-Qed.
-
-Inductive dfs_path g v x y : Prop :=
-  DfsPath xs of path (edge g) x xs & y = last x xs & [disjoint x :: xs & v].
-
-
-
-(*******************)
-
-
-
-Variant dfs_path (p : nodeset) g (v : seq ptr) x y : Prop :=
-  DfsPath xs of
-    path (edge g) x xs &
-    y = last x xs &
-    nilp xs ==> (x \in dom g) &
-    all (fun z => z \notin [predU v & (dom p)]) (x::xs).
-
-Lemma dfs_path_id p g v x :
-  x \in dom g ->
-  x \notin dom p -> x \notin v -> dfs_path p g v x x.
-Proof.
-move=>Hx Nx Nv; apply (DfsPath (xs:=[::]))=>//=.
-by rewrite andbT inE negb_or Nv.
-Qed.
-
-Lemma path_dom g x xs :
-  path (edge g) x xs ->
-  all (fun z => z \in dom g) xs.
-Proof.
-elim: xs x=>//=a xs IH x; case/andP=>He Hp.
-by apply/andP; split; [case/edge_dom: He | apply: (IH _ Hp)].
-Qed.
-
-Lemma dfs_pathP p g n x y v :
-  size (dom g) <= size v + n ->
-  uniq v ->
-  {subset v <= dom g} ->
-  y \notin v ->
-  reflect (dfs_path p g v x y) (y \in dfs p g n v x).
-Proof.
-elim: n => [|n IHn] /= in x y v * => Hv Uv Sv Ny.
-- rewrite addn0 in Hv.
-  case: (uniq_min_size Uv Sv Hv) Ny=>_ /(_ y) Ey.
-  move/negbTE=>Ny; rewrite Ey in Ny.
-  suff: ~dfs_path p g v x y by case: (links g x)=>[_|]; rewrite if_same Ey Ny; apply: ReflectF.
-  case; case; first by move=>/= _ <-; rewrite Ny.
-  by move=>a l /path_dom/allP /(_ y) + /= Eyl; rewrite Ny Eyl mem_last; move/[apply].
-case Epl: (links g x)=>[ls|] /=; last first.
-- rewrite if_same (negbTE Ny); apply: ReflectF; case=>/= xs.
-  case: xs=>[|??]/=; last by rewrite (negbTE (links_edge_not _ Epl)).
-  by move=>_ Ey Hy; move/linksF/negbTE: Epl; rewrite Hy.
-have [Vx|] := ifPn.
-- rewrite (negbTE Ny); apply: ReflectF; case=>/= xs.
-  by rewrite Vx.
-rewrite negb_or; case/andP=>Nx Px.
-set v1 := x :: v; have [-> | Nyx] := eqVneq y x.
-- rewrite subset_dfs; last by rewrite inE eq_refl.
-  apply: ReflectT; apply: dfs_path_id=>//.
-  by case/linksT: Epl.
-apply: (@equivP (exists2 x1, x1 \in ls & dfs_path p g v1 x1 y)); last first.
-- split=> {IHn} [[x1 Hx1 [p1 P1 Ey Py]] | [p1 /shortenP []]] /=.
-  - case/andP; rewrite !inE !negb_or -andbA; case/and3P=>Ex1 Ex1v Nx1 Ha1; apply: (DfsPath (xs:=x1::p1))=>//=.
-    - by rewrite P1 andbT (links_edge _ Epl).
-    rewrite !inE !negb_or Nx Px Ex1v Nx1 /=.
-    by apply/sub_all/Ha1=>z; rewrite !inE !negb_or -andbA; case/and3P=>_->->.
-  case=>[_ _ _ /= Eyx | x1 xs /=]; first by case/eqP: Nyx.
-  rewrite (links_edge _ Epl) /=; case/andP=>Hx1 Hp1 /and3P [H11 H12 H13] H2 H3 H4 /andP [H5 H6].
-  exists x1=>//; apply: (DfsPath (xs:=xs))=>//.
-  - by apply/implyP=>_; case/linksT: Epl=>_ /allP /(_ _ Hx1).
-  apply/allP=>z /[dup] Hz /H2; move/allP: H6=>/(_ z) /[apply].
-  rewrite !inE !negb_or; case/andP=>->->/=; rewrite !andbT; apply/negP=>/eqP Ez.
-  by rewrite -Ez Hz in H11.
-have{Nyx Ny}: y \notin v1 by apply/norP.
-have{Nx Uv}: uniq v1 by rewrite /= Nx.
-have{Sv}: {subset v1 <= dom g}.
-- move=>z; rewrite inE; case/orP; last by move/Sv.
-  by move/eqP=>{z}->; case/linksT: Epl.
-have{Hv}: size (dom g) <= size v1 + n by rewrite addSnnS.
-case/linksT: Epl=>_ Hl.
-elim: {x Px v}ls Hl v1 => /= [_|x a IHa /andP [Ha Hl]] v /= Hv Sv Uv Nv.
-- by rewrite (negPf Nv); apply: ReflectF; case.
-set v2 := dfs p g n v x; have v2v: {subset v <= v2} := @subset_dfs p g n v [:: x].
-have [Hy2 | Ny2] := boolP (y \in v2).
-- rewrite subset_dfs //; apply: ReflectT; exists x; first by rewrite inE eq_refl.
-  by apply/IHn.
-apply: {IHa}(equivP (IHa Hl _ _ _ _ Ny2)).
-- by apply: (leq_trans Hv); rewrite leq_add2r; apply: uniq_leq_size.
-- by apply: subset_dfs_dom.
-- by apply: uniq_dfs.
-split=> [] [x1 Hx1 [p1 P1 Ey Py Nay]].
-  exists x1; first by rewrite inE Hx1 orbT.
-  apply: (DfsPath (xs:=p1))=>//; apply/sub_all/Nay=>z; apply: contra.
-  by rewrite !inE; case/orP; [move/v2v=>->|move=>->; rewrite orbT].
-suff Nv2: all (fun z => z \notin v2) (x1 :: p1).
-- move: Hx1; rewrite inE; case/orP=>[/eqP Ex1|Hx1]; last first.
-  - exists x1=>//; apply: (DfsPath (xs:=p1))=>//.
-    apply/allP=>z Hz; rewrite inE negb_or; apply/andP; split.
-    - by move/allP: Nv2; apply.
-    by move/allP: Nay=>/(_ _ Hz); rewrite inE negb_or; case/andP.
-  rewrite {x1}Ex1 in P1 Py Ey Nay Nv2.
-  exfalso; move: Nv2=>/=; case/andP=>+ _; move/negbTE/negP; apply.
-  suff [Nx Nxp]: (x \notin v) /\ (x \notin dom p).
-  - by apply/IHn=>//; apply: dfs_path_id.
-  by move: Nay=>/=; case/andP; rewrite inE negb_or; case/andP.
-apply: contraR Ny2; case/allPn => x2 Hx2 /negbNE Hx2v.
-case/splitPl: Hx2 Ey P1 Nay => p0 p2 p0x2.
-rewrite last_cat cat_path -cat_cons lastI cat_rcons {}p0x2 => p2y /andP[_ g_p2].
-rewrite all_cat /=; case/and3P=> {p0}_; rewrite inE negb_or; case/andP=>Nx2v Nx2p Np2.
-have{Nx2v Hx2v} [p3 g_p1 p1_x2 V2 not_p1v] := (IHn _ _ v Hv Uv Sv Nx2v Hx2v).
-apply/IHn=>//; exists (p3 ++ p2)=>//.
-- by rewrite cat_path g_p1 -p1_x2.
-- by rewrite last_cat -p1_x2.
-- by rewrite cat_nilp; apply/implyP; case/andP=>+ _; apply/implyP.
-by rewrite -cat_cons all_cat not_p1v.
-Qed.
-
-Definition component p g x : seq ptr := dfs p g (size (dom g)) [::] x.
-
-Definition connect p g : rel ptr := [rel x y | y \in component p g x].
-Canonical connect_app_pred p g x := ApplicativePred (connect p g x).
-
-Corollary connectP p g x y :
-  reflect (exists xs, [/\ path (edge g) x xs,
-                          y = last x xs,
-                          nilp xs ==> (x \in dom g) &
-                          all (fun z => z \notin (dom p)) (x::xs)])
-          (y \in connect p g x).
-Proof.
-apply: (iffP (dfs_pathP _ _ _ _ _ _))=>//.
-- by case=>xs P Ey Pv Ha; exists xs.
-by case=>xs [P Ey Pv Ha]; apply: (DfsPath (xs:=xs)).
-Qed.
-
-Corollary connectQ p g x y :
-  reflect [\/ [/\ x = y, x \in dom g & x \notin dom p] |
-              [/\ x \notin dom p, y \notin dom p &
-              exists xs, [/\ path (edge g) x xs, 
-                             edge g (last x xs) y &
-                             forall z, z \in xs -> z \notin dom p]]]
-          (y \in connect p g x). 
-Proof.
-case: connectP=>H; constructor.
-- case: H; case/lastP=>[|zs z][/= H1 H2 H3 H4]; [left|right].
-  - by rewrite andbT in H4; rewrite H2 H3 H4. 
-  case/andP: H4=>H41 /allP H42; rewrite last_rcons in H2.
-  split=>//.
-  - by rewrite H2; apply: H42; rewrite mem_rcons inE eqxx.
-  rewrite rcons_path in H1; case/andP: H1=>H11 H12.
-  exists zs; split=>//=; first by rewrite H2.
-  by move=>w W; apply: H42; rewrite mem_rcons inE W orbT.
-move=>X; apply: H; case: X.
-- by case=>H1 H2 H3; exists [::]; split=>//=; rewrite H3.
-case=>H1 H2 [xs][H3 H4 H5]; exists (rcons xs y).
-rewrite rcons_path H3 H4 last_rcons /nilp size_rcons; split=>//=.
-rewrite H1; apply/allP=>z; rewrite mem_rcons inE.
-by case/orP=>[/eqP ->//|/H5]. 
-Qed.
-
-Lemma connect_trans p g : transitive (connect p g).
-Proof.
-move=> x y z /connectP [xs][Hxs -> Hp Ha] /connectP [ys][Hys -> Hp' Ha']; apply/connectP.
-exists (xs ++ ys); rewrite cat_path last_cat Hxs /=; split=>//.
-- by rewrite cat_nilp; apply/implyP; case/andP=>+ _; apply/implyP.
-rewrite all_cat andbA; apply/andP; split=>//.
-by move: Ha'=>/=; case/andP.
-Qed.
-
-Lemma connect_refl p g x :
-        x \in dom g ->
-        x \in connect p g x = (x \notin dom p).
-Proof.
-move=>Gx; apply/connectQ/idP; first by case; case. 
-by move=>Px; left.
-Qed.
-
-Lemma connect_mem p g x y : 
-        x \in dom g -> 
-        x \notin dom p ->
-        y \notin connect p g x ->
-        x != y.
-Proof. by move=>Gx Px; apply: contra=>/eqP <-; rewrite connect_refl. Qed.
-
-Lemma connect_undef p x : connect p undef x =i pred0.
-Proof.
-move=>y; apply/connectP; case; case=>[|k xs][] /=; first by rewrite dom_undef.
-by rewrite edge_undef.
-Qed.
-
-Lemma connect0 p g x : x \in dom g -> x \notin dom p -> x \in connect p g x.
-Proof. by move=>Hd Hp; apply/connectP; exists [::]; rewrite /= andbT. Qed.
-
-Lemma connectUn p g0 g x :
-  valid (g \+ g0) ->
-  {subset connect p g x <= connect p (g \+ g0) x}.
-Proof.
-move=>V y; case/connectP=>xs [Hp {y}-> /implyP Nxs Ha].
-apply/connectP; exists xs; split=>//; last first.
-- rewrite domUn inE; rewrite V /=.
-  by apply/implyP=>/Nxs->.
-elim: xs {Nxs Ha}x Hp=>//= y xs IH x; case/andP=>Hxy Hxs.
-by apply/andP; split; [apply: edgeUn | apply: IH].
-Qed.
-
-Lemma connect_dom p g x y :
-  y \in connect p g x -> (x \in dom g) * (y \in dom g).
-Proof.
-case/connectP; case=>[|h t]; case; first by move=>/= _ ->.
-move/[dup]/path_dom=>Ha /=; case/andP=>/edge_dom [Hx _] _ Ey _ _; split=>//.
-by apply: (allP Ha); rewrite Ey; exact: mem_last.
-Qed.
-
-Corollary connect_notd p g x : x \notin dom g -> connect p g x =i pred0.
-Proof.
-move=>Hx y; rewrite [RHS]inE; apply/negP; case/connect_dom=>E.
-by rewrite E in Hx.
-Qed.
-
-Lemma connect_notp p g x : x \in dom p -> connect p g x =i pred0.
-Proof.
-move=>Hx y; rewrite [RHS]inE; apply/negbTE/connectP.
-by case=>xs /= [_ _ _]; case/andP; rewrite Hx.
-Qed.
-
-Lemma connect_sub g p1 p2 x :
-  {subset dom p2 <= dom p1} ->
-  {subset connect p1 g x <= connect p2 g x}.
-Proof.
-move=>Hp z; case/connectP=>xs [Hxs {z}-> H Ha].
-apply/connectP; exists xs; split=>//.
-by apply/sub_all/Ha=>z; apply/contra/Hp.
-Qed.
-
-Lemma connect_links_sub p g x ns :
-  find x g = Some ns ->
-  forall y, y \in connect p g x -> (y == x) || has (fun n => y \in connect p g n) ns.
-Proof.
-move=>Hx y.
-case/connectP=>xs [Hp {y}-> H].
-case: xs Hp H=>[|h xs]/=; first by move=>_ _; rewrite eq_refl.
-case/andP; rewrite (find_edge _ Hx); case/andP=>Hh Hns Hxs _; case/and3P=>Hxp Hcp Ha.
-apply/orP; right; apply/hasP; exists h=>//.
-by apply/connectP; exists xs; rewrite Hh /= Hcp Ha; split=>//; apply: implybT.
-Qed.
-
-Lemma connect_eq_links p g x ns :
-  find x g = Some ns ->
-  x \notin dom p ->
-  forall y, y \in connect p g x = (y == x) || has (fun n => y \in connect p g n) ns.
-Proof.
-move=>Hx Hd y; apply/iffE; split; first by apply: connect_links_sub.
-case/orP.
-- move/eqP=>->; apply: connect0=>//.
-  by move/find_some: Hx.
-case/hasP=>n Hn.
-case/connectP=>xs [Hp {y}-> H] /=; case/andP=>Hn1 Ha; apply/connectP.
-exists (n::xs)=>/=; rewrite Hp Hd Hn1 Ha /= andbT; split=>//.
-rewrite (find_edge _ Hx) Hn andbT.
-by case: {Ha}xs Hp H=>//= ??; case/andP; case/edge_dom.
-Qed.
 
 (* TODO generalize to arbitrary boundary? *)
 Definition subconnect p g := um_filterk (fun z => z \in connect Unit g p) g.
