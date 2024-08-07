@@ -171,7 +171,7 @@ Proof. by case/allPn=>x; rewrite negbK; exists x. Qed.
 (* For example, if there are 3 links for x, and null is the 2nd link, *)
 (* that encodes that the second child of x doesn't exist. *)
 (* Non-null dangling links are technically possible, *)
-(* but are treated the same as null. *)
+(* but are treated same as null. *)
 (* If it's desired to treat a non-null dangling link differently *)
 (* from null, add that link to the graph to make it non-dangling. *)
 
