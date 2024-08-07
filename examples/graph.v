@@ -368,8 +368,11 @@ Qed.
 
 (* list of nodes traversed by depth-first search of g *)
 (* at depth n, starting from x, and avoiding v *)
-(* NOTE: uses children, not links, to traverse internal edges only; *)
-(* traversing external edges doesn't seem very sensible *)
+(* DEVCOMMENT: *)
+(* uses children, not links, to traverse internal edges only *)
+(* traversing an external edge may be sensible, *)
+(* as then one can reason about connectivity to external nodes *)
+(* but it will require a completely different reflection theorem *)
 Fixpoint dfs (g : pregraph) (n : nat) (v : seq node) x :=
   if (x \notin dom g) || (x \in v) then v else
   if n is n'.+1 then foldl (dfs g n') (x :: v) (children g x) else v.
@@ -452,9 +455,9 @@ Lemma dfs_pathP g n x y v :
         reflect (dfs_path g v x y) (y \in dfs g n v x).
 Proof.
 elim: n=>[|n IHn] /= in x y v * => Hv Uv Sv Ny Dx. 
-- rewrite addn0 in Hv; case: (uniq_min_size Uv Sv Hv) Ny=>_ Ev /negbTE Ny.
-  suff: ~ dfs_path g v x y by rewrite Dx if_same Ny; apply: ReflectF.
-  by case=>xs E _; rewrite disjoint_consR Ev Dx.
+- rewrite addn0 in Hv; rewrite Dx if_same (negbTE Ny).
+  apply: ReflectF; case=>xs E _; rewrite disjoint_consR.
+  by rewrite (uniq_min_size Uv Sv Hv) Dx.
 rewrite Dx /=; have [Vx|Vx] := ifPn. 
 - by rewrite (negbTE Ny); apply: ReflectF=>[[xs]]; rewrite disjoint_consR Vx.
 set v1 := x :: v; set a := children g x; have [->|/eqP Nyx] := eqVneq y x.
