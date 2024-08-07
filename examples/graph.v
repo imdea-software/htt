@@ -210,11 +210,61 @@ Coercion Pred_of_history (x : pregraph) : Pred_Class :=
 
 Notation "x &-> v" := (ptsT pregraph x v) (at level 30).
 
-(* internal definition *)
+(* links of x includes all outgoing edges, dangling or not *)
 Definition links (g : pregraph) x := oapp id [::] (find x g).
 
-(* children of node x are those obtained by *)
-(* non-dangling edges *)
+Lemma links_undef x : links undef x = [::].
+Proof. by []. Qed.
+
+Lemma links_unit x : links Unit x = [::].
+Proof. by []. Qed.
+
+Lemma linksND g x :
+        x \notin dom g ->
+        links g x = [::].
+Proof. by rewrite /links/oapp; case: dom_find. Qed.
+
+Lemma linksUnL g1 g2 x : 
+        valid (g1 \+ g2) ->
+        links (g1 \+ g2) x = 
+        if x \in dom g1 then links g1 x else links g2 x.
+Proof. by move=>V; rewrite /links/oapp findUnL //; case: dom_find. Qed.
+
+Lemma linksUnR g1 g2 x : 
+        valid (g1 \+ g2) ->
+        links (g1 \+ g2) x = 
+        if x \in dom g2 then links g2 x else links g1 x.
+Proof. by rewrite joinC=>/linksUnL; apply. Qed.
+
+Lemma size_links g x : 
+        size (links g x) > 0 ->
+        x \in dom g.
+Proof. by rewrite /links/oapp; case: dom_find. Qed.
+
+Lemma linksD (g : pregraph) x y : 
+        y \in links g x ->
+        x \in dom g.
+Proof. by move=>X; apply: size_links; case: (links g x) X. Qed.
+
+Lemma In_graph (g : pregraph) x xs : 
+        (x, xs) \In g -> 
+        xs = links g x.
+Proof. by rewrite /links/oapp=>/In_find ->. Qed.
+
+Lemma In_graphX (g : pregraph) x : 
+        x \in dom g ->
+        (x, links g x) \In g.
+Proof. 
+by move=>Dx; apply/In_find; rewrite /links/oapp; case: dom_find Dx. 
+Qed.
+
+Lemma range_links (g : pregraph) x : 
+        x \in dom g ->
+        links g x \in range g.
+Proof. by move/In_graphX/mem_range. Qed.
+
+(* children x are links obtained by non-dangling edges only *)
+
 Definition children (g : pregraph) x : seq node :=
   filter (mem (dom g)) (links g x).
 
@@ -227,43 +277,24 @@ Proof. by []. Qed.
 Lemma childrenND g x :
         x \notin dom g ->
         children g x = [::].
-Proof. by rewrite /children/links/oapp; case: dom_find. Qed.
+Proof. by rewrite /children=>/linksND ->. Qed.
 
 Lemma childrenD g x : 
         {subset children g x <= dom g}.
-Proof.
-move=>y; rewrite /children/links/oapp/=.
-case D : (find x g)=>[a|//].
-by rewrite mem_filter; case/andP.
-Qed.
+Proof. by move=>y; rewrite /children mem_filter; case/andP. Qed.
 
 Lemma childrenUnL g1 g2 x : 
         valid (g1 \+ g2) ->
         {subset children g1 x <= children (g1 \+ g2) x}.
 Proof.
-move=>V y; rewrite /children/links/oapp findUnL //.
-case: dom_find=>// ys /In_find/In_dom /= D _.
-rewrite !mem_filter /= domUn inE V /=.
-by case/andP=>->->.
+move=>V y; rewrite /children !mem_filter /= =>/andP [Dy Ly]. 
+by rewrite domUn inE V Dy linksUnL //= (linksD Ly).
 Qed.
 
 Lemma childrenUnR g1 g2 x : 
         valid (g1 \+ g2) ->
         {subset children g2 x <= children (g1 \+ g2) x}.
 Proof. by rewrite joinC; apply: childrenUnL. Qed.
-
-Lemma size_links g x : 
-        size (links g x) > 0 ->
-        x \in dom g.
-Proof. by rewrite /links/oapp; case: dom_find. Qed.
-
-Lemma range_links (g : pregraph) x : 
-        x \in dom g ->
-        links g x \in range g.
-Proof.
-rewrite /links/oapp.
-by case: dom_find=>// xs /In_find/mem_range.
-Qed.
 
 Lemma children_links (g : pregraph) x : 
         {subset children g x <= links g x}.
@@ -280,8 +311,9 @@ move=>Dx; exists (links g x); first by apply: range_links.
 by apply: children_links.
 Qed.
   
-(* edge relation is just the applicative variant of children *)
-(* thus, consider removing one of them *)
+(* edge is applicative variant of children *)
+(* NOTE: do we want applicative variant of links *)
+(* that computes external edges? *)
 
 Definition edge g : rel node := mem \o children g.
 Arguments edge g x y : simpl never.
@@ -334,8 +366,10 @@ Qed.
 
 (* lifting the theory of finite graphs to unbounded pregraphs *)
 
-(* list of nodes traversed by depth-first search of g  *)
+(* list of nodes traversed by depth-first search of g *)
 (* at depth n, starting from x, and avoiding v *)
+(* NOTE: uses children, not links, to traverse internal edges only; *)
+(* traversing external edges doesn't seem very sensible *)
 Fixpoint dfs (g : pregraph) (n : nat) (v : seq node) x :=
   if (x \notin dom g) || (x \in v) then v else
   if n is n'.+1 then foldl (dfs g n') (x :: v) (children g x) else v.
@@ -884,17 +918,27 @@ Qed.
 (* N-pregraphs *)
 (***************)
 
-(* pregraphs where there is global bound n *)
-(* on the number of links that each node may have *)
+(* pregraphs with global bound n *)
+(* for the number of links of a node *)
 
 Definition n_pregraph_axiom (n : nat) (g : pregraph) :=
-  {in range g, forall xs, size xs = n}.
+  {in dom g, forall x, size (links g x) = n}.
+
+Lemma npregraphP n g : 
+        n_pregraph_axiom n g <->
+        {in range g, forall xs, size xs = n}.
+Proof.
+split=>H x; last by move=>Dx; apply: H (range_links Dx).
+by case/mem_rangeX=>k X; rewrite (In_graph X); apply: H (In_dom X).
+Qed.
 
 Lemma npregraphUnL n g1 g2 :
         valid (g1 \+ g2) ->
         n_pregraph_axiom n (g1 \+ g2) -> 
         n_pregraph_axiom n g1.
-Proof. by move=>V H x R; apply: H; rewrite rangeUn inE V R. Qed.
+Proof. 
+by rewrite !npregraphP=>V H x X; apply: H; rewrite rangeUn inE V X.
+Qed.
 
 Lemma npregraphUnR n g1 g2 :
         valid (g1 \+ g2) ->
@@ -905,11 +949,11 @@ Proof. by rewrite joinC; apply: npregraphUnL. Qed.
 Lemma npregraphF n g x : 
         n_pregraph_axiom n g ->
         n_pregraph_axiom n (free g x).
-Proof. by move=>H z /rangeF; apply: H. Qed.
+Proof. by rewrite !npregraphP=>H z /rangeF; apply: H. Qed.
 
-Definition get_nth (g : pregraph) x := nth null (links g x).
+Definition get_nth g x := nth null (links g x).
 
-Lemma in_node_nth g x n :
+Lemma innode_nth g x n :
         graph_axiom g ->
         in_node g (get_nth g x n).
 Proof.
@@ -920,31 +964,20 @@ have Dx : x \in dom g by apply/size_links/gt0/Hm.
 by apply: Hg (range_links Dx) _; rewrite mem_nth.
 Qed.
 
-
-
+Lemma links_nth n g x :
+        n_pregraph_axiom n g ->
+        x \in dom g ->
+        links g x = map (get_nth g x) (iota 0 n).
+Proof.
+move=>H Dx; apply/(eq_from_nth (x0:=null))=>[|i Hi].
+- by rewrite size_map size_iota H.
+by rewrite map_nth_iota0 ?H // -(H _ Dx) take_size.
+Qed.
 
 
 
 
 (*******************)
-
-Section NGraph.
-
-
-
-
-Lemma all_nth n g :
-  n_graph n g ->
-  all (fun ns => ns == map (get_nth ns) (iota 0 n)) (range g).
-Proof.
-move=>H; apply/sub_all/H=>ns /eqP Hns.
-apply/eqP/(eq_from_nth (x0:=null)).
-- by rewrite size_map size_iota.
-by rewrite Hns=>i Hi; rewrite map_nth_iota0 -Hns // take_size.
-Qed.
-
-End NGraph.
-
 
 Section Acyclic.
 
