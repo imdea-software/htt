@@ -166,8 +166,14 @@ Proof. by case/allPn=>x; rewrite negbK; exists x. Qed.
 (* seq node listing the children of the node (adjacency list) *)
 (* Pregraph differs from graph, in that edges can *dangle*; that is *)
 (* terminate with a node that isn't in the graph. *)
-(* Here, dangling edges are treated as non-existent; *)
-(* that is, target of a dangling edge is treated as null pointer. *)
+(* Dangling edges are allowed because they enable encoding positional *)
+(* information about nodes, as usual in pointer structures. *)
+(* For example, if there are 3 links for x, and null is the 2nd link, *)
+(* that encodes that the second child of x doesn't exist. *)
+(* Non-null dangling links are technically possible, *)
+(* but are treated the same as null. *)
+(* If it's desired to treat a non-null dangling link differently *)
+(* from null, add that link to the graph to make it non-dangling. *)
 
 Notation node := nat.
 Record pregraph := Pregraph {pregraph_base : @UM.base node nat_pred (seq node)}.
@@ -211,15 +217,8 @@ Coercion Pred_of_history (x : pregraph) : Pred_Class :=
 Notation "x &-> v" := (ptsT pregraph x v) (at level 30).
 
 (* Links of x includes all edges outgoing from x *)
-(* and may explicitly include nodes that aren't in dom g. *)
-(* These are so called "dangling edges". *)
-(* Dangling edges are allowed to enable positional information *)
-(* about nodes, as usual in pointer structures. *)
-(* For example, if there are 3 links for x, and null is among *)
-(* the links, that encodes that the second child of x doesn't exist. *)
-(* Non-null dangling links are technially possible, *)
-(* but have the same meaning as null. *)
-
+(* and may explicitly include nodes that aren't in dom g *)
+(* (i.e., are dangling, null or non-null) *)
 Definition links (g : pregraph) x := oapp id [::] (find x g).
 
 Lemma links_undef x : links undef x = [::].
@@ -321,11 +320,10 @@ by apply: children_links.
 Qed.
   
 (* edge is applicative variant of children *)
-(* NOTE: links to null or to other nodes that aren't *)
-(* in graph's domain, are explicitly *not* considered *)
-(* to be edges. If it's desired to treat them as edges, *)
-(* then the external nodes should be made internal, *)
-(* by adding them to the graph's domain *)
+(* NOTE: Links to dangling edges (null or non-null) *)
+(* are explicitly *not* considered edges. *)
+(* If it's desired to treat a non-null dangling node differently *)
+(* from null, add that node to the graph to make it non-dangling. *)
 
 Definition edge g : rel node := mem \o children g.
 Arguments edge g x y : simpl never.
@@ -382,9 +380,8 @@ Qed.
 (* at depth n, starting from x, and avoiding v *)
 (* NOTE: Definition uses children, not links, to avoid *)
 (* following dangling edges. *)
-(* To allow following dangling edges to dangling nodes, *)
-(* make such dangling (non-null) nodes internal, *)
-(* by adding them to the graph's domain *)
+(* If it's desired to treat a non-null dangling node differently *)
+(* from null, add that node to the graph to make it non-dangling. *)
 
 Fixpoint dfs (g : pregraph) (n : nat) (v : seq node) x :=
   if (x \notin dom g) || (x \in v) then v else
