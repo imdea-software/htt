@@ -165,7 +165,7 @@ Proof. by case/allPn=>x; rewrite negbK; exists x. Qed.
 (* Pregraphs are natmaps, mapping nodes into *)
 (* seq node listing the children of the node (adjacency list) *)
 (* Pregraph differs from graph, in that edges can *dangle*; that is *)
-(* terminate with a node that isn't in the graph. *)
+(* terminate with a node that isn't in the graph's domain. *)
 (* Dangling edges are allowed because they enable encoding positional *)
 (* information about nodes, as usual in pointer structures. *)
 (* For example, if there are 3 links for x, and null is the 2nd link, *)
