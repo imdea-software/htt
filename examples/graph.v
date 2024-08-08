@@ -358,12 +358,11 @@ rewrite /edge/= => H; split; last by apply: childrenD H.
 by apply: contraLR H=>/childrenND ->.
 Qed.
 
-Lemma find_edge g x y ys :
-        find x g = Some ys ->
-        edge g x y = (y \in dom g) && (y \in ys).
+Lemma edge_links g x y :
+        edge g x y = (y \in dom g) && (y \in links g x).
 Proof.
-rewrite /edge/children/links/oapp/= => ->.
-by rewrite mem_filter.
+rewrite /edge/children/links/oapp/= mem_filter /=.
+by case: dom_find.
 Qed.
 
 Lemma path_dom g x xs :
@@ -803,12 +802,12 @@ have E : g = subconnect g x \+ um_filterk
   (negb \o connect pred0 g x) g by apply: umfilt_predC.
 move=>V Ha xs /= n Hxs Hn; have {}Dn : in_node g n.
 - by apply: Ha Hn; rewrite E rangeUn inE -E V Hxs.
-case/mem_rangeX: Hxs=>k /In_umfiltX [/= Ck] /In_find Hf.
+case/mem_rangeX: Hxs=>k /In_umfiltX [/= Ck] /In_graph Hf.
 rewrite /in_node in Dn *; case/boolP: (n == null) Dn=>//= Hnn Dn.
 case: (connectD Ck)=>_ Dk.
 rewrite /subconnect dom_umfiltk inE /= Dn andbT.
 apply: connect_trans Ck _; apply/connectP; split=>//.
-by exists [:: n]; split=>//=; rewrite (find_edge _ Hf) Dn Hn.
+by exists [:: n]; split=>//=; rewrite edge_links Dn -Hf Hn.
 Qed.
 
 Lemma edge_subconnect g x y z : 
@@ -987,9 +986,9 @@ move=>H Dx; apply/(eq_from_nth (x0:=null))=>[|i Hi].
 by rewrite map_nth_iota0 ?H // -(H _ Dx) take_size.
 Qed.
 
-(**************)
-(* Acyclicity *)
-(**************)
+(******************)
+(* Biconnectivity *)
+(******************)
 
 Definition biconnect p g x : pred node := 
   [pred y | (x \in connect p g y) && (y \in connect p g x)]. 
@@ -1055,90 +1054,133 @@ Proof. by move=>C x y Hx /(connect_cycle C Hx); apply: connect_sub. Qed.
 
 Lemma biconnect_cycle g xs : 
         cycle (edge g) xs ->
-        {in xs &, forall x y, biconnect [predC xs] g x y}.
-Proof. by move=>C x y Hx Hy; rewrite /biconnect /= !(connect_cycle C). Qed.
-
+        {in xs &, forall x y, y \in biconnect [predC xs] g x}.
+Proof. by move=>C x y Hx Hy; rewrite /biconnect inE !(connect_cycle C). Qed.
 
 Lemma biconnect_cycle0 g xs : 
         cycle (edge g) xs ->
-        {in xs &, forall x y, biconnect pred0 g x y}.
-Proof. move=>C x y Hx /(biconnect_cycle C Hx); apply: biconnect_sub.
+        {in xs &, forall x y, y \in biconnect pred0 g x}.
+Proof. by move=>C x y Hx /(biconnect_cycle C Hx); apply: biconnect_sub. Qed.
 
-UP TO HERE
-
-(*******************)
-
-Section Acyclic.
-
-
-Lemma symconnect_cycle2P g x y : x != y ->
-  reflect (exists2 p, y \in p & cycle (edge g) (x :: p)) (symconnect Unit g x y).
+Lemma biconnect_cycle2P p g x y : 
+        x != y ->
+        reflect (exists xs : seq node, 
+                   [/\ y \in xs, cycle (edge g) (x :: xs) &
+                       {in x :: xs, forall z : node, ~~ p z}])
+                (y \in biconnect p g x).
 Proof.
-move=> Nxy; apply: (iffP idP) => [|[p yp]]; last first.
-  by move=> /symconnect_cycle->//; rewrite inE ?eqxx ?yp ?orbT.
-move: Nxy =>/[swap]/andP [/connectP[p][Hp {y}-> Np _] /connectP[]].
-elim/last_ind => /= [[] _ <-|q z _]; first by rewrite eqxx.
-case; rewrite rcons_path last_rcons => /[swap]{z}<- /andP[gq gzq] _ _ Nxy.
-have := mem_last x p; rewrite in_cons eq_sym (negPf Nxy)/= => yp.
-exists (p ++ q); first by rewrite mem_cat yp.
-by rewrite rcons_path cat_path Hp gq last_cat gzq.
+move=>Nxy; apply/(iffP idP)=>[|[ys][Py Cy Hys]]; last first.
+- apply: biconnect_sub (biconnect_cycle Cy _ _).
+  - by move=>z; apply/contraL/Hys.
+  - by rewrite inE eqxx. 
+  by rewrite inE Py orbT.
+case/andP=>/connectP [Dy Hy][ys]; elim/last_ind: ys Nxy=>[|ys a IH] Nxy.
+- by move/eqP: Nxy=>Nxy [_ /Nxy].
+rewrite rcons_path last_rcons; case=>/[swap] <-{a} /andP [Py Ex Hys].
+case/connectP=>Dx Hx [xs][Px Ey Hxs]; exists (xs ++ ys); split=>/=. 
+- have := mem_last x xs.
+  by rewrite -Ey inE eq_sym (negbTE Nxy) /= mem_cat=>->.
+- by rewrite rcons_path cat_path last_cat -Ey Px Py Ex.
+by move=>z; rewrite -mem_rcons rcons_cat mem_cat=>/orP [];
+[apply: Hxs|apply: Hys].
 Qed.
 
-Definition preacyclic g := all2rel (fun x y => symconnect Unit g x y ==> (x == y)) (dom g).
-
-Lemma preacyclicUn g0 g :
-  valid (g \+ g0) ->
-  preacyclic (g \+ g0) -> preacyclic g.
+Lemma biconnect_cycle2P0 g x y : 
+        x != y ->
+        reflect (exists2 xs, y \in xs & cycle (edge g) (x :: xs)) 
+                (y \in biconnect pred0 g x).
 Proof.
-move=>V /allrelP H; apply/allrelP=>x y Hx Hy; apply/implyP=>Hs.
-have Hx1: x \in dom (g \+ g0) by rewrite domUn inE V Hx.
-have Hy1: y \in dom (g \+ g0) by rewrite domUn inE V Hy.
-move/implyP: (H _ _ Hx1 Hy1); apply.
-by apply: symconnectUn.
+move=>Nxy; apply/(iffP (biconnect_cycle2P pred0 g Nxy)).
+- by case=>xs [H1 H2 H3]; exists xs.
+by case=>xs H1 H2; exists xs.
 Qed.
 
-Definition acyclic g := all (fun x => ~~ edge g x x) (dom g) && preacyclic g.
+(**************)
+(* Acyclicity *)
+(**************)
 
-Lemma acyclicUn g0 g :
-  valid (g \+ g0) ->
-  acyclic (g \+ g0) -> acyclic g.
+(* graph is preacyclic if only self-loops are biconnected *)
+Definition preacyclic g := 
+  all2rel (fun x y => (y \in biconnect pred0 g x) ==> (x == y)) (dom g).
+
+(* graph is acyclic if it doesn't even have self-loops *)
+Definition acyclic g := 
+  preacyclic g && all (fun x => ~~ edge g x x) (dom g).
+
+Lemma preacyclicP g : 
+        reflect {in dom g &, forall x y, y \in biconnect pred0 g x -> x = y}
+                (preacyclic g).
 Proof.
-move=>V; case/andP=>Ha Hp; apply/andP; split; last by apply: (preacyclicUn V Hp).
-apply/allP=>x Hx.
-suff: ~~ edge (g \+ g0) x x by apply/contra/edgeUn.
-by move/allP: Ha; apply; rewrite domUn inE V Hx.
+apply: (iffP idP)=>[|H].
+- by move/allrelP=>H x y Dx Dy C; apply/eqP/(implyP _ C)/H. 
+by apply/allrelP=>x y Dx Dy; apply/implyP=>K; apply/eqP/H.
 Qed.
 
-(* TODO all is overkill here, we only need the head of the path in dom g (?) *)
+Lemma preacyclicL g1 g2 :
+        valid (g1 \+ g2) ->
+        preacyclic (g1 \+ g2) -> 
+        preacyclic g1.
+Proof.
+move=>V /preacyclicP H.
+apply/preacyclicP=>x y Dx Dy C; apply: H.
+- by rewrite domUn inE V Dx.
+- by rewrite domUn inE V Dy.
+by apply: biconnectUnL V C.
+Qed.
+
+Lemma preacyclicR g1 g2 :
+        valid (g1 \+ g2) ->
+        preacyclic (g1 \+ g2) -> 
+        preacyclic g2.
+Proof. by rewrite joinC; apply: preacyclicL. Qed.
+
+Lemma acyclicL g1 g2 :
+        valid (g1 \+ g2) ->
+        acyclic (g1 \+ g2) -> 
+        acyclic g1.
+Proof.
+move=>V /andP [Hp /allP Ha].
+apply/andP; split; first by apply: preacyclicL Hp.
+apply/allP=>x Dx; apply: contra (edgeUnL V) (Ha x _).
+by rewrite domUn inE V Dx.
+Qed.
+
+Lemma acyclicR g1 g2 :
+        valid (g1 \+ g2) ->
+        acyclic (g1 \+ g2) -> 
+        acyclic g2.
+Proof. by rewrite joinC; apply: acyclicL. Qed.
+
+(* graph is acyclic = graph has no cycles *)
 Lemma acyclic_cycleP g :
-  reflect (forall p, ~~ nilp p -> sorted (edge g) p -> all (fun x => x \in dom g) p -> ~~ cycle (edge g) p)
-          (acyclic g).
+        reflect (forall x xs, x \in dom g -> ~~ cycle (edge g) (x :: xs))
+                (acyclic g).
 Proof.
-rewrite /acyclic; apply: (iffP andP)=>[|Hn]; last first.
-- split; first by apply/allP=>x Hx; move: (Hn [::x])=>/=; rewrite !andbT; apply.
-  apply/allrelP=>x y Hx _; apply/implyP/contraLR => neqxy.
-  apply/symconnect_cycle2P => // -[p Hp] /[dup].
-  rewrite [X in X -> _]/= rcons_path => /andP[/[dup] /path_dom Hd Hg Ha].
-  by apply/negP/Hn=>//=; rewrite Hx.
-case=>/allP Ne /allrelP Ng.
-case=>//= x p _; rewrite rcons_path =>/[dup] E ->/=; case/andP=>Hx.
-case: p E=>/=; first by move=>_ _; apply: Ne.
-move=>y p; case/andP=>He Hp; case/andP=>Hy Ha.
-have: ~~ symconnect Unit g x y.
-- apply/negP=>Hs; move: (Ng _ _ Hx Hy); rewrite Hs /= =>/eqP Exy.
-  by rewrite Exy in He; move: (Ne _ Hy); rewrite He.
-apply: contra=>He1; apply: (symconnect_cycle (p:=x::y::p))=>/=; try by rewrite ?(in_cons, eqxx, orbT).
-by rewrite rcons_path  He Hp.
+apply: (iffP idP)=>[|H]; last first.
+- apply/andP; split; last first.
+  - by apply/allP=>x Dx; apply: contra (H _ [::] Dx); rewrite /= =>->.
+  apply/preacyclicP=>x y Dx Dy By; apply/eqP/(contraLR _ By)=>{By} Nxy.
+  by apply/(biconnect_cycle2P0 _ Nxy); case=>/= xs Hx; apply/negP/H/Dx.
+case/andP=>/preacyclicP Ng /allP Ne x xs Dx /=.
+rewrite rcons_path; apply/negP=>/andP [].
+case: xs=>[_|y xs /= /andP [Exy Px]]; first by apply/negP/Ne.
+have Dy : y \in dom g by rewrite (edge_dom Exy).
+have : y \notin biconnect pred0 g x.
+- by apply: contraL Exy=>/(Ng x y Dx Dy) <-; apply: Ne Dx.
+apply: contraNnot=>Ex; apply: (biconnect_cycle0 (xs:=x::y::xs))=>/=.
+- by rewrite Exy rcons_path Px Ex.
+- by rewrite inE eqxx.
+by rewrite !inE eqxx orbT.
 Qed.
 
-Lemma acyclic_find g n ns :
-  acyclic g ->
-  find n g = Some ns ->
-  n \notin ns.
+Lemma acyclic_links g x :
+        acyclic g ->
+        x \notin links g x.
 Proof.
-case/andP=>Ha _ /[dup]Hf /find_some Hn.
-move/allP: Ha=>/(_ _ Hn).
-by rewrite (find_edge _ Hf) negb_and Hn.
+case/andP=>_ /allP H.
+have [Dx|Nx] := boolP (x \in dom g); last by rewrite linksND.
+by apply: contra (H _ Dx)=>Lx; rewrite edge_links Dx Lx.
 Qed.
 
-End Acyclic.
+
+
