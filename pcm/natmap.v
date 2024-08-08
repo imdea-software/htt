@@ -124,6 +124,9 @@ Lemma In_neq A (U : natmap A) (h : U) k :
         k.1 > 0.
 Proof. by move/In_cond; rewrite lt0n. Qed. 
 
+Lemma mem_domN0 A (U : natmap A) {h : U} : 0 \notin dom h.
+Proof. by rewrite cond_dom. Qed.
+
 Lemma mem_dom0 A (U : natmap A) {h : U} : 0 \in dom h = false.
 Proof. by rewrite cond_dom. Qed.
 
@@ -136,10 +139,11 @@ Proof. by apply/allP=>x /dom_cond; case: ltngtP. Qed.
 Lemma all_ltn0 A (U : natmap A) {h : U} : all (ltn 0) (dom h).
 Proof. by apply/allP=>x /dom_cond; case: ltngtP. Qed.
 
-#[export] Hint Resolve uniq_dom0 all_leq0 all_ltn0 : core.
+#[export] Hint Resolve uniq_dom0 all_leq0 all_ltn0 mem_domN0 : core.
 
 Lemma In_dom0 {A} {U : natmap A} (h : U) k e : 
-        (k, e) \In h -> k \in 0 :: dom h.
+        (k, e) \In h -> 
+        k \in 0 :: dom h.
 Proof. by move=>H; rewrite inE (In_dom H) orbT. Qed.
 
 Lemma sorted_leq_dom A {U : natmap A} {h : U} : sorted leq (dom h).

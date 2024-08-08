@@ -1243,7 +1243,7 @@ End DomEq2Lemmas.
 (**********)
 
 Section UpdateLemmas.
-Variable (K : ordType) (C : pred  K) (V : Type) (U : union_map C V).
+Variable (K : ordType) (C : pred K) (V : Type) (U : union_map C V).
 Implicit Types (k : K) (v : V) (f : U).
 
 Lemma upd_undef k v : upd k v undef = undef :> U.
@@ -1636,7 +1636,7 @@ Proof.
 by move=>x; rewrite ptsU domU !inE eq_sym valid_unit dom0; case: eqP.
 Qed.
 
-Lemma validPt k v : valid (pts k v : U) = C k. 
+Lemma validPt k v : valid (pts k v : U) = C k.
 Proof. by rewrite ptsU validU valid_unit andbT. Qed.
 
 Lemma domPtV k v : valid (pts k v : U) -> k \in dom (pts k v : U).
@@ -3643,7 +3643,7 @@ Lemma omfUE f k (v : V) (x : U) :
         if C k then
           if omf f (k, v) is Some v' then upd k v' (f x)
           else free (f x) k
-        else undef. 
+        else undef.
 Proof.
 case: ifP=>// D; last by rewrite (upd_condN v x (negbT D)) pfundef.
 case: (normalP x)=>[->|H].
@@ -4321,7 +4321,7 @@ Lemma umfiltUE p k v f :
            if p (k, v) then upd k v (um_filter p f)
            else free (um_filter p f) k
         else undef.
-Proof. by rewrite omfUE omf_omap /=; case: (p _). Qed.
+Proof. by rewrite omfUE omf_omap; case: (p _). Qed.
 
 Lemma umfiltU p k v f :
         C k ->
@@ -4443,7 +4443,7 @@ apply/negP; case/In_dom_umfilt=>v2 /= [H1 F2].
 by move: (H x (In_dom F1) H1 H2).
 Qed.
 
-Lemma dom_umfiltk p f : dom (um_filterk p f) =i predI p (mem (dom f)).  
+Lemma dom_umfiltk p f : dom (um_filterk p f) =i predI p (mem (dom f)).
 Proof. by move=>k; rewrite dom_umfiltkE mem_filter. Qed.
 
 (* DEVCOMMENT *)
