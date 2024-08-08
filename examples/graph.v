@@ -12,8 +12,8 @@ limitations under the License.
 *)
 
 From HB Require Import structures.
-From Coq Require Import ssreflect ssrbool ssrfun.
-From mathcomp Require Import eqtype ssrnat seq path.
+From Coq Require Import ssreflect ssrfun.
+From mathcomp Require Import ssrbool eqtype ssrnat seq path.
 From pcm Require Import options axioms pred prelude.
 From pcm Require Import pcm unionmap natmap autopcm automap.
 From pcm Require Import seqext.
@@ -527,16 +527,16 @@ Definition component' (p : pred node) g x : seq node :=
 
 (* y is connected from x if y is visited during dfs *)
 (* under assumption that x is in dom g *)
-Definition connect p (g : pregraph) := 
-  [rel x y | (x \in dom g) && (y \in component' p g x)].
+Definition connect p (g : pregraph) x : pred node := 
+  fun y => (x \in dom g) && (y \in component' p g x). 
 
-Lemma connectP p (g : pregraph) x y :
-        reflect [/\ x \in dom g, x \notin p & exists xs, 
+Lemma connectP (p : pred node) (g : pregraph) x y :
+        reflect [/\ x \in dom g, ~~ p x & exists xs, 
           [/\ path (edge g) x xs, y = last x xs &
-              {in xs, forall z, z \notin p}]]
+              {in xs, forall z, ~~ p z}]]
           (y \in connect p g x).
 Proof. 
-rewrite /connect/component' inE mem_filter /= andbA.
+rewrite /connect/component'/= {2}/in_mem /= mem_filter /= andbA.
 case: (boolP (x \in dom g))=>Dx; last by constructor; case.
 case: (boolP (p y))=>Py.
 - constructor; case=>_ Px [xs][P E Pxs].
@@ -559,11 +559,11 @@ Qed.
 
 (* there's path from x to y iff *)
 (* there's path that doesn't loop through x *)
-Lemma connectX p (g : pregraph) x y :
-        reflect [/\ x \in dom g, x \notin p & exists xs, 
+Lemma connectX (p : pred node) (g : pregraph) x y :
+        reflect [/\ x \in dom g, ~~ p x & exists xs, 
           [/\ path (edge g) x xs, y = last x xs, 
               x \notin xs &
-              {in xs, forall z, z \notin p}]]
+              {in xs, forall z, ~~ p z}]]
           (y \in connect p g x).
 Proof.
 case: connectP=>H; constructor; last first.
@@ -592,12 +592,12 @@ Proof. by move=>y; apply/connectP; case; rewrite dom0. Qed.
 
 Lemma connectDx p g x y : 
         y \in connect p g x ->
-        (x \in dom g) * (x \notin p).
+        (x \in dom g) * ~~ p x.
 Proof. by case/connectP. Qed.
 
 Lemma connectDy p g x y : 
         y \in connect p g x -> 
-        (y \in dom g) * (y \notin p).
+        (y \in dom g) * ~~ p y.
 Proof.
 case/connectP=>Dx Px [xs][P E Pxs].
 have : y \in x :: xs by rewrite E mem_last.
@@ -613,7 +613,7 @@ Proof. by move=>C; rewrite (connectDx C) (connectDy C). Qed.
 
 Lemma connectDp p g x y : 
         y \in connect p g x ->
-        (x \notin p) * (y \notin p).
+        (~~ p x) * (~~ p y).
 Proof. by move=>C; rewrite (connectDx C) (connectDy C). Qed.
 
 Lemma connectDN p g x : 
@@ -625,7 +625,7 @@ by rewrite (negbTE Dx).
 Qed.
 
 Lemma connectDNp (p : pred node) g x : 
-        x \in p -> 
+        p x -> 
         connect p g x =i pred0.
 Proof.
 move=>Hx y; apply/negP=>/connectX [].
@@ -633,18 +633,18 @@ by rewrite Hx.
 Qed.
 
 Lemma connect0 p g x :
-        x \in connect p g x = (x \in dom g) && (x \notin p).
+        x \in connect p g x = (x \in dom g) && ~~ p x.
 Proof. by apply/connectP/andP; case=>// H1 H2; split=>//; exists [::]. Qed.
 
-Lemma connect0I p g x :
+Lemma connect0I (p : pred node) (g : pregraph) x :
         x \in dom g ->
-        x \notin p ->
+        ~~ p x ->
         x \in connect p g x.
 Proof. by rewrite connect0=>->->. Qed.
 
-Lemma connect0N p g x y : 
+Lemma connect0N (p : pred node) (g : pregraph) x y : 
         x \in dom g -> 
-        x \notin p ->
+        ~~ p x ->
         y \notin connect p g x ->
         x != y.
 Proof. by move=>Gx Px; apply: contra=>/eqP <-; rewrite connect0 Gx. Qed.
@@ -677,8 +677,8 @@ Lemma connectUnR p g1 g2 x :
                 connect p (g1 \+ g2) x}.
 Proof. by rewrite joinC; apply: connectUnL. Qed.
 
-Lemma connect_sub g p1 p2 x :
-        {subset p2 <= p1} ->
+Lemma connect_sub g (p1 p2 : pred node) x :
+        subpred p2 p1 ->
         {subset connect p1 g x <= connect p2 g x}.
 Proof.
 move=>S y /connectP [Dx Hx][xs][Px Ey Hxs].
@@ -687,7 +687,7 @@ by exists xs; split=>// z /Hxs; apply/contra/S.
 Qed.
 
 Lemma connect_eq g p1 p2 x :
-        p1 =i p2 ->
+        p1 =1 p2 ->
         connect p1 g x =i connect p2 g x.
 Proof. by move=>S y; apply/idP/idP; apply/connect_sub=>z; rewrite S. Qed.
 
@@ -791,7 +791,7 @@ Qed.
 
 (* part of g reachable from x (avoiding nothing) *)
 Definition subconnect g x : pregraph := 
-  um_filterk (connect pred0 g x) g.
+  um_filterk (mem (connect pred0 g x)) g.
 
 (* reachable component of a graph is a graph *)
 Lemma graph_subconnect g x :
@@ -817,7 +817,7 @@ Lemma edge_subconnect g x y z :
             z \in connect pred0 g x & 
             edge g y z].
 Proof.
-rewrite /edge/children/links/oapp/= find_umfiltk topredE.
+rewrite /edge/children/links/oapp/= find_umfiltk /=.
 case: ifP=>// _; case: (find y g)=>[ys|]; last by rewrite andbF.
 by rewrite !mem_filter /= dom_umfiltk inE -andbA.
 Qed.
@@ -834,16 +834,16 @@ move=>w; apply/iffE; split; case/connectP.
   by apply/sub_path/Px=>y z; rewrite edge_subconnect=>/and3P [].
 move=>Dx _ [xs][Px Ew _]; apply/connectP; split=>//.
 - by rewrite dom_umfiltk inE topredE connect0 Dx.
-exists xs; split=>//; apply/(sub_in_path (P:=connect pred0 g x))/Px.
+exists xs; split=>//.
+apply/(sub_in_path (P:=[in connect pred0 g x]))/Px.  
 - by move=>y z Cy Cz E; rewrite edge_subconnect Cy Cz E.
 apply/allP=>z; rewrite inE; case/orP=>[/eqP ->|Hz].
-- by rewrite topredE connect0 Dx. 
+- by rewrite connect0 Dx. 
 case/splitPr: Hz Px=>xs1 xs2.
 rewrite -cat1s catA cats1 cat_path=>/andP [Px _].
 apply/connectP; split=>//.
 by exists (rcons xs1 z); rewrite last_rcons.
 Qed.
-
 
 (****************************)
 (* Avoidance sets (marking) *)
@@ -851,11 +851,11 @@ Qed.
 
 (* deconstructing connecting path from left *)
 (* strenghtening avoidance *)
-Lemma edge_connectX g p (x y : node) :
+Lemma edge_connectX p g (x y : node) :
         y != x ->
         y \in connect p g x ->
         exists2 z, 
-          edge g x z & y \in connect [predU pred1 x & p] g z.
+          edge g x z & y \in connect (predU (pred1 x) p) g z.
 Proof.
 move/eqP=>Nxy /connectX [Dx Hx][[|a xs]] /= [Px Ey Nx Hxs].
 - by move/Nxy: Ey.
@@ -870,11 +870,11 @@ Qed.
 
 (* extending connecting path from left *)
 (* weakening avoidance *)
-Lemma edge_connectXI p g x y z : 
+Lemma edge_connectXI (p : pred node) (g : pregraph) x y z : 
         x \in dom g ->
-        x \notin p ->
+        ~~ p x ->
         edge g x y ->
-        z \in connect [predU pred1 x & p] g y ->
+        z \in connect (predU (pred1 x) p) g y ->
         z \in connect p g x.
 Proof. 
 move=>Dx Px Ex /(connect_sub (p2:=p)) H. 
@@ -887,8 +887,8 @@ Qed.
 (* equivalence variant *)
 Lemma edge_connectXE p g x y :
         y \in connect p g x <->
-        [/\ x \in dom g, x \notin p & y = x \/ exists2 z, 
-            edge g x z & y \in connect [predU pred1 x & p] g z].
+        [/\ x \in dom g, ~~ p x & y = x \/ exists2 z, 
+            edge g x z & y \in connect (predU (pred1 x) p) g z]. 
 Proof.
 split=>[C|[Dx Hx]]; last first.
 - case=>[->|[z E C]]; first by rewrite connect0 Dx Hx.  
@@ -904,10 +904,10 @@ Qed.
 Lemma connect_avoid p g x y x' :
         y \in connect p g x ->
         y \notin connect p g x' ->
-        y \in connect [predU p & connect p g x'] g x.
+        y \in connect (predU p [in connect p g x']) g x.
 Proof.
 case/connectP=>Dx Hx [xs][Px Ey Hxs] Ny. 
-have [Nx|Mx] := boolP (has (connect p g x') (x :: xs)); last first.
+have [Nx|Mx] := boolP (has [in connect p g x'] (x :: xs)); last first.
 (* if path contains no nodes reachable from x', nothing to do *)
 - move/hasPn: Mx=>Mx; apply/connectP; split=>//.
   - by rewrite inE negb_or Hx Mx // inE eqxx.
@@ -915,7 +915,7 @@ have [Nx|Mx] := boolP (has (connect p g x') (x :: xs)); last first.
 (* if path contains node reachable from x' *)
 (* let a be the last such node in the path *)
 case: {-1} _ _ _ / (split_findlast Nx) (erefl (x::xs)).
-move=>{Nx} a p1 p2; rewrite topredE=>Ca /hasPn Nx' X.
+move=>{Nx} a p1 p2=>Ca /hasPn/= Nx' X.
 (* suffices to show that y is reachable from a *)
 (* because then y is also reachable from x'; contradiction *)
 suff Cy : y \in connect p g a.
@@ -987,37 +987,89 @@ move=>H Dx; apply/(eq_from_nth (x0:=null))=>[|i Hi].
 by rewrite map_nth_iota0 ?H // -(H _ Dx) take_size.
 Qed.
 
+(**************)
+(* Acyclicity *)
+(**************)
+
+Definition biconnect p g x : pred node := 
+  [pred y | (x \in connect p g y) && (y \in connect p g x)]. 
+
+Lemma biconnect0 p g x : 
+        x \in dom g -> 
+        ~~ p x -> 
+        biconnect p g x x.
+Proof.  by move=>Dx Hp; rewrite /biconnect/= connect0 Dx Hp. Qed.
+
+Lemma biconnectUnL p g1 g2 x y :
+        valid (g1 \+ g2) ->
+        biconnect p g1 x y -> 
+        biconnect p (g1 \+ g2) x y.
+Proof. by move=>V /andP [Cx Cy]; apply/andP; split; apply/connectUnL. Qed.
+
+Lemma biconnectUnR p g1 g2 x y :
+        valid (g1 \+ g2) ->
+        biconnect p g2 x y -> 
+        biconnect p (g1 \+ g2) x y.
+Proof. by rewrite joinC; apply: biconnectUnL. Qed.
+
+Lemma biconnect_sub g (p1 p2 : pred node) (x : node) :
+        subpred p2 p1 -> 
+        {subset biconnect p1 g x <= biconnect p2 g x}.
+Proof. 
+by move=>S y; rewrite !inE=>/andP [Hx Hy]; rewrite !(connect_sub S). 
+Qed.
+
+Lemma biconnect_eq g (p1 p2 : pred node) (x : node) :
+        p1 =1 p2 -> 
+        biconnect p1 g x =i biconnect p2 g x.
+Proof. by move=>S y; rewrite !inE !(connect_eq g _ S). Qed.
+
+(* elements in a cycle are interconnected *)
+(* avoiding everything outside the cycle *)
+
+(* NOTE: NOTE: NOTE: this is connect lemma, not biconnect *)
+Lemma connect_cycle g xs : 
+        cycle (edge g) xs -> 
+        {in xs &, forall x y, y \in connect [predC xs] g x}.
+Proof.
+move=>C x y /rot_to [i q Hr]; rewrite -(mem_rot i) Hr => Hy.
+have Hx : x \in xs by rewrite -(mem_rot i) Hr inE eqxx.
+have /= Hp1: cycle (edge g) (x :: q) by rewrite -Hr rot_cycle. 
+have Dx : x \in dom g.
+- by move: Hp1; rewrite rcons_path=>/andP [_ /edge_dom][].
+case/splitPl: Hy Hp1 Hr=>r s Ey.
+rewrite rcons_cat cat_path=>/andP [Hxr].
+rewrite Ey rcons_path; case/andP=>Hlx /= Ex Hr.
+apply/connectP; split=>//=; first by rewrite negbK.
+exists r; split=>// z Z.
+by rewrite negbK -(mem_rot i) Hr inE mem_cat Z orbT.
+Qed.
+
+Lemma connect_cycle0 g xs : 
+        cycle (edge g) xs -> 
+        {in xs &, forall x y, y \in connect pred0 g x}.
+Proof. by move=>C x y Hx /(connect_cycle C Hx); apply: connect_sub. Qed.
+
+(* elements in a cycle are bi-interconnected *)
+(* avoiding everything outside the cycle *)
+
+Lemma biconnect_cycle g xs : 
+        cycle (edge g) xs ->
+        {in xs &, forall x y, biconnect [predC xs] g x y}.
+Proof. by move=>C x y Hx Hy; rewrite /biconnect /= !(connect_cycle C). Qed.
 
 
+Lemma biconnect_cycle0 g xs : 
+        cycle (edge g) xs ->
+        {in xs &, forall x y, biconnect pred0 g x y}.
+Proof. move=>C x y Hx /(biconnect_cycle C Hx); apply: biconnect_sub.
+
+UP TO HERE
 
 (*******************)
 
 Section Acyclic.
 
-Definition symconnect p g x y := connect p g x y && connect p g y x.
-
-Lemma symconnect0 p g x : x \in dom g -> x \notin dom p -> symconnect p g x x.
-Proof. by move=>Hx Hp; apply/andP; split; apply/connect0. Qed.
-
-Lemma symconnectUn p g0 g x y :
-  valid (g \+ g0) ->
-  symconnect p g x y -> symconnect p (g \+ g0) x y.
-Proof. by move=>V; case/andP=>Hxy Hyx; apply/andP; split; apply: connectUn. Qed.
-
-(* TODO should probably generalize all of this to arbitrary boundary, not Unit *)
-Lemma connect_cycle g p : cycle (edge g) p -> {in p &, forall x y, connect Unit g x y}.
-Proof.
-move=>Hp x y /rot_to[i q Hr]; rewrite -(mem_rot i) Hr => Hy.
-have /= Hp1: cycle (edge g) (x :: q) by rewrite -Hr rot_cycle.
-have Hd: x \in dom g by move: Hp1; rewrite rcons_path; case/andP=>_ /edge_dom; case.
-move: Hp1; case/splitPl: Hy =>r s Hl; rewrite rcons_cat cat_path => /andP[Hxr Hlx].
-apply/connectP; exists r; split=>//; first by rewrite Hd implybT.
-by rewrite dom0 all_predT.
-Qed.
-
-Lemma symconnect_cycle g p : cycle (edge g) p ->
-   {in p &, forall x y, symconnect Unit g x y}.
-Proof. by move=>Hp x y Hx Hy; rewrite /symconnect !(connect_cycle Hp). Qed.
 
 Lemma symconnect_cycle2P g x y : x != y ->
   reflect (exists2 p, y \in p & cycle (edge g) (x :: p)) (symconnect Unit g x y).
