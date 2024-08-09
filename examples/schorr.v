@@ -113,7 +113,7 @@ elim/last_ind: s=>[|s x IH] //=.
 rewrite rcons_path mem_rcons=>/andP [Px Cx].
 move: {IH}(IH Px) (IH Px); rewrite {1}lastI /=.
 rewrite !rcons_uniq inE negb_or=>/andP [N _]/andP [->->].
-rewrite !andbT eq_sym (chN0 Cx) /=.
+rewrite eq_sym (chN0 Cx) !andbT /=.
 apply/negP=>/(ch_path Px) [/= y][/[swap]/(ch_fun Cx) <-].
 by rewrite (negbTE N).
 Qed.
