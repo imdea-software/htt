@@ -31,7 +31,7 @@ move=>V /(umfiltk_subdom0 p (validR V)) S.
 by rewrite umfiltUn // S unitR. 
 Qed.
 
-Lemma connectUn_eq (g g1 g2: pregraph) (p : pred node) x :
+Lemma connectUn_eq (g g1 g2 : pregraph) (p : pred node) x :
         valid (g \+ g1) ->
         valid (g \+ g2) ->
         {subset dom g1 <= p} ->
@@ -87,36 +87,22 @@ Lemma chN0 m g x y :
         y != null.
 Proof. by case/chP=>[][/In_dom/dom_cond]. Qed.
 
-Lemma ch_fun m g x y z :
-        ch m g x y ->
-        ch m g z y ->
-        x = z.
+Lemma ch_fun m g a b x :
+        ch m g a x ->
+        ch m g b x ->
+        a = b.
 Proof. by case/chP=>[][H <-] /chP [][/(In_fun H) {}H <-]. Qed.
 
 Lemma ch_path m g s x :
-        path (ch m g) null s -> 
         x \in s -> 
+        path (ch m g) null s -> 
         exists y, y \in belast null s /\ ch m g y x.
-Proof.
-elim/last_ind: s=>//= s z IH.
-rewrite rcons_path mem_rcons belast_rcons !inE.
-case/andP=>H1 H2 /orP [/eqP E|].
-- by exists (last null s); rewrite mem_last E.
-by case/(IH H1)=>y [H3 H4]; exists y; rewrite mem_belast.
-Qed.
+Proof. exact: path_prev. Qed.
 
 Lemma ch_path_uniq m g s :
         path (ch m g) null s -> 
         uniq (null :: s).
-Proof.
-elim/last_ind: s=>[|s x IH] //=.
-rewrite rcons_path mem_rcons=>/andP [Px Cx].
-move: {IH}(IH Px) (IH Px); rewrite {1}lastI /=.
-rewrite !rcons_uniq inE negb_or=>/andP [N _]/andP [->->].
-rewrite eq_sym (chN0 Cx) !andbT /=.
-apply/negP=>/(ch_path Px) [/= y][/[swap]/(ch_fun Cx) <-].
-by rewrite (negbTE N).
-Qed.
+Proof. by apply: path_uniq; [apply: chN0|apply: ch_fun]. Qed.
 
 Definition upd_edge (m : nmap mark) g x y : seq node := 
   if find x m is Some L then [:: y; gr g x] else [:: gl g x; y].

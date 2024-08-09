@@ -1480,6 +1480,42 @@ Lemma path_lastR (s : seq A) leT x :
         leT x (last x s).
 Proof. by move=>R T P; case: eqP (path_last T P)=>// <- _; apply: R. Qed.
 
+Lemma path_prev leT s a x :
+        x \in s -> 
+        path leT a s -> 
+        exists y, y \in belast a s /\ leT y x.
+Proof.
+case/splitPr=>p1 p2; rewrite cat_path /= =>/and3P [].
+by exists (last a p1); rewrite belast_cat /= mem_cat inE eqxx orbT. 
+Qed.
+
+Lemma path_next leT s a x b :
+        x \in a :: s -> 
+        path leT a (rcons s b) -> 
+        exists y, y \in rcons s b /\ leT x y.
+Proof.
+case/splitPl=>p1 p2 Ex; rewrite rcons_cat cat_path rcons_path Ex.
+case/and3P=>H1 H2 H3; case: p2 H2 H3=>[|y p2] /= H2 H3.
+- by exists b; rewrite mem_cat inE eqxx orbT.
+case/andP: H2=>H2 _; exists y; split=>//.
+by rewrite mem_cat inE eqxx orbT.
+Qed.
+
+Lemma path_uniq leT a s :
+        (forall x y, leT x y -> y != a) ->
+        (forall a b x, leT a x -> leT b x -> a = b) ->
+        path leT a s -> 
+        uniq (a :: s).
+Proof.
+move=>Na Fp; elim/last_ind: s=>[|s x IH] //=.
+rewrite rcons_path mem_rcons=>/andP [Px Cx].
+move: {IH}(IH Px) (IH Px); rewrite {1}lastI /=.
+rewrite !rcons_uniq inE negb_or=>/andP [N _]/andP [->->].
+rewrite eq_sym (Na _ _ Cx) !andbT /=; apply/negP. 
+move/path_prev=>/(_ _ _ Px) [/= y][/[swap]] /(Fp _ _ _ Cx) <-. 
+by rewrite (negbTE N).
+Qed.
+
 (* in a sorted list, the last element is maximal *)
 (* and the maximal element is last *)
 
