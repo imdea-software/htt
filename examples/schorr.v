@@ -91,10 +91,7 @@ Lemma ch_fun m g x y z :
         ch m g x y ->
         ch m g z y ->
         x = z.
-Proof. 
-case/chP=>[][M1 <-] /chP [][M2 <-] //;
-by move/(In_fun M1): M2.
-Qed.
+Proof. by case/chP=>[][H <-] /chP [][/(In_fun H) {}H <-]. Qed.
 
 Lemma ch_path m g s x :
         path (ch m g) null s -> 
