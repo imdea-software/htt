@@ -55,7 +55,7 @@ Notation gr g x := (get_nth g x 1).
 
 (* type of markings *)
 Inductive mark := U | L | R | LR.
-(* decidable equality on mark *)
+(* decidable equality on marks *)
 Definition eq_mark l1 l2 : bool :=
   if (l1, l2) is ((U, U)|(L, L)|(R, R)|(LR, LR)) then true else false.
 Lemma eq_markP : Equality.axiom eq_mark.
@@ -65,8 +65,8 @@ HB.instance Definition _ := hasDecEq.Build mark eq_markP.
 (* marking of children *)
 
 (* given marking map m, x is m-child of y iff: *)
-(* - x is left child of y and m y = L *)
-(* - x is right child of y and m y = R *)
+(* - m y = L and x is left child of y *)
+(* - m y = R and x is right child of y *)
 
 Definition ch (m : nmap mark) (g : pregraph) (x y : nat) := 
   [|| (find y m == Some L) && (gl g y == x) |
@@ -122,7 +122,7 @@ Definition upd_edge (m : nmap mark) g x y : seq node :=
   if find x m is Some L then [:: y; gr g x] else [:: gl g x; y].
 
 Fixpoint rev_graph' m g ps t : pregraph := 
-  if ps is p::ps then 
+  if ps is p :: ps then 
     rev_graph' m (free g p) ps p \+ pts p (upd_edge m g p t)
   else g.
 
