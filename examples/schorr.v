@@ -126,7 +126,7 @@ Fixpoint rev_graph' m g ps t : pregraph :=
     rev_graph' m (free g p) ps p \+ pts p (upd_edge m g p t)
   else g.
 
-Definition rev_graph m g S t := rev_graph' m g (rev S) t.
+Definition rev_graph m g s t := rev_graph' m g (rev s) t.
 
 (* turning (pre)graph into a heap *)
 Definition hp (g : pregraph) : heap := 
@@ -134,8 +134,8 @@ Definition hp (g : pregraph) : heap :=
 
 (* Aleks: not sure what this definition intends to say *)
 (* but at least it typechecks now *)
-Definition reach (m : nmap mark) (g : pregraph) (S : seq node) t := 
+Definition reach (m : nmap mark) (g : pregraph) (s : seq node) t := 
   forall x, x \notin dom m ->
     x \in connect (mem (dom m)) g t \/ 
-    exists y, y \in S /\ x \in connect (mem (dom m)) g y.
+    exists y, y \in s /\ x \in connect (mem (dom m)) g y.
 
