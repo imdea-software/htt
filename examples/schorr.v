@@ -49,7 +49,7 @@ Qed.
 (* Schorr-Waite *)
 (****************)
 
-(* short notation for left/right child *)
+(* short notation for left/right child of x *)
 Notation gl g x := (get_nth g x 0).
 Notation gr g x := (get_nth g x 1).
 
