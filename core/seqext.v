@@ -137,6 +137,15 @@ Lemma all_notin (p : pred A) xs y :
         y \notin xs.
 Proof. by move/allP=>Ha; apply/contra/Ha. Qed.
 
+Lemma in_consE P x xs : 
+        {in x :: xs, forall z, P z} <->
+        P x /\ {in xs, forall z, P z}.
+Proof. 
+split=>[H|[H1 H2]]; last by move=>z /orP [/eqP ->|/H2].
+split=>[|z Z]; first by apply: H; rewrite inE eqxx.
+by apply: H; rewrite inE Z orbT.
+Qed.
+
 Lemma subset_all a (s1 s2 : seq A) : 
         {subset s1 <= s2} -> 
         all a s2 -> 
@@ -153,6 +162,33 @@ Lemma subset_nil xs ys :
         ys = [::] -> 
         xs = [::].
 Proof. by move=>X E; move: E X=>->; apply: subset_nilR. Qed.
+
+Lemma subset_consL x (s1 s2 : seq A) :
+        {subset x :: s1 <= s2} <->
+        x \in s2 /\ {subset s1 <= s2}.
+Proof.
+split=>[S|[X S]].
+- by split=>[|z Z]; apply: S; rewrite inE ?eqxx ?Z ?orbT.
+by move=>z; rewrite inE; case/orP=>[/eqP ->|/S//].
+Qed.
+
+Lemma subset_consLI x (s1 s2 : seq A) : 
+        x \in s2 ->
+        {subset s1 <= s2} ->
+        {subset x :: s1 <= s2}.
+Proof. by move=>H1 H2; rewrite subset_consL. Qed.
+
+Lemma subset_consR x (s : seq A) : 
+        {subset s <= x :: s}.
+Proof. by move=>z E; rewrite inE E orbT. Qed.
+
+Lemma subset_consLR x (s1 s2 : seq A) : 
+        {subset s1 <= s2} ->
+        {subset x :: s1 <= x :: s2}.
+Proof.
+move=>X z; rewrite !inE; case/orP=>[|/X] -> //.
+by rewrite orbT.
+Qed.
 
 Lemma all_mem xs ys : 
         reflect {subset ys <= xs} (all [mem xs] ys).
@@ -341,7 +377,105 @@ Qed.
 
 End LemmasEq.
 
-(* finding last occurrence *)
+(* decidable sequence disjointness *)
+
+Definition disjoint {A : eqType} (s1 s2 : seq A) := 
+  all (fun x => x \notin s1) s2.
+
+Arguments disjoint {A} : simpl never.
+
+Lemma disjointC (A : eqType) (s1 s2 : seq A) :
+        disjoint s1 s2 = disjoint s2 s1.
+Proof. 
+apply/idP/idP=>/allP S; apply/allP=>x X; 
+by apply/negP=>/S; rewrite X.
+Qed.
+
+Lemma disjoint_catR (A : eqType) (s s1 s2 : seq A) : 
+        disjoint s (s1 ++ s2) = 
+        disjoint s s1 && disjoint s s2.
+Proof. by rewrite /disjoint all_cat. Qed.
+
+Lemma disjoint_catL (A : eqType) (s s1 s2 : seq A) : 
+        disjoint (s1 ++ s2) s = 
+        disjoint s1 s && disjoint s2 s.
+Proof. by rewrite -!(disjointC s) disjoint_catR. Qed.
+
+Lemma disjoint1L (A : eqType) x (s : seq A) :
+        disjoint [:: x] s = (x \notin s).
+Proof.
+apply/idP/idP.
+- by apply: contraL=>X; apply/allPn; exists x=>//; rewrite negbK inE.
+by apply: contraR=>/allPn [y H]; rewrite inE negbK =>/eqP <-.
+Qed.
+
+Lemma disjoint1R (A : eqType) x (s : seq A) :
+        disjoint s [:: x] = (x \notin s).
+Proof. by rewrite disjointC disjoint1L. Qed.
+
+Lemma disjoint_consL (A : eqType) x (s1 s2 : seq A) :
+        disjoint (x :: s1) s2 = 
+        (x \notin s2) && disjoint s1 s2.
+Proof. by rewrite -cat1s disjoint_catL disjoint1L. Qed.
+
+Lemma disjoint_consR (A : eqType) x (s1 s2 : seq A) :
+        disjoint s1 (x :: s2) = 
+        (x \notin s1) && disjoint s1 s2.
+Proof. by rewrite -cat1s disjoint_catR disjoint1R. Qed.
+
+Lemma disjoint_consLI (A : eqType) x (s1 s2 : seq A) :
+        x \notin s2 ->
+        disjoint s1 s2 ->
+        disjoint (x :: s1) s2.
+Proof. by rewrite disjoint_consL=>->->. Qed.
+
+Lemma disjoint_consRI (A : eqType) x (s1 s2 : seq A) :
+        x \notin s1 ->
+        disjoint s1 s2 ->
+        disjoint s1 (x :: s2).
+Proof. by rewrite disjoint_consR=>->->. Qed.
+
+Lemma disjoint_consLE (A : eqType) x (s1 s2 : seq A) :
+        disjoint (x :: s1) s2 ->
+        (x \notin s2) * (disjoint s1 s2).
+Proof. by rewrite disjoint_consL=>/andX. Qed.
+
+Lemma disjoint_consRE (A : eqType) x (s1 s2 : seq A) :
+        disjoint s1 (x :: s2) ->
+        (x \notin s1) * (disjoint s1 s2).
+Proof. by rewrite disjoint_consR=>/andX. Qed.
+
+Lemma disjoint_subL (A : eqType) (s s1 s2 : seq A) : 
+        {subset s2 <= s1} ->
+        disjoint s s1 ->
+        disjoint s s2.
+Proof. by move=>X /allP H; apply/allP=>z /X /H. Qed.
+
+Lemma disjoint_subR (A : eqType) (s s1 s2 : seq A) : 
+        {subset s2 <= s1} ->
+        disjoint s1 s ->
+        disjoint s2 s.
+Proof. 
+move=>X; rewrite disjointC=>/(disjoint_subL X).
+by rewrite disjointC.
+Qed.
+
+Lemma disjoint_eqL {A : eqType} {s s1 s2 : seq A} :
+        s1 =i s2 ->
+        disjoint s1 s = disjoint s2 s.
+Proof. by move=>X; apply/idP/idP; apply: disjoint_subR=>z; rewrite X. Qed.
+
+Lemma disjoint_eqR {A : eqType} {s s1 s2 : seq A} :
+        s1 =i s2 ->
+        disjoint s s1 = disjoint s s2.
+Proof. by move=>X; apply/idP/idP; apply: disjoint_subL=>z; rewrite X. Qed.
+
+Lemma disjointN (A : eqType) (s1 s2 : seq A) : 
+        ~~ disjoint s1 s2 ->
+        exists2 x, x \in s1 & x \in s2.
+Proof. by case/allPn=>x; rewrite negbK; exists x. Qed.
+
+(* finding last occurrence of element in a sequence *)
 
 Section FindLast.
 Variables (T : Type).

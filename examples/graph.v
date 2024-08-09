@@ -14,147 +14,8 @@ limitations under the License.
 From HB Require Import structures.
 From Coq Require Import ssreflect ssrfun.
 From mathcomp Require Import ssrbool eqtype ssrnat seq path.
-From pcm Require Import options axioms pred prelude.
+From pcm Require Import options axioms pred prelude seqext.
 From pcm Require Import pcm unionmap natmap autopcm automap.
-From pcm Require Import seqext.
-
-(* subset *)
-
-Lemma subset_refl (A : Type) (s : pred A) : 
-        {subset s <= s}.
-Proof. by []. Qed.
-
-Lemma subset_trans (A : eqType) (s1 s2 s3 : pred A) :
-        {subset s1 <= s2} ->
-        {subset s2 <= s3} ->
-        {subset s1 <= s3}. 
-Proof. by move=>S1 S2 z /S1/S2. Qed.
-
-Lemma subset_consL (A : eqType) x (s1 s2 : seq A) : 
-        {subset x :: s1 <= s2} <->
-        x \in s2 /\ {subset s1 <= s2}.
-Proof.
-split=>[S|[X S]].
-- by split=>[|z Z]; apply: S; rewrite inE ?eqxx ?Z ?orbT.
-by move=>z; rewrite inE; case/orP=>[/eqP ->|/S//].
-Qed.
-
-Lemma subset_consLI (A : eqType) x (s1 s2 : seq A) : 
-        x \in s2 ->
-        {subset s1 <= s2} ->
-        {subset x :: s1 <= s2}.
-Proof. by move=>H1 H2; rewrite subset_consL. Qed.
-
-Lemma subset_consR (A : eqType) x (s : seq A) : 
-        {subset s <= x :: s}.
-Proof. by move=>z E; rewrite inE E orbT. Qed.
-
-Lemma subset_consLR (A : eqType) x (s1 s2 : seq A) : 
-        {subset s1 <= s2} ->
-        {subset x :: s1 <= x :: s2}.
-Proof.
-move=>X z; rewrite !inE; case/orP=>[|/X] -> //.
-by rewrite orbT.
-Qed.
-
-(* disjointness *)
-
-Definition disjoint {A : eqType} (s1 s2 : seq A) := 
-  all (fun x => x \notin s1) s2.
-
-Arguments disjoint {A} : simpl never.
-
-Lemma disjointC (A : eqType) (s1 s2 : seq A) :
-        disjoint s1 s2 = disjoint s2 s1.
-Proof. 
-apply/idP/idP=>/allP S; apply/allP=>x X; 
-by apply/negP=>/S; rewrite X.
-Qed.
-
-Lemma disjoint_catR (A : eqType) (s s1 s2 : seq A) : 
-        disjoint s (s1 ++ s2) = 
-        disjoint s s1 && disjoint s s2.
-Proof. by rewrite /disjoint all_cat. Qed.
-
-Lemma disjoint_catL (A : eqType) (s s1 s2 : seq A) : 
-        disjoint (s1 ++ s2) s = 
-        disjoint s1 s && disjoint s2 s.
-Proof. by rewrite -!(disjointC s) disjoint_catR. Qed.
-
-Lemma disjoint1L (A : eqType) x (s : seq A) :
-        disjoint [:: x] s = (x \notin s).
-Proof.
-apply/idP/idP.
-- by apply: contraL=>X; apply/allPn; exists x=>//; rewrite negbK inE.
-by apply: contraR=>/allPn [y H]; rewrite inE negbK =>/eqP <-.
-Qed.
-
-Lemma disjoint1R (A : eqType) x (s : seq A) :
-        disjoint s [:: x] = (x \notin s).
-Proof. by rewrite disjointC disjoint1L. Qed.
-
-Lemma disjoint_consL (A : eqType) x (s1 s2 : seq A) :
-        disjoint (x :: s1) s2 = 
-        (x \notin s2) && disjoint s1 s2.
-Proof. by rewrite -cat1s disjoint_catL disjoint1L. Qed.
-
-Lemma disjoint_consR (A : eqType) x (s1 s2 : seq A) :
-        disjoint s1 (x :: s2) = 
-        (x \notin s1) && disjoint s1 s2.
-Proof. by rewrite -cat1s disjoint_catR disjoint1R. Qed.
-
-Lemma disjoint_consLI (A : eqType) x (s1 s2 : seq A) :
-        x \notin s2 ->
-        disjoint s1 s2 ->
-        disjoint (x :: s1) s2.
-Proof. by rewrite disjoint_consL=>->->. Qed.
-
-Lemma disjoint_consRI (A : eqType) x (s1 s2 : seq A) :
-        x \notin s1 ->
-        disjoint s1 s2 ->
-        disjoint s1 (x :: s2).
-Proof. by rewrite disjoint_consR=>->->. Qed.
-
-Lemma disjoint_consLE (A : eqType) x (s1 s2 : seq A) :
-        disjoint (x :: s1) s2 ->
-        (x \notin s2) * (disjoint s1 s2).
-Proof. by rewrite disjoint_consL=>/andX. Qed.
-
-Lemma disjoint_consRE (A : eqType) x (s1 s2 : seq A) :
-        disjoint s1 (x :: s2) ->
-        (x \notin s1) * (disjoint s1 s2).
-Proof. by rewrite disjoint_consR=>/andX. Qed.
-
-Lemma disjoint_subL (A : eqType) (s s1 s2 : seq A) : 
-        {subset s2 <= s1} ->
-        disjoint s s1 ->
-        disjoint s s2.
-Proof. by move=>X /allP H; apply/allP=>z /X /H. Qed.
-
-Lemma disjoint_subR (A : eqType) (s s1 s2 : seq A) : 
-        {subset s2 <= s1} ->
-        disjoint s1 s ->
-        disjoint s2 s.
-Proof. 
-move=>X; rewrite disjointC=>/(disjoint_subL X).
-by rewrite disjointC.
-Qed.
-
-Lemma disjoint_eqL {A : eqType} {s s1 s2 : seq A} :
-        s1 =i s2 ->
-        disjoint s1 s = disjoint s2 s.
-Proof. by move=>X; apply/idP/idP; apply: disjoint_subR=>z; rewrite X. Qed.
-
-Lemma disjoint_eqR {A : eqType} {s s1 s2 : seq A} :
-        s1 =i s2 ->
-        disjoint s s1 = disjoint s s2.
-Proof. by move=>X; apply/idP/idP; apply: disjoint_subL=>z; rewrite X. Qed.
-
-Lemma disjointN (A : eqType) (s1 s2 : seq A) : 
-        ~~ disjoint s1 s2 ->
-        exists2 x, x \in s1 & x \in s2.
-Proof. by case/allPn=>x; rewrite negbK; exists x. Qed.
-
 
 (*************)
 (*************)
@@ -162,8 +23,8 @@ Proof. by case/allPn=>x; rewrite negbK; exists x. Qed.
 (*************)
 (*************)
 
-(* Pregraphs are natmaps, mapping nodes into *)
-(* seq node listing the children of the node (adjacency list) *)
+(* Pregraphs are natmaps, mapping each graph node x into a node sequence *)
+(* that enumerates the children of x (x's adjacency list). *)
 (* Pregraph differs from graph, in that edges can *dangle*; that is *)
 (* terminate with a node that isn't in the graph's domain. *)
 (* Dangling edges are allowed because they enable encoding positional *)
@@ -174,6 +35,10 @@ Proof. by case/allPn=>x; rewrite negbK; exists x. Qed.
 (* but are treated same as null. *)
 (* If it's desired to treat a non-null dangling link differently *)
 (* from null, add that link to the graph to make it non-dangling. *)
+
+(* Pregraph differs from fingraph (of mathcomp) *)
+(* in that the set of nodes is drawn from an infinite set *)
+(* not from a fixed finite set. *)
 
 Notation node := nat.
 Record pregraph := Pregraph {pregraph_base : @UM.base node nat_pred (seq node)}.
@@ -216,10 +81,27 @@ Coercion Pred_of_history (x : pregraph) : Pred_Class :=
 
 Notation "x &-> v" := (ptsT pregraph x v) (at level 30).
 
+(**************************)
+(* Links, children, edges *)
+(**************************)
+
 (* Links of x includes all edges outgoing from x *)
 (* and may explicitly include nodes that aren't in dom g *)
 (* (i.e., are dangling, null or non-null) *)
 Definition links (g : pregraph) x := oapp id [::] (find x g).
+
+(* children x removes dangling edges (null or non-null) from links *)
+Definition children (g : pregraph) x : seq node :=
+  filter (mem (dom g)) (links g x).
+
+(* edge is applicative variant of children *)
+(* thus, dangling edges (null or non-null) are *not* edges. *)
+(* If it's desired to treat a non-null dangling node differently *)
+(* from null, add that node to the graph to make it non-dangling. *)
+Definition edge g : rel node := mem \o children g.
+Arguments edge g x y : simpl never.
+
+(* links lemmas *)
 
 Lemma links_undef x : links undef x = [::].
 Proof. by []. Qed.
@@ -271,10 +153,12 @@ Lemma range_links (g : pregraph) x :
         links g x \in range g.
 Proof. by move/In_graphX/mem_range. Qed.
 
-(* children x removes dangling edges (null or non-null) from links *)
+Lemma links_umfiltk g p x : 
+        links (um_filterk p g) x =i 
+        if p x then links g x else [::].
+Proof. by move=>i; rewrite /links find_umfiltk; case: (p x). Qed.
 
-Definition children (g : pregraph) x : seq node :=
-  filter (mem (dom g)) (links g x).
+(* children lemmas *)
 
 Lemma children_undef x : children undef x = [::].
 Proof. by []. Qed.
@@ -318,15 +202,16 @@ Proof.
 move=>Dx; exists (links g x); first by apply: range_links.
 by apply: children_links.
 Qed.
-  
-(* edge is applicative variant of children *)
-(* NOTE: Links to dangling edges (null or non-null) *)
-(* are explicitly *not* considered edges. *)
-(* If it's desired to treat a non-null dangling node differently *)
-(* from null, add that node to the graph to make it non-dangling. *)
 
-Definition edge g : rel node := mem \o children g.
-Arguments edge g x y : simpl never.
+Lemma children_umfiltk g p x y : 
+        y \in children (um_filterk p g) x = 
+        [&& p x, p y & y \in children g x].
+Proof. 
+rewrite /children !mem_filter /= links_umfiltk dom_umfiltk inE -andbA.
+by case: (p x)=>//=; rewrite !andbF.
+Qed. 
+
+(* edge lemmas *)
 
 Lemma edge_undef x y : edge undef x y = false. 
 Proof. by rewrite /edge/= children_undef. Qed.
@@ -350,7 +235,7 @@ Lemma edgeUnR g1 g2 x y :
         edge (g1 \+ g2) x y.
 Proof. by move=>V; apply: childrenUnR. Qed.
 
-Lemma edge_dom g x y : 
+Lemma edgeD g x y : 
         edge g x y -> 
         (x \in dom g) * (y \in dom g).
 Proof.
@@ -369,19 +254,29 @@ Lemma path_dom g x xs :
         path (edge g) x xs ->
         {subset xs <= dom g}.
 Proof.
-elim: xs x=>[|a xs IH] x //= /andP [/edge_dom [_ He] /IH].
+elim: xs x=>[|a xs IH] x //= /andP [/edgeD [_ He] /IH].
 by apply: subset_consLI He. 
 Qed.
 
-(* lifting the theory of finite graphs to unbounded pregraphs *)
+Lemma edge_umfiltk g p x y :   
+        edge (um_filterk p g) x y = 
+        [&& p x, p y & edge g x y].
+Proof. by rewrite /edge /= children_umfiltk. Qed.
+
+Lemma edge_umfiltkE g p : 
+        {in predC p &, edge (um_filterk (predC p) g) =2 edge g}.
+Proof. by move=>x y; rewrite !inE => X Y; rewrite edge_umfiltk /= X Y. Qed.
+
+(***********************)
+(* Depth-first search  *)
+(***********************)
+
+(* lifts dfs from mathcomp fingraph to pregraphs *)
 
 (* list of nodes traversed by depth-first search of g *)
-(* at depth n, starting from x, and avoiding v *)
-(* NOTE: Definition uses children, not links, to avoid *)
-(* following dangling edges. *)
-(* If it's desired to treat a non-null dangling node differently *)
-(* from null, add that node to the graph to make it non-dangling. *)
-
+(* at depth n, starting from x, and avoiding v. *)
+(* Definition uses children, not links; *)
+(* thus, it doesn't follow dangling edges *)
 Fixpoint dfs (g : pregraph) (n : nat) (v : seq node) x :=
   if (x \notin dom g) || (x \in v) then v else
   if n is n'.+1 then foldl (dfs g n') (x :: v) (children g x) else v.
@@ -487,7 +382,7 @@ have : {subset a <= dom g} by apply: childrenD.
 elim: {x v}a (x) v1=>[|x xs IHa] x' v /= Dxs Hv U Sv Nv Dx'. 
 - by rewrite (negbTE Nv); apply: ReflectF; case.
 have Dx : x \in dom g by apply: Dxs; rewrite inE eqxx. 
-have Da : {subset xs <= dom g} by apply/subset_trans/Dxs/subset_consR.
+have Da : {subset xs <= dom g} by move=>z Z; apply/Dxs/subset_consR.
 set v2 := dfs g n v x.
 have Sv2 : {subset v <= v2} := @subset_dfs g n v [:: x].
 have [Hy2|Ny2] := boolP (y \in v2).
@@ -518,6 +413,11 @@ apply/IHn=>//; exists (p ++ pr).
 by rewrite -cat_cons disjoint_catR D (disjoint_consRE D2).
 Qed.
 
+(******************)
+(* Connectivity   *)
+(* (reachability) *)
+(******************)
+
 (* start dfs with p as avoidance set, then filter out p. *)
 (* this computes only the nodes visited during dfs. *)
 (* not for client use, hence primed name *)
@@ -525,9 +425,11 @@ Definition component' (p : pred node) g x : seq node :=
   filter (predC p) (dfs g (size (dom g)) (filter p (dom g)) x).
 
 (* y is connected from x if y is visited during dfs *)
-(* under assumption that x is in dom g *)
+(* avoiding nodes from p; assuming x in dom g *) 
 Definition connect p (g : pregraph) x : pred node := 
   fun y => (x \in dom g) && (y \in component' p g x). 
+
+(* connect lemmas *)
 
 Lemma connectP (p : pred node) (g : pregraph) x y :
         reflect [/\ x \in dom g, ~~ p x & exists xs, 
@@ -580,14 +482,11 @@ case/and3P: Px=>Px Ex Pp2; exists p2; split=>//.
 by move=>z Z; rewrite Hxs // mem_cat Z orbT.
 Qed.
 
-
-
 Lemma connect_undef p x : connect p undef x =i pred0.
 Proof. by move=>y; apply/connectP; case; rewrite dom_undef. Qed.
 
 Lemma connect_unit p x : connect p Unit x =i pred0.
 Proof. by move=>y; apply/connectP; case; rewrite dom0. Qed.
-
 
 Lemma connectDx p g x y : 
         y \in connect p g x ->
@@ -676,6 +575,39 @@ Lemma connectUnR p g1 g2 x :
                 connect p (g1 \+ g2) x}.
 Proof. by rewrite joinC; apply: connectUnL. Qed.
 
+Lemma connectUn p g1 g2 x : 
+        [pcm g1 <= g2] ->
+        valid g2 ->
+        {subset connect p g1 x <= connect p g2 x}.
+Proof. by case=>g ->; apply: connectUnL. Qed.
+
+Lemma connect_avoid_graph g p x :
+        connect p g x =i 
+        connect (predU p (predC (mem (dom g)))) g x.
+Proof.
+move=>y; apply/connectP/connectP; last first.
+- case=>Dx; rewrite !inE negb_or Dx andbT=>Hx [xs][Px Ey Hxs].
+  split=>//; exists xs; split=>// z /Hxs.  
+  by rewrite !inE negb_or; case/andP.
+case=>Dx Hx [xs][Px Ey Hxs]; split=>//.
+- by rewrite !inE negb_or Hx Dx.
+exists xs; split=>// z Z; rewrite !inE negb_or Hxs //= negbK.
+by apply: path_dom Px _ Z.
+Qed.
+
+Lemma connect_umfiltk g p x : 
+        connect p (um_filterk (predC p) g) x =i connect p g x.
+Proof.
+case: (normalP g)=>[->|V y]; first by rewrite pfundef.
+apply/connectP/connectP; case; rewrite dom_umfiltk inE /=.
+- case/andP=>Hx Dx _ [xs][Px Ey Hxs]; split=>//. 
+  exists xs; rewrite -(eq_in_path (@edge_umfiltkE g p)) //.
+  by apply/allP/in_consE.
+move=>Dx Hx [xs][Px Ey Hxs]; rewrite Dx Hx; split=>//.
+exists xs; rewrite (eq_in_path (@edge_umfiltkE g p)) //. 
+by apply/allP/in_consE.
+Qed.
+
 Lemma connect_sub g (p1 p2 : pred node) x :
         subpred p2 p1 ->
         {subset connect p1 g x <= connect p2 g x}.
@@ -690,8 +622,27 @@ Lemma connect_eq g p1 p2 x :
         connect p1 g x =i connect p2 g x.
 Proof. by move=>S y; apply/idP/idP; apply/connect_sub=>z; rewrite S. Qed.
 
+(* relativized versions of connect_sub and connect_eq *)
+(* it suffices to only prove the precondition for nodes in g *)
 
+Lemma connect_in_sub g p1 p2 x :
+        {in dom g, subpred p2 p1} ->
+        {subset connect p1 g x <= connect p2 g x}.
+Proof.
+move=>S y; rewrite connect_avoid_graph=>C.
+rewrite connect_avoid_graph.
+apply: connect_sub C=>z; rewrite !inE -!(orbC (z \notin _)).
+by case Dz: (z \in dom g)=>//=; apply: S Dz.
+Qed.
 
+Lemma connect_in_eq g p1 p2 x :
+        {in dom g, p1 =1 p2} ->
+        connect p1 g x =i connect p2 g x.
+Proof. 
+move=>S y; rewrite [LHS]connect_avoid_graph [RHS]connect_avoid_graph.
+apply: connect_eq=>z; rewrite !inE -!(orbC (z \notin _)).
+by case Dz: (z \in dom g)=>//=; rewrite S.
+Qed.
 
 (* deconstructing connecting path from left *)
 Lemma edge_connect p g x y :
@@ -701,7 +652,7 @@ Lemma edge_connect p g x y :
 Proof.
 move/eqP=>Nxy /connectP [Dx H][[|a xs]][/= Px Ey Hxs]; first by move/Nxy: Ey.
 case/andP: Px=>Px Pxs; exists a=>//; apply/connectP; split. 
-- by rewrite (edge_dom Px).
+- by rewrite (edgeD Px).
 - by apply: Hxs; rewrite inE eqxx.
 exists xs; split=>// z Z; apply: Hxs.
 by rewrite inE Z orbT.
@@ -751,64 +702,13 @@ exists (rcons xs z); split=>/=.
 by move=>w; rewrite mem_rcons inE; case/orP=>[/eqP ->|/Hxs].
 Qed.
 
-(**********)
-(**********)
-(* Graphs *)
-(**********)
-(**********)
-
-(* x is in_node if it's in the graph or is null *)
-Definition in_node (g : pregraph) (x : node) := 
-  (x == null) || (x \in dom g).
-
-(* x is out-node if no edge goes into it *)
-Definition out_node (g : pregraph) (x : node) := 
-  {in range g, forall xs, x \notin xs}.
-
-(* pregraph is graph if *)
-(* all nodes in all adjacency lists are in-nodes *)
-Definition graph_axiom (g : pregraph) := 
-  forall (xs : seq node) (x : node), xs \in range g -> x \in xs -> in_node g x.
-
-HB.mixin Record isGraph (g : pregraph) := {
-  graph_subproof : graph_axiom g}.
-#[short(type=graph)]
-HB.structure Definition Graph := {g of isGraph g }.
-
-(* removing out-node causes no dangling edges; *)
-(* hence preserves graph axiom *)
-Lemma graphF g x :
-        out_node g x ->
-        graph_axiom g ->
-        graph_axiom (free g x).
-Proof.
-move=>Hna Ha xs q /rangeF Hs Hq.
-move: (Ha xs q Hs Hq) (Hna _ Hs)=>{}Hs.
-rewrite /in_node domF inE in Hs *.
-by case: (x =P q) Hq=>//= ->->.
-Qed.
+(***********************)
+(* Connected component *)
+(***********************)
 
 (* part of g reachable from x (avoiding nothing) *)
 Definition subconnect g x : pregraph := 
   um_filterk (mem (connect pred0 g x)) g.
-
-(* reachable component of a graph is a graph *)
-Lemma graph_subconnect g x :
-        valid g ->
-        graph_axiom g -> 
-        graph_axiom (subconnect g x).
-Proof.
-have E : g = subconnect g x \+ um_filterk 
-  (negb \o connect pred0 g x) g by apply: umfilt_predC.
-move=>V Ha xs /= n Hxs Hn; have {}Dn : in_node g n.
-- by apply: Ha Hn; rewrite E rangeUn inE -E V Hxs.
-case/mem_rangeX: Hxs=>k /In_umfiltX [/= Ck] /In_graph Hf.
-rewrite /in_node in Dn *; case/boolP: (n == null) Dn=>//= Hnn Dn.
-case: (connectD Ck)=>_ Dk.
-rewrite /subconnect dom_umfiltk inE /= Dn andbT.
-apply: connect_trans Ck _; apply/connectP; split=>//.
-by exists [:: n]; split=>//=; rewrite edge_links Dn -Hf Hn.
-Qed.
 
 Lemma edge_subconnect g x y z : 
         edge (subconnect g x) y z = 
@@ -859,7 +759,7 @@ Proof.
 move/eqP=>Nxy /connectX [Dx Hx][[|a xs]] /= [Px Ey Nx Hxs].
 - by move/Nxy: Ey.
 case/andP: Px=>Exa Pa; exists a=>//; apply/connectP; split.
-- by rewrite (edge_dom Exa).
+- by rewrite (edgeD Exa).
 - rewrite !inE negb_or Hxs ?inE ?eqxx // andbT.
   by case: (a =P x) Nx=>//= ->; rewrite inE eqxx. 
 exists xs; split=>// z Z.
@@ -901,11 +801,13 @@ Qed.
 (* y is reachable from x by a path that avoids whole *)
 (* subcomponent of x' *)
 Lemma connect_avoid p g x y x' :
-        y \in connect p g x ->
         y \notin connect p g x' ->
-        y \in connect (predU p [in connect p g x']) g x.
+        (y \in connect p g x) =
+        (y \in connect (predU p [in connect p g x']) g x).
 Proof.
-case/connectP=>Dx Hx [xs][Px Ey Hxs] Ny. 
+move=>Ny; apply/idP/idP; last first.
+- by apply: connect_sub=>z Z; rewrite inE Z.
+case/connectP=>Dx Hx [xs][Px Ey Hxs]. 
 have [Nx|Mx] := boolP (has [in connect p g x'] (x :: xs)); last first.
 (* if path contains no nodes reachable from x', nothing to do *)
 - move/hasPn: Mx=>Mx; apply/connectP; split=>//.
@@ -926,70 +828,24 @@ case/and3P: Px=>Px Ea P2; apply/connectP; rewrite !(connectDy Ca); split=>//.
 by exists p2; split=>// z Z; rewrite Hxs // mem_cat Z orbT. 
 Qed.
 
-(***************)
-(* N-pregraphs *)
-(***************)
-
-(* pregraphs with global bound n *)
-(* for the number of links of a node *)
-
-Definition n_pregraph_axiom (n : nat) (g : pregraph) :=
-  {in dom g, forall x, size (links g x) = n}.
-
-Lemma npregraphP n g : 
-        n_pregraph_axiom n g <->
-        {in range g, forall xs, size xs = n}.
-Proof.
-split=>H x; last by move=>Dx; apply: H (range_links Dx).
-by case/mem_rangeX=>k X; rewrite (In_graph X); apply: H (In_dom X).
-Qed.
-
-Lemma npregraphUnL n g1 g2 :
-        valid (g1 \+ g2) ->
-        n_pregraph_axiom n (g1 \+ g2) -> 
-        n_pregraph_axiom n g1.
+Lemma connect_avoid1 p g x y x' :
+        y \notin connect p g x' ->
+        (y \in connect p g x) = (y \in connect (predU (pred1 x') p) g x).
 Proof. 
-by rewrite !npregraphP=>V H x X; apply: H; rewrite rangeUn inE V X.
-Qed.
-
-Lemma npregraphUnR n g1 g2 :
-        valid (g1 \+ g2) ->
-        n_pregraph_axiom n (g1 \+ g2) -> 
-        n_pregraph_axiom n g2.
-Proof. by rewrite joinC; apply: npregraphUnL. Qed.
-
-Lemma npregraphF n g x : 
-        n_pregraph_axiom n g ->
-        n_pregraph_axiom n (free g x).
-Proof. by rewrite !npregraphP=>H z /rangeF; apply: H. Qed.
-
-Definition get_nth g x := nth null (links g x).
-
-Lemma innode_nth g x n :
-        graph_axiom g ->
-        in_node g (get_nth g x n).
-Proof.
-rewrite /graph_axiom => Hg.
-case: (ltnP n (size (links g x)))=>Hm; last first. 
-- by rewrite /in_node/get_nth nth_default.
-have Dx : x \in dom g by apply/size_links/gt0/Hm.
-by apply: Hg (range_links Dx) _; rewrite mem_nth.
-Qed.
-
-Lemma links_nth n g x :
-        n_pregraph_axiom n g ->
-        x \in dom g ->
-        links g x = map (get_nth g x) (iota 0 n).
-Proof.
-move=>H Dx; apply/(eq_from_nth (x0:=null))=>[|i Hi].
-- by rewrite size_map size_iota H.
-by rewrite map_nth_iota0 ?H // -(H _ Dx) take_size.
+move=>C; apply/idP/idP; last first.
+- by apply: connect_sub=>z Z; rewrite inE Z orbT.
+rewrite (connect_avoid _ C); apply/connect_in_sub=>z Dz.
+by rewrite !inE=>/orP [/eqP <-|->//]; rewrite connect0 Dz orbN.
 Qed.
 
 (******************)
 (* Biconnectivity *)
 (******************)
 
+(* symmetric closure of connectivity *)
+
+(* y is biconnected from x iff *)
+(* x and y are mutually connected *)
 Definition biconnect p g x : pred node := 
   [pred y | (x \in connect p g y) && (y \in connect p g x)]. 
 
@@ -1023,10 +879,13 @@ Lemma biconnect_eq g (p1 p2 : pred node) (x : node) :
         biconnect p1 g x =i biconnect p2 g x.
 Proof. by move=>S y; rewrite !inE !(connect_eq g _ S). Qed.
 
+(**********)
+(* Cycles *)
+(**********)
+
 (* elements in a cycle are interconnected *)
 (* avoiding everything outside the cycle *)
 
-(* NOTE: NOTE: NOTE: this is connect lemma, not biconnect *)
 Lemma connect_cycle g xs : 
         cycle (edge g) xs -> 
         {in xs &, forall x y, y \in connect [predC xs] g x}.
@@ -1035,7 +894,7 @@ move=>C x y /rot_to [i q Hr]; rewrite -(mem_rot i) Hr => Hy.
 have Hx : x \in xs by rewrite -(mem_rot i) Hr inE eqxx.
 have /= Hp1: cycle (edge g) (x :: q) by rewrite -Hr rot_cycle. 
 have Dx : x \in dom g.
-- by move: Hp1; rewrite rcons_path=>/andP [_ /edge_dom][].
+- by move: Hp1; rewrite rcons_path=>/andP [_ /edgeD][].
 case/splitPl: Hy Hp1 Hr=>r s Ey.
 rewrite rcons_cat cat_path=>/andP [Hxr].
 rewrite Ey rcons_path; case/andP=>Hlx /= Ex Hr.
@@ -1164,7 +1023,7 @@ apply: (iffP idP)=>[|H]; last first.
 case/andP=>/preacyclicP Ng /allP Ne x xs Dx /=.
 rewrite rcons_path; apply/negP=>/andP [].
 case: xs=>[_|y xs /= /andP [Exy Px]]; first by apply/negP/Ne.
-have Dy : y \in dom g by rewrite (edge_dom Exy).
+have Dy : y \in dom g by rewrite (edgeD Exy).
 have : y \notin biconnect pred0 g x.
 - by apply: contraL Exy=>/(Ng x y Dx Dy) <-; apply: Ne Dx.
 apply: contraNnot=>Ex; apply: (biconnect_cycle0 (xs:=x::y::xs))=>/=.
@@ -1182,5 +1041,147 @@ have [Dx|Nx] := boolP (x \in dom g); last by rewrite linksND.
 by apply: contra (H _ Dx)=>Lx; rewrite edge_links Dx Lx.
 Qed.
 
+(***************)
+(* N-pregraphs *)
+(***************)
 
+(* getting the n-th link *)
+Definition get_nth g x := nth null (links g x).
+
+Lemma getnth_mem0 g x n :
+        (get_nth g x n == null) || 
+        (get_nth g x n \in links g x).
+Proof.
+case: (ltnP n (size (links g x)))=>Hm; last first.
+- by rewrite /get_nth nth_default.
+by rewrite mem_nth // orbT.
+Qed.
+
+Lemma getnth_mem g x n : 
+        get_nth g x n != null ->
+        get_nth g x n \in links g x.
+Proof. by move=>H; move: (getnth_mem0 g x n); rewrite (negbTE H). Qed.
+
+(* n-pregraph is pregraph with global bound n *)
+(* for the number of links of a node *)
+
+Definition n_pregraph_axiom (n : nat) (g : pregraph) :=
+  {in dom g, forall x, size (links g x) = n}.
+
+Lemma npregraphP n g : 
+        n_pregraph_axiom n g <->
+        {in range g, forall xs, size xs = n}.
+Proof.
+split=>H x; last by move=>Dx; apply: H (range_links Dx).
+by case/mem_rangeX=>k X; rewrite (In_graph X); apply: H (In_dom X).
+Qed.
+
+Lemma npregraphUnL n g1 g2 :
+        valid (g1 \+ g2) ->
+        n_pregraph_axiom n (g1 \+ g2) -> 
+        n_pregraph_axiom n g1.
+Proof. 
+by rewrite !npregraphP=>V H x X; apply: H; rewrite rangeUn inE V X.
+Qed.
+
+Lemma npregraphUnR n g1 g2 :
+        valid (g1 \+ g2) ->
+        n_pregraph_axiom n (g1 \+ g2) -> 
+        n_pregraph_axiom n g2.
+Proof. by rewrite joinC; apply: npregraphUnL. Qed.
+
+Lemma npregraphF n g x : 
+        n_pregraph_axiom n g ->
+        n_pregraph_axiom n (free g x).
+Proof. by rewrite !npregraphP=>H z /rangeF; apply: H. Qed.
+
+Lemma links_nth n g x :
+        n_pregraph_axiom n g ->
+        x \in dom g ->
+        links g x = map (get_nth g x) (iota 0 n).
+Proof.
+move=>H Dx; apply/(eq_from_nth (x0:=null))=>[|i Hi].
+- by rewrite size_map size_iota H.
+by rewrite map_nth_iota0 ?H // -(H _ Dx) take_size.
+Qed.
+
+(**********)
+(**********)
+(* Graphs *)
+(**********)
+(**********)
+
+(* x is in_node if it's in the graph or is null *)
+Definition in_node (g : pregraph) (x : node) := 
+  (x == null) || (x \in dom g).
+
+(* x is out-node if no edge goes into it *)
+Definition out_node (g : pregraph) (x : node) := 
+  {in range g, forall xs, x \notin xs}.
+
+(* pregraph is graph if *)
+(* all nodes in all adjacency lists are in-nodes *)
+Definition graph_axiom (g : pregraph) := 
+  forall xs x, xs \in range g -> x \in xs -> in_node g x.
+
+HB.mixin Record isGraph (g : pregraph) := {
+  graph_subproof : graph_axiom g}.
+#[short(type=graph)]
+HB.structure Definition Graph := {g of isGraph g }.
+
+(* removing out-node causes no dangling edges; *)
+(* hence preserves graph axiom *)
+Lemma graphF g x :
+        out_node g x ->
+        graph_axiom g ->
+        graph_axiom (free g x).
+Proof.
+move=>Hna Ha xs q /rangeF Hs Hq.
+move: (Ha xs q Hs Hq) (Hna _ Hs)=>{}Hs.
+rewrite /in_node domF inE in Hs *.
+by case: (x =P q) Hq=>//= ->->.
+Qed.
+
+(* reachable component of a graph is a graph *)
+Lemma graph_subconnect g x :
+        valid g ->
+        graph_axiom g -> 
+        graph_axiom (subconnect g x).
+Proof.
+have E : g = subconnect g x \+ um_filterk 
+  (negb \o connect pred0 g x) g by apply: umfilt_predC.
+move=>V Ha xs /= n Hxs Hn; have {}Dn : in_node g n.
+- by apply: Ha Hn; rewrite E rangeUn inE -E V Hxs.
+case/mem_rangeX: Hxs=>k /In_umfiltX [/= Ck] /In_graph Hf.
+rewrite /in_node in Dn *; case/boolP: (n == null) Dn=>//= Hnn Dn.
+case: (connectD Ck)=>_ Dk.
+rewrite /subconnect dom_umfiltk inE /= Dn andbT.
+apply: connect_trans Ck _; apply/connectP; split=>//.
+by exists [:: n]; split=>//=; rewrite edge_links Dn -Hf Hn.
+Qed.
+
+Lemma graph_links g x y :
+        graph_axiom g ->
+        y \in links g x ->
+        in_node g y.
+Proof. by move=>H /[dup]/linksD Dx; apply/H/range_links. Qed.
+
+Lemma graph_children g x y : 
+        graph_axiom g ->
+        (y \in children g x) = (y != null) && (y \in links g x).
+Proof.
+move=>H; rewrite mem_filter -!(andbC (y \in links _ _)).
+case Ly : (y \in links g x)=>//=.
+move/(graph_links H): Ly; rewrite /in_node.
+by case: (y =P null)=>//= ->; rewrite cond_dom.
+Qed.
+
+Lemma graph_getnth g x n :
+        graph_axiom g ->
+        in_node g (get_nth g x n).
+Proof.
+case: (ltnP n (size (links g x)))=>Hm; last first.
+- by rewrite /get_nth nth_default.
+by move/(graph_links (x:=x)); apply; rewrite mem_nth.
+Qed.
 

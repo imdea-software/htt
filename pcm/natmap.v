@@ -106,6 +106,51 @@ Lemma xx : (1, 3) \In (1 \-> 3).
 Abort.
 (* /DEVCOMMENT *)
 
+(* Sometimes it's useful to not think of natmaps as recording *)
+(* times (i.e., being histories), but just as ordinary maps *)
+(* over nats. For that occassion, use the nmap type *)
+
+Record nmap A := NMap {nmap_base : @UM.base nat nat_pred A}.
+
+Section NMapUMC.
+Variables A : Type.
+Implicit Type f : nmap A.
+Local Coercion nmap_base : nmap >-> UM.base.
+Let nm_valid f := @UM.valid nat nat_pred A f.
+Let nm_empty := NMap (@UM.empty nat nat_pred A).
+Let nm_undef := NMap (@UM.Undef nat nat_pred A).
+Let nm_upd k v f := NMap (@UM.upd nat nat_pred A k v f).
+Let nm_dom f := @UM.dom nat nat_pred A f. 
+Let nm_assocs f := @UM.assocs nat nat_pred A f. 
+Let nm_free f k := NMap (@UM.free nat nat_pred A f k).
+Let nm_find k f := @UM.find nat nat_pred A k f. 
+Let nm_union f1 f2 := NMap (@UM.union nat nat_pred A f1 f2).
+Let nm_empb f := @UM.empb nat nat_pred A f. 
+Let nm_undefb f := @UM.undefb nat nat_pred A f.
+Let nm_from (f : nmap A) : UM.base _ _ := f. 
+Let nm_to (b : @UM.base nat nat_pred A) : nmap A := NMap b.
+Let nm_pts k v := NMap (@UM.pts nat nat_pred A k v).
+
+Lemma nmap_is_umc : 
+        union_map_axiom nm_valid nm_empty nm_undef nm_upd nm_dom 
+                        nm_assocs nm_free nm_find nm_union nm_empb 
+                        nm_undefb nm_pts nm_from nm_to. 
+Proof. by split=>//; split=>[|[]]. Qed.
+
+HB.instance Definition _ := 
+  isUnion_map.Build nat nat_pred A (nmap A) nmap_is_umc. 
+End NMapUMC.
+
+HB.instance Definition _ A := isNatMap.Build A (nmap A).
+HB.instance Definition _ (A : eqType) := 
+  hasDecEq.Build (nmap A) (@union_map_eqP nat _ A (nmap A)).
+Canonical nmap_PredType A : PredType (nat * A) := 
+  Mem_UmMap_PredType (nmap A).
+Coercion Pred_of_nmap A (x : nmap A) : Pred_Class := 
+  [eta Mem_UmMap x].
+
+(* no points-to notation for nmaps *)
+
 (*************)
 (* Main defs *)
 (*************)

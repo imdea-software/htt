@@ -530,8 +530,16 @@ case: b1 b2 N; case=>//= _.
 by case=>_ /(_ erefl).
 Qed.
 
+Lemma implyb_trans a b c : 
+        a ==> b -> 
+        b ==> c -> 
+        a ==> c.
+Proof. by case: a=>//=->. Qed.
+
 Lemma iffE (b1 b2 : bool) : b1 = b2 <-> (b1 <-> b2).
 Proof. by split=>[->|] //; move/iffPb/eqP. Qed.
+
+(* subsets *)
 
 Lemma subsetC T (p q : mem_pred T) :
         {subset p <= q} -> 
@@ -568,12 +576,6 @@ Proof.
 move=>H1 H2 D1; apply: subset_disj H1 _ => x H /H2.
 by apply: D1 H.
 Qed.
-
-Lemma implyb_trans a b c : 
-        a ==> b -> 
-        b ==> c -> 
-        a ==> c.
-Proof. by case: a=>//=->. Qed.
 
 (**************)
 (* empty type *)
@@ -892,9 +894,6 @@ by apply: iff_sym; exact: PrefixE.
 Qed.
 
 End SeqPrefixEq.
-
-
-
 
 (******************************)
 (* Some commuting conversions *)

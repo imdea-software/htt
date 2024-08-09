@@ -634,4 +634,4 @@ Qed.
 
 End LomutoQsort.
 
-(* TODO Hoare variant *)
+
