@@ -122,9 +122,9 @@ Arguments Pred0 {T}.
 Arguments PredT {T}.
 Prenex Implicits Pred0 PredT PredI PredU PredC PredD Preim.
 
-Notation "r1 +p r2" := (PredU r1 r2 : Pred _)
+Notation "r1 \+p r2" := (PredU r1 r2 : Pred _)
   (at level 55, right associativity) : rel_scope.
-Notation "r1 *p r2" := (xPredI r1 r2 : Pred _)
+Notation "r1 \*p r2" := (xPredI r1 r2 : Pred _)
   (at level 45, right associativity) : rel_scope.
 
 Notation "[ 'Pred' : T | E ]" := (SimplPred (fun _ : T => E))
@@ -517,37 +517,37 @@ Section RelLaws.
 Variable T : Type.
 Implicit Type r : Pred T.
 
-Lemma orrI r : r +p r <~> r. 
+Lemma orrI r : r \+p r <~> r. 
 Proof.  by move=>x; split; [case | left]. Qed.
 
-Lemma orrC r1 r2 : r1 +p r2 <~> r2 +p r1.
+Lemma orrC r1 r2 : r1 \+p r2 <~> r2 \+p r1.
 Proof. move=>x; split=>/=; tauto. Qed.
 
-Lemma orr0 r : r +p Pred0 <~> r.
+Lemma orr0 r : r \+p Pred0 <~> r.
 Proof. by move=>x; split; [case | left]. Qed.
 
-Lemma or0r r : Pred0 +p r <~> r.
+Lemma or0r r : Pred0 \+p r <~> r.
 Proof. by rewrite orrC orr0. Qed.
 
-Lemma orrCA r1 r2 r3 : r1 +p r2 +p r3 <~> r2 +p r1 +p r3.
+Lemma orrCA r1 r2 r3 : r1 \+p r2 \+p r3 <~> r2 \+p r1 \+p r3.
 Proof. by move=>x; split=>/=; intuition. Qed.
 
-Lemma orrAC r1 r2 r3 : (r1 +p r2) +p r3 <~> (r1 +p r3) +p r2.
+Lemma orrAC r1 r2 r3 : (r1 \+p r2) \+p r3 <~> (r1 \+p r3) \+p r2.
 Proof. by move=>?; split=>/=; intuition. Qed.
 
-Lemma orrA r1 r2 r3 : (r1 +p r2) +p r3 <~> r1 +p r2 +p r3.
+Lemma orrA r1 r2 r3 : (r1 \+p r2) \+p r3 <~> r1 \+p r2 \+p r3.
 Proof. by rewrite (orrC r2) orrCA orrC. Qed.
 
 (* absorption *)
-Lemma orrAb r1 r2 : r1 <~> r1 +p r2 <-> r2 ~> r1.
+Lemma orrAb r1 r2 : r1 <~> r1 \+p r2 <-> r2 ~> r1.
 Proof.
 split; first by move=>-> x /=; auto.
 move=>H x /=; split; first by auto.
 by case=>//; move/H.
 Qed.
 
-Lemma sub_orl r1 r2 : r1 ~> r1 +p r2. Proof. by left. Qed.
-Lemma sub_orr r1 r2 : r2 ~> r1 +p r2. Proof. by right. Qed.
+Lemma sub_orl r1 r2 : r1 ~> r1 \+p r2. Proof. by left. Qed.
+Lemma sub_orr r1 r2 : r2 ~> r1 \+p r2. Proof. by right. Qed.
 End RelLaws.
 
 Section SubMemLaws.
@@ -563,28 +563,28 @@ Proof. by move=>H1 H2 x; split; [move/H1 | move/H2]. Qed.
 Lemma subp_trans p2 p1 p3 : p1 <=p p2 -> p2 <=p p3 -> p1 <=p p3.
 Proof. by move=>H1 H2 x; move/H1; move/H2. Qed.
 
-Lemma subp_or p1 p2 q : p1 <=p q /\ p2 <=p q <-> p1 +p p2 <=p q.
+Lemma subp_or p1 p2 q : p1 <=p q /\ p2 <=p q <-> p1 \+p p2 <=p q.
 Proof.
 split=>[[H1] H2 x|H1]; first by case; [move/H1 | move/H2].
 by split=>x H2; apply: H1; [left | right].
 Qed.
 
-Lemma subp_and p1 p2 q : q <=p p1 /\ q <=p p2 <-> q <=p p1 *p p2.
+Lemma subp_and p1 p2 q : q <=p p1 /\ q <=p p2 <-> q <=p p1 \*p p2.
 Proof.
 split=>[[H1] H2 x|] H; last by split=>x; case/H.
 by split; [apply: H1 | apply: H2].
 Qed.
 
-Lemma subp_orl p1 p2 q : p1 <=p p2 -> p1 +p q <=p p2 +p q.
+Lemma subp_orl p1 p2 q : p1 <=p p2 -> p1 \+p q <=p p2 \+p q.
 Proof. by move=>H x; case; [move/H; left|right]. Qed.
 
-Lemma subp_orr p1 p2 q : p1 <=p p2 -> q +p p1 <=p q +p p2.
+Lemma subp_orr p1 p2 q : p1 <=p p2 -> q \+p p1 <=p q \+p p2.
 Proof. by move=>H x; case; [left | move/H; right]. Qed.
 
-Lemma subp_andl p1 p2 q : p1 <=p p2 -> p1 *p q <=p p2 *p q.
+Lemma subp_andl p1 p2 q : p1 <=p p2 -> p1 \*p q <=p p2 \*p q.
 Proof. by by move=>H x [H1 H2]; split; [apply: H|]. Qed.
 
-Lemma subp_andr p1 p2 q : p1 <=p p2 -> q *p p1 <=p q *p p2.
+Lemma subp_andr p1 p2 q : p1 <=p p2 -> q \*p p1 <=p q \*p p2.
 Proof. by move=>H x [H1 H2]; split; [|apply: H]. Qed.
 
 End SubMemLaws.

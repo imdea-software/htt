@@ -17,10 +17,6 @@ From pcm Require Import options axioms pred ordtype seqext.
 From pcm Require Import pcm unionmap heap autopcm automap.
 From htt Require Import options model heapauto bintree.
 
-(* hack to avoid "_ *p _" notation clash *)
-From mathcomp Require order.
-Import order.Order.NatOrder order.Order.TTheory.
-
 Section BST.
 Context {T : ordType}.
 

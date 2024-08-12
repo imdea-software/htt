@@ -229,7 +229,7 @@ Add Morphism closure with
 Proof. by apply: closE. Qed.
 
 Lemma clos_clos (R Q : rel_exp) : 
-        closure (closure R +p Q) <~> closure (R +p Q).
+        closure (closure R \+p Q) <~> closure (R \+p Q).
 Proof.
 case=>e1 e2; split=>H1 C H2 H3; apply: H1 =>// [[x y]] H4.
 - by case: H4=>H4; [apply: H4=>// [[x1 y1]] H4|]; apply: H2; [left | right].
@@ -243,7 +243,7 @@ Proof. by rewrite -(orr0 (closure R)) clos_clos !orr0. Qed.
 
 Lemma closKR (R1 R2 K : rel_exp) :
         closure R1 <~> closure R2 -> 
-        closure (K +p R1) <~> closure (K +p R2).
+        closure (K \+p R1) <~> closure (K \+p R2).
 Proof.
 move=>H.
 by rewrite 2!(orrC K) -(clos_clos R1) -(clos_clos R2) H.
@@ -251,7 +251,7 @@ Qed.
 
 Lemma closRK (R1 R2 K : rel_exp) :
         closure R1 <~> closure R2 -> 
-        closure (R1 +p K) <~> closure (R2 +p K).
+        closure (R1 \+p K) <~> closure (R2 \+p K).
 Proof. by rewrite 2!(orrC _ K); apply: closKR. Qed.
 
 Lemma closI (R : rel_exp) : R ~> closure R.
@@ -259,7 +259,7 @@ Proof. by move=>[x y] H1 T H2 H3; apply: H2. Qed.
 
 (* absorption and closure *)
 Lemma closKA (K R : rel_exp) :
-        closure R <~> closure (K +p R) <-> K ~> closure R.
+        closure R <~> closure (K \+p R) <-> K ~> closure R.
 Proof.
 rewrite -orrAb; split=>[->|].
 - by rewrite orrAb; move=>[x y] H; apply: closI; left.
@@ -267,12 +267,12 @@ by rewrite (orrC _ R) -clos_clos orrC=><-; rewrite clos_idemp.
 Qed.
 
 Lemma closAK (K R : rel_exp) :
-        closure R <~> closure (R +p K) <-> K ~> closure R.
+        closure R <~> closure (R \+p K) <-> K ~> closure R.
 Proof. by rewrite orrC closKA. Qed.
 
 Lemma clos_or (R1 R2 R : rel_exp) :
         closure R1 ~> closure R -> closure R2 ~> closure R ->
-        closure (R1 +p R2) ~> closure R.
+        closure (R1 \+p R2) ~> closure R.
 Proof.
 rewrite -!closAK !(orrC R) !clos_clos -!(orrC R) => H1 H2.
 by rewrite H1 -clos_clos H2 clos_clos orrAC orrA.
@@ -280,7 +280,7 @@ Qed.
 
 Lemma sub_closKR (R1 R2 K : rel_exp) :
         (closure R1 ~> closure R2) -> 
-        closure (K +p R1) ~> closure (K +p R2).
+        closure (K \+p R1) ~> closure (K \+p R2).
 Proof.
 rewrite -!closAK=>H.
 rewrite -(orrC (closure _)) clos_clos orrAC -orrA orrI.
@@ -291,7 +291,7 @@ Qed.
 
 Lemma sub_closRK (R1 R2 K : rel_exp) :
         (closure R1 ~> closure R2) -> 
-        closure (R1 +p K) ~> closure (R2 +p K).
+        closure (R1 \+p K) ~> closure (R2 \+p K).
 Proof. by move=>H; rewrite -!(orrC K); apply: sub_closKR. Qed.
 
 Lemma sub_closI (R1 R2 : rel_exp) :
@@ -340,7 +340,7 @@ Definition eq2rel (eq : Eq) : rel_exp :=
   end.
 
 Fixpoint eqs2rel (eqs : seq Eq) : rel_exp :=
-  if eqs is hd::tl then eq2rel hd +p eqs2rel tl else Pred0.
+  if eqs is hd::tl then eq2rel hd \+p eqs2rel tl else Pred0.
 
 (* Coercing triples of symbols into equations *)
 Definition symb2eq (t : symb*symb*symb) :=
@@ -441,7 +441,7 @@ Hint Resolve rep_in_reps : core.
 (* The symbols and their representatives are a base case in defining the closure *)
 Definition rep2rel D := graph (fun x => const (rep D x)).
 
-Lemma clos_rep D R a : (const a, const (rep D a)) \In closure (rep2rel D +p R).
+Lemma clos_rep D R a : (const a, const (rep D a)) \In closure (rep2rel D \+p R).
 Proof.
 apply: (@closI _ (const a, const (rep D a))); apply: sub_orl; rewrite /= /rep2rel /graph /=.
 by rewrite mem_map /= ?mem_enum // => x1 x2 [->].
@@ -471,8 +471,8 @@ by exists a, b, c, c1, c2.
 Qed.
 
 (* The relation defined by the data structure is the following *)
-Definition CRel D := closure (rep2rel D +p
-                              lookup_rel D +p
+Definition CRel D := closure (rep2rel D \+p
+                              lookup_rel D \+p
                               eqs2rel (map pend2eq (pending D))).
 
 Lemma cong_rel D : congruence (CRel D).
@@ -480,7 +480,7 @@ Proof. by move=>*; apply: cong_clos. Qed.
 
 Hint Resolve cong_rel : core.
 
-Lemma clos_rel D R a : (const a, const (rep D a)) \In closure (CRel D +p R).
+Lemma clos_rel D R a : (const a, const (rep D a)) \In closure (CRel D \+p R).
 Proof. by rewrite /CRel clos_clos orrA; apply: clos_rep. Qed.
 
 
@@ -706,12 +706,12 @@ Definition lookup_inv D :=
 (* two symbols are similar if they are either related by representatives *)
 (* or are to be related after the pending list is processed *)
 Definition similar D a b :=
-  (const a, const b) \In closure (rep2rel D +p eqs2rel 
+  (const a, const b) \In closure (rep2rel D \+p eqs2rel 
                                  (map pend2eq (pending D))).
 
 Definition similar1 D a' b' a b :=
   (const a, const b) \In 
-     closure (rep2rel D +p [Pred x y | x = const a' /\ y = const b'] +p
+     closure (rep2rel D \+p [Pred x y | x = const a' /\ y = const b'] \+p
              eqs2rel (map pend2eq (pending D))).
 
 (* invariants tying use lists with the lookup table *)
@@ -830,9 +830,9 @@ Lemma symR R x y : (x, y) \In closure R <-> (y, x) \In closure R.
 Proof. by split=>T; apply: symC. Qed.
 
 Lemma app_rep D R a b x :
-        (x, app (const a) (const b)) \In closure (rep2rel D +p R) <->
+        (x, app (const a) (const b)) \In closure (rep2rel D \+p R) <->
         (x, app (const (rep D a)) (const (rep D b))) 
-          \In closure (rep2rel D +p R).
+          \In closure (rep2rel D \+p R).
 Proof.
 split=>T.
 - apply: (transC (y:= app (const a) (const (rep D b)))); last first.
@@ -846,18 +846,18 @@ by apply: monoC; [apply: symC; apply: clos_rep | apply: reflC].
 Qed.
 
 Lemma app_rel D R a b x :
-        (x, app (const a) (const b)) \In closure (CRel D +p R) <->
-        (x, app (const (rep D a)) (const (rep D b))) \In closure (CRel D +p R).
+        (x, app (const a) (const b)) \In closure (CRel D \+p R) <->
+        (x, app (const (rep D a)) (const (rep D b))) \In closure (CRel D \+p R).
 Proof. by rewrite /CRel !clos_clos !orrA; apply: app_rep. Qed.
 
 Lemma const_rep D R a x :
-        (const a, x) \In closure (rep2rel D +p R) <->
-        (const (rep D a), x) \In closure (rep2rel D +p R).
+        (const a, x) \In closure (rep2rel D \+p R) <->
+        (const (rep D a), x) \In closure (rep2rel D \+p R).
 Proof. by split=>T; apply: transC T; [apply: symC|]; apply: clos_rep. Qed.
 
 Lemma const_rel D R a x :
-        (const a, x) \In closure (CRel D +p R) <->
-        (const (rep D a), x) \In closure (CRel D +p R).
+        (const a, x) \In closure (CRel D \+p R) <->
+        (const (rep D a), x) \In closure (CRel D \+p R).
 Proof. by rewrite /CRel !clos_clos !orrA; apply: const_rep. Qed.
 
 (* Now the lemmas *)
@@ -888,7 +888,7 @@ Qed.
 Lemma join_class_repE (D : data) (a' b' : symb) :
         a' \in reps D -> b' \in reps D -> rep_idemp D ->
         closure (rep2rel (join_class D a' b')) <~>
-        closure (rep2rel D +p [Pred x y | x = const a' /\ y = const b']).
+        closure (rep2rel D \+p [Pred x y | x = const a' /\ y = const b']).
 Proof.
 move=>H2 H3 H1 [x y]; split=>/= T.
 - pose ty z := PredU (rep2rel D) [Pred x0 y0 | x0 = const z /\ y0 = const b'].
@@ -1036,14 +1036,14 @@ Lemma join_classE (D : data) (a' b' : symb) :
         rep_idemp D -> 
         use_lookup_inv1 D a' b' -> 
         lookup_use_inv1 D a' b' ->
-        closure (CRel (join_class D a' b') +p 
+        closure (CRel (join_class D a' b') \+p 
                        eqs2rel (map symb2eq (use D a'))) <~>
-        closure (CRel D +p [Pred x y | x = const a' /\ y = const b']).
+        closure (CRel D \+p [Pred x y | x = const a' /\ y = const b']).
 Proof.
 pose ty := [Pred x0 y0 | x0 = const a' /\ y0 = const b'].
 move=>L1 L2 L3 H1 H4 H5 [x y]; split.
 - apply: clos_or; move=>{x y}[x y]; last first.
-  - move: (clos_idemp (CRel D +p ty) (x,y))=><-.
+  - move: (clos_idemp (CRel D \+p ty) (x,y))=><-.
     apply: sub_closI=>{x y}[[x y]] /=.
     move/invert=>[c][c1][c2][->->H6].
     move: (H4 a' c c1 c2 L1 H6)=>[d][d1][d2][Q1][Q2][Q3] Q4.
@@ -1194,23 +1194,23 @@ Lemma join_usePE (D : data) (a' b' : symb) :
         lookup_inv (join_use D a' b') /\
         use_lookup_inv2 (join_use D a' b') a' b' /\
         lookup_use_inv2 (join_use D a' b') a' b' /\
-        closure (CRel D +p eqs2rel (map symb2eq (use D a'))) <~>
+        closure (CRel D \+p eqs2rel (map symb2eq (use D a'))) <~>
                  CRel (join_use D a' b').
 Proof.
 rewrite /join_use; move E: (use _ _)=>x.
 elim: x D E=>[|[[c c1] c2] ss IH] D E L1 L2 H1 H2 H3 H4 H5 /=.
 - by rewrite orr0 /CRel clos_idemp.
 case F: (fnd _ _)=>[[[d d1] d2]|]; set D' := Data _ _ _ _ _.
-- have S1: closure (rep2rel D' +p eqs2rel (map pend2eq (pending D'))) <~>
-           closure (rep2rel D +p [Pred x y | x = const c /\ y = const d] +p
+- have S1: closure (rep2rel D' \+p eqs2rel (map pend2eq (pending D'))) <~>
+           closure (rep2rel D \+p [Pred x y | x = const c /\ y = const d] \+p
                     eqs2rel (map pend2eq (pending D))) by [].
   have S2: forall e1 e2, similar D e1 e2 -> similar D' e1 e2.
   - rewrite /similar=>e1 e2; move: (const e1) (const e2)=>{e1 e2} x y.
     by rewrite S1; apply: sub_closI=>{x y} [[x y]]; 
        case; [left | right; right].
-  have T2 : closure (CRel D' +p eqs2rel (map symb2eq ss)) <~>
-            closure (CRel D +p [Pred x y | x = const c /\ 
-     y = app (const c1) (const c2)] +p eqs2rel (map symb2eq ss)).
+  have T2 : closure (CRel D' \+p eqs2rel (map symb2eq ss)) <~>
+            closure (CRel D \+p [Pred x y | x = const c /\ 
+     y = app (const c1) (const c2)] \+p eqs2rel (map symb2eq ss)).
   - rewrite /CRel {2 3}/D' /= !clos_clos !orrA.
     rewrite -!(rpull (eqs2rel (map pend2eq _))).
     rewrite -!(rpull (eqs2rel (map symb2eq ss))).
@@ -1280,7 +1280,7 @@ case F: (fnd _ _)=>[[[d d1] d2]|]; set D' := Data _ _ _ _ _.
     by case: eqP H6 L1=>[->-> //| _] H6 L1; do !split=>//; apply: S2.
   exists h, h1, h2; rewrite {1}/D' /= !ffunE.
   by case: eqP H7 L1=>[->-> //| _] H7 L1; do !split=>//; apply: S2.
-have T1: lookup_rel D' <~> lookup_rel D +p
+have T1: lookup_rel D' <~> lookup_rel D \+p
   [Pred x y | x = app (const (rep D c1)) (const (rep D c2)) /\
               y = const (rep D c)].
 - rewrite /lookup_rel /D' /= /reps /= =>[[x y]]; split.
@@ -1298,9 +1298,9 @@ have T1: lookup_rel D' <~> lookup_rel D +p
   exists (rep D c1), (rep D c2), c, c1, c2.
   rewrite fnd_ins !rep_in_reps.
   by case: eqP.
-have T2: closure (CRel D' +p eqs2rel (map symb2eq ss)) <~>
-  closure (CRel D +p [Pred x y | x = const c /\ 
-    y = app (const c1) (const c2)] +p eqs2rel (map symb2eq ss)).
+have T2: closure (CRel D' \+p eqs2rel (map symb2eq ss)) <~>
+  closure (CRel D \+p [Pred x y | x = const c /\ 
+    y = app (const c1) (const c2)] \+p eqs2rel (map symb2eq ss)).
 - pose ty1 := [Pred x y | x = app (const (rep D c1)) 
     (const (rep D c2)) /\ y = const (rep D c)].
   pose ty2 := [Pred x y | x = const c /\ y = app (const c1) (const c2)].
@@ -1447,8 +1447,8 @@ Proof.
 move: D.
 pose ty x0 y0 := [Pred x y | x = @const s x0 /\ y = @const s y0].
 have L: forall D a b,
-  closure (rep2rel D +p ty a b) <~>
-  closure (rep2rel D +p ty (rep D a) (rep D b)).
+  closure (rep2rel D \+p ty a b) <~>
+  closure (rep2rel D \+p ty (rep D a) (rep D b)).
 - move=>D a b [x y]; split=>T; rewrite toPredE -clos_idemp;
   apply: sub_closI T=>{x y} [[x y]];
   (case; first by move=>H; apply: closI; left); case=>->->;
@@ -1500,7 +1500,7 @@ have L2: forall D pend_eq p' a b a' b' D' D'',
   CRel D <~> CRel (propagate (join_use D'' a' b')).
 - move=>D pend_eq p' a b a' b' D' D'' H1 H H2 H3 H4 H5 H6 IH 
   [H7][H8][H9][H10] H11.
-  have T: CRel D <~> closure (CRel D' +p 
+  have T: CRel D <~> closure (CRel D' \+p 
     [Pred x y | x = const a' /\ y = const b']).
   - rewrite /CRel H1 -{2 3}H4 /= clos_clos !orrA H /=.
     rewrite -!(rpull (lookup_rel _)) -!(rpull (eqs2rel (map pend2eq _))).
@@ -1597,7 +1597,7 @@ Lemma propagate_clos_pendP d c c1 c2 e e1 e2 :
         fnd (rep d c1, rep d c2) (lookup d) = Some (e, e1, e2) ->
           CRel (Data (rep d) (class d) (use d) (lookup d)
                      (comp_pend (c, c1, c2) (e, e1, e2) :: pending d))
-         <~> closure (CRel d +p
+         <~> closure (CRel d \+p
                      [Pred x y | x = const c /\ y = app (const c1) (const c2)]).
 Proof.
 move=>PI H.
@@ -1687,7 +1687,7 @@ Lemma propagate_clos_nopendP :
         CRel (Data (rep d) (class d) u2'
              (ins (rep d c1, rep d c2) (c, c1, c2) (lookup d)) 
              (pending d)) <~>
-        closure (CRel d +p 
+        closure (CRel d \+p 
           [Pred x y | x = const c /\ y = app (const c1) (const c2)]).
 Proof.
 rewrite /CRel clos_clos orrA orrAC -!orrA; apply: closRK; rewrite !orrA.
