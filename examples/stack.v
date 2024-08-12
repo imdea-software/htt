@@ -28,26 +28,20 @@ Notation stack := (stack T).
 
 (* stack is a pointer to a singly-linked list *)
 Definition shape s (xs : seq T) :=
-  [Pred h | exists p h', [ /\ valid (s :-> p \+ h'),
-                              h = s :-> p \+ h' &
+  [Pred h | exists p h', [ /\ h = s :-> p \+ h' &
                               h' \In lseq p xs]].
 
 (* heap cannot match two different specs *)
-Lemma shape_inv : forall s xs1 xs2 h,
+Lemma shape_inv s xs1 xs2 h :
+        valid h ->
         h \In shape s xs1 -> 
         h \In shape s xs2 -> 
         xs1 = xs2.
 Proof.
-move=>s xs1 xs2 _ [p][h1][D -> S][p2][h2][D2].
-case/(cancelO _ D)=><- _; rewrite !unitL=><-.
-by apply: lseq_func=>//; move/validR: D.
+move=>V [p][h1][E S][x][h'][]; rewrite {h}E in V *. 
+case/(cancelO _ V)=><- _; rewrite !unitL=><-.
+by apply: lseq_func=>//; move/validR: V.
 Qed.
-
-(* well-formed stack is a valid heap *)
-Lemma shapeD s xs h : 
-        h \In shape s xs -> 
-        valid h.
-Proof. by case=>p [h'][D ->]. Qed.
 
 (* main methods *)
 
@@ -61,7 +55,7 @@ Program Definition free s : STsep (shape s [::],
                                    [vfun _ h => h = Unit]) :=
   Do (dealloc s).
 Next Obligation.
-by case=>i [?][?][V ->][_ ->]; step=>_; rewrite unitR.
+by case=>i [?][?][->][_ ->]; step=>_; rewrite unitR.
 Qed.
 
 (* pushing to the stack is inserting into the list and updating the pointer *)
@@ -72,9 +66,9 @@ Program Definition push s x : STsep {xs} (shape s xs,
       s ::= l').
 Next Obligation.
 (* pull out ghost + precondition, get the list *)
-case=>xs [] _ /= [l][h][V -> H]; step.
+case=>xs [] _ /= [l][h][-> H]; step.
 (* run the insert procedure with the ghost, deconstruct the new list *)
-apply: [stepX xs]@h=>//= x0 _ [r][h'][-> H'].
+apply: [stepX xs]@h=>//= l' _ [r][h'][-> H'].
 (* store the new list *)
 by step=>V'; hhauto.
 Qed.
@@ -96,7 +90,7 @@ Program Definition pop s :
         (fun _ => throw EmptyStack)).
 Next Obligation.
 (* pull out ghost vars and precondition *)
-case=>xs [] _ /= [p][h0][V -> H].
+case=>xs [] _ /= [p][h0][-> H].
 (* get the list and invoke head on it, deal with exception first *)
 step; apply/[tryX xs]@h0=>//= [x|ex] m [Hm]; last first.
 - (* throw the stack exception *)

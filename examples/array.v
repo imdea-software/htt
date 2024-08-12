@@ -41,7 +41,7 @@ Notation array := {array I -> T}.
 
 (* array is specified by finite function *)
 Definition shape (a : array) (f : {ffun I -> T}) :=
-  [Pred h | h = updi a (fgraph f) /\ valid h].
+  [Pred h | h = updi a (fgraph f)].
 
 (* main methods *)
 
@@ -55,7 +55,7 @@ Next Obligation.
 (* pull out ghost vars, run the program *)
 move=>x [] _ /= ->; step=>y; step.
 (* simplify *)
-rewrite unitR=>H; split=>//; congr updi; rewrite codomE cardE.
+rewrite unitR=>H; congr updi; rewrite codomE cardE.
 by elim: (enum I)=>[|t ts] //= ->; rewrite (ffunE _ _).
 Qed.
 
@@ -89,11 +89,11 @@ Program Definition newf (f : {ffun I -> T}) :
 (* first the loop *)
 Next Obligation.
 (* pull out preconditions (note that there are no ghost vars), split *)
-move=>f v x loop s [] /= _ [g][s'][[-> _]]; case: s=>[|k t] /= H1 H2.
+move=>f v x loop s [] /= _ [g][s'][->]; case: s=>[|k t] /= H1 H2.
 - (* we've reached the end, return the array *)
-  rewrite cats0 in H1; step=>H; split=>//.
   (* g spans the whole f *)
-  by rewrite (_ : g = f) // -ffunP=>y; apply: H2; rewrite H1 mem_enum.
+  rewrite cats0 in H1; step=>_; rewrite (_ : g = f) // -ffunP=>y.
+  by apply: H2; rewrite H1 mem_enum.
 (* run the loop iteration, split the heap and save its validity *)
 rewrite (updi_split x k); step; apply: vrfV=>V; apply: [gE]=>//=.
 (* add the new index+value to g *)
@@ -109,11 +109,11 @@ Next Obligation.
 (* pull out params, check if I is empty *)
 move=>f [] _ ->; case: fintype.pickP=>[v|] H /=.
 - (* run the `new` subroutine, simplify *)
-  apply: [stepE]=>//= a _ [-> V].
+  apply: [stepE]=>//= a _ ->.
   (* invoke the loop, construct g from the first value of f *)
   by apply: [gE]=>//=; exists [ffun => f v], nil.
 (* I is empty, so should be the resulting heap *)
-step=>_; split=>//; rewrite codom_ffun.
+step=>_; rewrite codom_ffun.
 suff L: #|I| = 0 by case: (fgraph f)=>/=; rewrite L; case.
 by rewrite cardE; case: (enum I)=>[|x s] //; move: (H x).
 Qed.
@@ -151,7 +151,7 @@ Qed.
 (* now the outer program *)
 Next Obligation.
 (* pull out params, invoke the loop *)
-move=>a [] /= _ [f][-> V]; apply: [gE]=>//=.
+move=>a [] /= _ [f ->]; apply: vrfV=>V; apply: [gE]=>//=.
 (* the suffix xs is the whole codomain of f *)
 exists (tval (fgraph f))=>/=.
 by rewrite ptr0 V {3}codomE size_map -cardE addn0.
@@ -164,7 +164,7 @@ Program Definition read (a : array) (k : I) :
   Do (!a .+ (indx k)).
 Next Obligation.
 (* pull out ghost vars *)
-move=>a k [f][_][] _ [->][/= -> _].
+move=>a k [f][_][] _ [->->].
 (* split the heap and run the program *)
 by rewrite (updi_split a k); step.
 Qed.
@@ -177,7 +177,7 @@ Program Definition write (a : array) (k : I) (x : T) :
   Do (a .+ (indx k) ::= x).
 Next Obligation.
 (* pull out ghost vars, split the heap *)
-move=>a k x [f][] _ [-> _] /=; rewrite /shape !(updi_split a k).
+move=>a k x [f][] _ -> /=; rewrite /shape !(updi_split a k).
 (* run the program, simplify *)
 by step; rewrite takeord dropord ffunE /= eq_refl.
 Qed.

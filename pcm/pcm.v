@@ -1340,21 +1340,26 @@ Variables (U : pcm) (A : Type).
 Definition seqjoin (s : seq U) : U :=
   \big[join/Unit]_(i <- s) i.
 
-Definition sepit (s : seq A) (f : A -> Pred U) : Pred U :=
+Definition sepit' (s : seq A) (f : A -> Pred U) : Pred U :=
   [Pred h | exists hs : seq U,
               [ /\ size hs = size s, h = seqjoin hs &
                    All (fun '(a, h) => h \In f a) (zip s hs)]].
 
+Definition sepit s f := locked (sepit' s f).
+
+Lemma sepitE s f : sepit s f = sepit' s f.
+Proof. by rewrite /sepit -lock. Qed.
+
 Lemma sepit0 f : sepit [::] f =p emp.
 Proof.
-move=>h; split.
+move=>h; rewrite sepitE; split.
 - by case=>/= hs [/size0nil -> -> _]; rewrite /seqjoin !big_nil.
 by move=>->; exists [::]; rewrite /seqjoin !big_nil.
 Qed.
 
 Lemma sepit_cons x s f : sepit (x::s) f =p f x # sepit s f.
 Proof.
-move=>h; split.
+move=>h; rewrite !sepitE; split.
 - case=>/=; case=>[|h0 hs]; case=>//= /eqP; rewrite eqSS =>/eqP Hs.
   rewrite /seqjoin big_cons =>->[H0 H1].
   by exists h0, (seqjoin hs); do!split=>//; exists hs.
@@ -1364,17 +1369,17 @@ Qed.
 
 Lemma sepit_cat s1 s2 f : sepit (s1 ++ s2) f =p sepit s1 f # sepit s2 f.
 Proof.
-elim: s1 s2=>[|x s1 IH] s2 h /=; split.
-- case=>hs [E {h}-> H2].
+rewrite !sepitE; elim: s1 s2=>[|x s1 IH] s2 h /=; split.
+- case=>hs [E {h}-> H2]; rewrite -sepitE.
   exists Unit, (seqjoin hs); rewrite unitL.
   by split=>//; [rewrite sepit0 | exists hs].
-- by case=>h1[h2][{h}->]; rewrite sepit0=>->; rewrite unitL.
+- by case=>h1[h2][{h}->]; rewrite -sepitE sepit0=>->; rewrite unitL.
 - case=>/=; case=>[|h0 hs]; case=>//= /eqP; rewrite eqSS=>/eqP E.
   rewrite /seqjoin !big_cons /= =>->[H0 HS].
   case: (IH s2 (seqjoin hs)).1; first by exists hs.
   move=>h1[h2][HJ H1 H2]; rewrite /seqjoin in HJ.
   exists (h0 \+ h1), h2; rewrite HJ joinA; split=>//.
-  by rewrite sepit_cons; exists h0, h1.
+  by rewrite -sepitE sepit_cons sepitE; exists h0, h1.
 case=>h1[h2][{h}->[]]; case=>[|h0 hs1]; case=>//= /eqP; rewrite eqSS=>/eqP E1.
 rewrite /seqjoin !big_cons /= =>{h1}->[H0 H1]; case=>hs2[E2 {h2}-> H2].
 exists (h0 :: hs1 ++ hs2); rewrite /seqjoin big_cons big_cat joinA; split=>//=.
@@ -1391,21 +1396,24 @@ move=>H; have Hx: x \In s2 by apply/(pperm_in H)/In_cons; left.
 case: (In_split Hx)=>s21[s22] E; rewrite {s2 Hx}E in H *.
 move/pperm_cons_cat_cons: H=>/IH {}IH.
 rewrite sepit_cons sepit_cat /= =>h; split.
-- case=>h1[h2][{h}-> H1]; rewrite IH sepit_cat.
+- case=>h1[h2][{h}-> H1]; rewrite IH sepit_cat !sepitE.
   case=>_[_][{h2}-> [hs3][E3 -> H3] [hs4][E4 -> H4]]; rewrite joinCA.
   exists (seqjoin hs3), (h1 \+ seqjoin hs4); split=>//; first by exists hs3.
-  by rewrite sepit_cons; exists h1, (seqjoin hs4); split=>//; exists hs4.
-case=>_[h2][{h}-> [hs1][Hs1 -> H1]]; rewrite sepit_cons.
+  rewrite -sepitE sepit_cons sepitE; exists h1, (seqjoin hs4).
+  by split=>//; exists hs4.
+rewrite sepitE; case=>_[h2][{h}-> [hs1][Hs1 -> H1]].
+rewrite sepit_cons sepitE.
 case=>h3[_][{h2}-> H3 [hs2][Hs2 -> H2]]; rewrite joinCA.
 exists h3, (seqjoin hs1 \+ seqjoin hs2); split=>//.
-rewrite IH; exists (hs1 ++ hs2); split.
+rewrite IH sepitE; exists (hs1 ++ hs2); split.
 - by rewrite !size_cat Hs1 Hs2.
 - by rewrite /seqjoin big_cat.
 by rewrite zip_cat //; apply/All_cat.
 Qed.
 
 Lemma sepitF s (f1 f2 : A -> Pred U) :
-        (forall x, x \In s -> f1 x =p f2 x) -> sepit s f1 =p sepit s f2.
+        (forall x, x \In s -> f1 x =p f2 x) -> 
+        sepit s f1 =p sepit s f2.
 Proof.
 elim: s=>[|x s IH] H h; first by rewrite !sepit0.
 have /IH {IH}H': forall x : A, x \In s -> f1 x =p f2 x.
@@ -1438,8 +1446,9 @@ case=>hb[h][{h1}-> Hb H]; rewrite joinCA; exists hb, (ha \+ h); split=>//;
 [rewrite sepit_cons | rewrite (IH Hx Hu)]; exists ha, h.
 Qed.
 
-Corollary eq_sepitF s (f1 f2 : A -> Pred U) :
-            (forall x, x \in s -> f1 x =p f2 x) -> sepit s f1 =p sepit s f2.
+Lemma eq_sepitF s (f1 f2 : A -> Pred U) :
+        (forall x, x \in s -> f1 x =p f2 x) -> 
+        sepit s f1 =p sepit s f2.
 Proof. by move=>H; apply: sepitF=>x Hx; apply/H/mem_seqP. Qed.
 
 Corollary perm_sepit s1 s2 (f : A -> Pred U) :

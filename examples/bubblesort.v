@@ -347,12 +347,12 @@ Program Definition cas_next (a : {array 'I_n.+2 -> A}) (i : 'I_n.+1) :
           ret true
         else ret false).
 Next Obligation.
-move=>a i /= [f][] h /= [E V]; set i0 := Wo i; set i1 := So i.
+move=>a i /= [f][] h /= E; set i0 := Wo i; set i1 := So i.
 do 2!apply: [stepE f, h]=>//= _ _ [->->].
 case: oleqP=>H; first by step=>_; exists 1%g; split=>//; rewrite pffunE1.
-apply: [stepE f ]=>//= _ _ [-> Vs ].
+apply: [stepE f ]=>//= _ _ ->.
 set fs  := finfun [eta f  with i0 |-> f i1].
-apply: [stepE fs]=>//= _ _ [-> Vsw].
+apply: [stepE fs]=>//= _ _ ->.
 set fsw := finfun [eta fs with i1 |-> f i0].
 step=>_; exists (swnx i); do!split=>//=.
 suff: fsw = pffun (swnx i) f by move=>->.
@@ -442,7 +442,7 @@ Program Definition bubble_sort (a : {array 'I_n.+2 -> A}) :
           then go tt : ST _
           else skip)).
 Next Obligation.
-move=>a go _ [f][] h /= [E V].
+move=>a go _ [f][] h /= E.
 apply: [stepE f]=>//; case=>m /=.
 - (* the pass did swap something, loop *)
   case=>p [Hm _].
@@ -639,7 +639,7 @@ rewrite codom_ux_rcons /= allrel_rconsl Ha1 /=.
 by have -> //: Ordinal P = @Ordinal n.+2 1 (ltn0Sn n); apply/ord_inj.
 Qed.
 Next Obligation.
-move=>a [f][] h /= [E V].
+move=>a [f][] h /= E.
 have Hs: size (codom f) <= n.+2 by rewrite size_codom /= card_ord.
 apply: [gE f]=>//=; split=>//; rewrite (@itv_overL _ _ (BRight n.+1)) //=;
   try by rewrite addn1.
@@ -856,7 +856,7 @@ rewrite -slice_oSL -slice_oSR (M2lo_eq Hx); suff: x.-2.+2 = x by move=>->.
 by rewrite -subn2 -addn2 addnBAC // addnK.
 Qed.
 Next Obligation.
-move=>a [f][] h /= [E V].
+move=>a [f][] h /= E.
 apply: [gE f]=>//=.
 rewrite (@itv_overL _ _ _ +oo) /=; first by split=>//; exact: allrel0r.
 by rewrite leEnat addn1 size_codom /= card_ord.

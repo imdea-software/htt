@@ -7,8 +7,7 @@ From Coq Require SetoidTactics.
 From mathcomp Require Import ssreflect ssrbool ssrnat.
 From mathcomp Require Import eqtype ssrfun div finset seq fintype finfun.
 From mathcomp Require Import choice.
-From pcm Require Import axioms ordtype finmap pred pcm unionmap heap.
-
+From pcm Require Import axioms ordtype finmap pred pcm unionmap heap autopcm.
 From htt Require Import options model heapauto llist array.
 From htt Require Import kvmaps hashtab congmath.
 Import Prenex Implicits.
@@ -51,14 +50,12 @@ Definition n := #|{: symb}|.
 (* the empty congruence is one that only relates constant symbols to themselves *)
 Definition empty_cong := closure (graph (@const s)).
 
-Section ShapePredicates.
-
 (* the algorithm starts with root pointers for the data *)
-
 Inductive ptrs : Type :=
   Ptrs of {array symb -> symb} & {array symb -> llist symb} &
           {array symb -> llist (symb*symb*symb)} & KVmap.tp LT & ptr.
 
+Section ShapePredicates.
 Variable (r : {array symb -> symb}).
 Variable (clist : {array symb -> llist symb}).
 Variable (ulist : {array symb -> llist (symb*symb*symb)}).
@@ -69,82 +66,18 @@ Variable (p : ptr).
 
 Definition ashape D :=
   [Pred h | let: (d, ct, ut) := D in
-     valid h /\
      h \In Array.shape r (rep d : {ffun symb -> symb}) #
      (Array.shape clist ct # sepit setT (ctab ct (class d))) #
      (Array.shape ulist ut # sepit setT (utab ut (use d))) #
      KVmap.shape htab (lookup d) #
      [Pred h' | exists l, h' \In Pred1 (p :-> l) # lseq l (pending d)]].
 
-Lemma ashapeD D (h : heap) : 
-        h \In ashape D -> 
-        valid h.
-Proof. by case: D; case=>d ct ut []. Qed.
-
-(*
-Lemma ashape_invert : invertible ashape.
-Proof.
-move=>[[[r1]]] c1 u1 t1 p1 ct1 ut1 [[[r2]]] c2 u2 t2 p2 ct2 ut2 h1 h2 /=.
-move=>[hr1][w][->][R1][[hc1]][w'][->{w}][C1][[hu1]][w][->{w'}][U1]
-      [[ht1]][w'][->{w}][T1][[l1]][hl1][hp1][->{w'}][L1][P1] _ _ _ _ _.
-move=>[hr2][w][->][R2][[hc2]][w'][->{w}][C2][[hu2]][w][->{w'}][U2]
-      [[ht2]][w'][->{w}][T2][[l2]][hl2][hp2][->{w'}][L2][P2] _ _ _ _ _ A.
-case: (Array.shape_invert R1 R2 (agreeUnK A)) (A)=>/= -> -> {A}; move/agreeKUn=>A.
-case: (table_invert (@lseq_invert _) C1 C2 (agreeUnK A)) (A) =>/= ->;
-move/ffunP=>->-> {A}; move/agreeKUn => A.
-case: (table_invert (@lseq_invert _) U1 U2 (agreeUnK A)) (A)=>/= ->;
-move/ffunP=>->-> {A}; move/agreeKUn => A.
-case: (KVmap.shape_invert T1 T2 (agreeUnK A)) (A)=>/= -> -> {A}; move/agreeKUn=>A.
-case: (ptr_invert L1 L2 (agreeUnK A)) (A)=>/= E -> {A}; move/agreeKUn=>A.
-by rewrite -{}E in P2; case: (lseq_invert P1 P2 A)=>/= -> ->.
-Qed.
-*)
-
-(*
-Lemma ashape_inv D1 D2 h : h \In ashape D1 -> h \In ashape D2 -> D1 = D2.
-Proof. by apply: iinv; [apply: ashape_invert | apply: ashapeD]. Qed.
-*)
-
 Definition bshape d :=
   [Pred h | class_inv d /\ exists ct ut, h \In ashape (d, ct, ut)].
 
-Lemma bshapeD d h : 
-        h \In bshape d -> valid h.
-Proof. by case=>_ [ct][ut]; apply: ashapeD. Qed.
-
-(*
-Lemma bshape_invert : invertible bshape.
-Proof.
-move=>d1 d2 h1 h2 [_][ct1][ut1] H1 [_][ct2][ut2] H2.
-by case/(ashape_invert H1 H2)=>[[->]] _ _ ->.
-Qed.
-
-Lemma bshape_inv d1 d2 h : h \In bshape d1 -> h \In bshape d2 -> d1 = d2.
-Proof. by apply: iinv; [apply: bshape_invert | apply: bshapeD]. Qed.
-*)
-
 Definition shape (R : rel_exp s) :=
   [Pred h | exists d, h \In bshape d /\ propagate_inv d /\ pending d = [::] /\
-                     forall x, x \In CRel d <-> x \In R].
-
-Lemma shapeD (R : rel_exp s) h : 
-        h \In shape R ->
-        valid h.
-Proof. by case=>d [H] _; apply: bshapeD H. Qed.
-
-(*
-Lemma shape_invert R1 R2 h1 h2 :
-        h1 \In shape R1 -> h2 \In shape R2 -> agree h1 h2 -> R1 =r R2 /\ h1 = h2.
-Proof.
-move=>R1 R2 h1 h2 [d1][S1][_][_] <- [d2][S2][_][_] <- A.
-by move: (bshape_invert S1 S2 A)=>[<- <-].
-Qed.
-
-Lemma shape_inv R1 R2 h : h \In shape R1 -> h \In shape R2 -> R1 =r R2.
-Proof.
-by move=>??? H; case/(shape_invert H)=>//; apply: agree_refl; apply: shapeD H.
-Qed.
-*)
+                     CRel d =p R].
 
 End ShapePredicates.
 
@@ -157,16 +90,6 @@ split=>x [d1][H1][H2][H3] H4; exists d1;
 by [rewrite -H | rewrite H].
 Qed.
 *)
-
-(* Initialization procedure to generate the empty structure *)
-Section Initialization.
-
-
-Definition iT (clist : {array symb -> llist symb}): Type := forall k,
-  STsep (fun i => k <= n /\ exists f, i \In Array.shape clist f #
-            sepit [set c | indx c < k] (ctab f [ffun c => [:: c]]),
-         fun y m => y = Val tt /\ exists f, m \In Array.shape clist f #
-                       sepit setT (ctab f [ffun c => [:: c]])).
 
 Definition ith {I : finType} i (pf : i < #|I|) : I. Admitted.
 
@@ -189,12 +112,19 @@ Admitted.
 
 
 Lemma sepit_emp (A : eqType) (s : seq A) f : 
-         (forall x, x \in s -> forall k, k \In f x <-> emp k) -> 
-         (forall k : heap, k \In IterStar.sepit s f <-> emp k).
+         (forall x, x \in s -> f x =p emp (U:=heap)) -> 
+         IterStar.sepit s f =p emp.
 Proof.
 Admitted.
 
 
+(* Initialization procedure to generate the empty structure *)
+
+Definition iT (clist : {array symb -> llist symb}): Type := forall k,
+  STsep (fun i => k <= n /\ exists f, i \In Array.shape clist f #
+            sepit [set c | indx c < k] (ctab f [ffun c => [:: c]]),
+         fun y m => y = Val tt /\ exists f, m \In Array.shape clist f #
+                       sepit setT (ctab f [ffun c => [:: c]])).
 
 Program Definition init :
   STsep (emp, fun y m => exists ptr : ptrs, y = Val ptr /\
@@ -206,7 +136,7 @@ Program Definition init :
            Do (if decP (b:= k < n) idP is left pf then 
                  x <-- allocb (ith k pf) 2;
                  x.+1 ::= null;;
-                 Array.write (I:=symb) clist (ith k pf) x;;
+                 Array.write clist (ith k pf) x;;
                  loop k.+1
                else ret tt)) 0;;
       ulist <-- Array.new _ null;
@@ -214,99 +144,48 @@ Program Definition init :
       p <-- alloc null;
       ret (Ptrs r clist ulist htab p)).
 Next Obligation.
-move=>r clist loop k H i [pf][/= f][hc][hct][->{i}][Hc V Hct].
+move=>r clist loop k H i [pf][/= f][hc][hct][->{i} Hc Hct].
 case: decP=>[{}pf|] /=; last first.
 - case: leqP pf (eqn_leq k n)=>// _ -> /= pf _.
-  step=>W; split=>//; exists f, hc, hct; split=>//. 
+  step=>_; split=>//; exists f, hc, hct; split=>//. 
   apply: tableP2 Hct=>// ?; rewrite !in_set (eqP pf). 
   by rewrite /n cardE index_mem /index mem_enum. 
 apply: hstep=>x; apply: hstep=>/=; rewrite -!joinA !(xpull _ hc).
-apply/vrf_bnd/vrf_frame/[gE f]=>//=.
-case=>m [Em _ _ Vm]. apply: [gE]=>[||??[]] //=.
-split=>//.
-exists [ffun z => if z == ith k pf then x else f z]. 
-eexists m, _. split=>//.
-- rewrite /Array.shape InE /=.
-  split=>//. by rewrite (validL Vm). 
-rewrite (sepitS (ith k pf)) in_set indx_ith ltnSn. 
-rewrite /ctab/table !ffunE eq_refl. simpl.
-rewrite !joinA. rewrite /lseq /=. 
-
-rewrite InE. simpl. 
-eexists (x:->ith k pf \+ x.+1 :-> null), hct. 
-split=>//.
-- by rewrite unitR.
-- exists null, Unit. rewrite unitR. by [].
-apply: tableP2 Hct=>//; last first.
-- move=>s _. rewrite !in_set !ffunE indx_injE.
-  by case: eqP=>// ->; rewrite ltnn.
-
-move=>s.
-rewrite !in_set ltnS.   
-rewrite in_set1 indx_injE.
-by case: ltngtP=>//.
+apply/vrf_bnd/vrf_frame/[gE f]=>//= [[m]] Em _ _. 
+apply: [gE]=>[||??[]] //=; split=>//.
+eexists [ffun z => if z == ith k pf then x else f z], m, _. 
+split=>//; rewrite (sepitS (ith k pf)) in_set indx_ith ltnSn. 
+rewrite /ctab/table !ffunE eq_refl joinA unitL.
+hhauto; apply: tableP2 Hct=>// s. 
+- by rewrite !in_set ltnS in_set1 indx_injE; case: ltngtP.
+by rewrite !in_set !ffunE indx_injE; case: eqP=>// ->; rewrite ltnn.
 Qed.
-
 Next Obligation.
-case=>_ ->; apply: [stepE]=>//= r hr [Em Vm].
-rewrite -[hr]unitL; apply: vrf_bnd.
-apply/vrf_frame.
-apply: [gE]=>//=.
-move=>clist hc [Ec _] _ V.
-apply/vrf_bnd/vrf_frame.
-apply: [gE]=>[||??[]//] /=. 
-- split=>//.
-  exists [ffun x => null]. 
-  exists hc, Unit.  rewrite unitR.
-  split=>//. 
-  - rewrite /Array.shape InE /=. split=>//.
-    by rewrite (validL V).
-  by rewrite (_ : [set c | indx c < 0] = set0) // sepit0.
-case=>_ [_][f][hc'][hrest][->] Hc' Hrest _ V'.
+case=>_ ->; apply: [stepE]=>//= r hr Er; rewrite -[hr]unitL.
+apply/vrf_bnd/vrf_frame/[gE]=>//= clist hc Ec _ _.
+apply: [stepX]@hc=>[||??[]] //=.
+- split=>//; exists [ffun x => null], hc, Unit; rewrite unitR.
+  by split=>//; rewrite (_ : [set c | indx c < 0] = set0) // sepit0.
+case=>n0 [_][f][hc'][hrest][->] Hc' Hrest.
 rewrite -[hc' \+ _]unitL -joinA.
-apply/vrf_bnd/vrf_frame/[gE]=>//=.
-move=>ulist hu [Ehu] _ _ Vhu.
+apply/vrf_bnd/vrf_frame/[gE]=>//= ulist hu Ehu _ _.
 rewrite -[hu \+ _]unitL -joinA.
-apply/vrf_bnd/vrf_frame/[gE]=>//=.
-move=>htab ht /= Ht _ Vht.
-apply/vrf_bnd/vrf_alloc=>p D.
-apply: vrf_ret=>// D'.
-exists (Ptrs r clist ulist htab p). split=>//. clear V.
-pose j := (Data [ffun x => x] [ffun c => [:: c]] [ffun c => [::]] (nil K V) [::]).
-
-exists j. split; last first. 
-- move: (initP s). case=>PI Cl.  by []. 
-
-split=>/=.
-- move=>s a. rewrite !ffunE !inE. by [].
+apply/vrf_bnd/vrf_frame/[gE]=>//= htab ht Ht _ _.
+apply/vrf_bnd/vrf_alloc=>p D; apply: vrf_ret=>// D'.
+exists (Ptrs r clist ulist htab p); split=>//. 
+exists (Data [ffun x => x] [ffun c => [:: c]] [ffun c => [::]] (nil K V) [::]).
+split; last by case: (initP s).
+split=>[s a|/=]; first by rewrite !ffunE !inE. 
 exists f, [ffun s => null]. 
-split=>//.
-
 rewrite (_ : p :-> null \+ _ = hr \+ ((hc' \+ hrest) \+ (hu \+ Unit \+
-  ht \+ (p :-> null \+ Unit)))); last first.
-- heap_congr=>//. by rewrite unitR.
-
-eexists hr, _; split=>//.
-eexists (hc' \+ hrest), _. split=>//.
-- by exists hc', hrest; split=>//.
-eexists (hu \+ Unit), (ht \+ p :-> null \+ Unit); split=>//.
-- by heap_congr.
-- rewrite /Array.shape /= !InE.  
-  exists hu, Unit. split=>//.
-  - by split=>//; rewrite (validL Vhu).
-  - rewrite sepit_emp //.
-    move=>k ??. rewrite /utab/table !ffunE /=. simpl. 
-    split=>//. case=>_ ->. by [].
-
-rewrite -joinA.
-eexists ht, _. split=>//.
-exists null. exists (p :-> null), Unit.
-by [].
+  (ht \+ (p :-> null \+ Unit))))); last by heap_congr=>//; rewrite unitR.
+hhauto; rewrite sepit_emp //= => k.
+by rewrite /utab/table !ffunE; split=>//; case=>_ ->.
 Qed.
 
-End Initialization.
 
-Module Dummy2. End Dummy2.
+UP TO HERE
+
 
 Variable (r : {array symb -> symb}).
 Variable (clist : {array symb -> llist symb}).

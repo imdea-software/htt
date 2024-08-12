@@ -74,12 +74,12 @@ case: decP=>[{Eleq}pf H2|]; last first.
 (* k < n, allocate an empty bucket by framing on Unit *)
 apply: [stepU]=>//= b m Hm.
 (* write its id to the array under index k *)
-apply: [stepX tab] @ h1=>{h1 H1}//= _ m2 [E2 V2].
+apply: [stepX tab] @ h1=>{h1 H1}//= _ m2 E2.
 (* invoke the loop *)
 apply: [gE]=>//=; split=>//; rewrite joinCA.
 (* extend the table by the new index/bucket pair, simplify *)
 exists [ffun z => if z == Ordinal pf then b else tab z], m2, (m \+ h2).
-split=>//{m2 E2 V2}.
+split=>//{m2 E2}.
 (* remove the new bucket from the heap *)
 rewrite (sepitS (Ordinal pf)) in_set leqnn {1}/table ffunE eq_refl.
 exists m, h2; do!split=>{m Hm}//; apply: tableP2 H2=>{h2}//.
@@ -93,7 +93,7 @@ Next Obligation.
 (* simplify *)
 move=>/= [] _ ->.
 (* allocate the array *)
-apply: [stepE]=>//= y m [Hm Vm].
+apply: [stepE]=>//= y m Hm.
 (* invoke the loop with index 0 *)
 apply: [gE]=>//=; split=>//.
 (* the table is empty *)
@@ -125,7 +125,7 @@ Program Definition free x : STsep {s} (shape x s,
 (* first the loop *)
 Next Obligation.
 (* pull out the ghost + preconditions, branch on k comparison *)
-move=>/= x loop k [] _ /= [Eleq][tf][bf][h1][h2][-> [H1 V1]].
+move=>/= x loop k [] _ /= [Eleq][tf][bf][h1][h2][-> H1].
 case: decP=>[pf H|]; last first.
 (* k = n *)
 - case: ltnP Eleq (eqn_leq k n)=>// _ -> /= /eqP Ek _ H.
@@ -171,7 +171,7 @@ Program Definition insert x k v :
       ret x).
 Next Obligation.
 (* pull out ghost + deconstruct precondition *)
-move=>/= x k v [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> [/= H1 _] H2]].
+move=>/= x k v [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> /= H1 H2]]. 
 (* read the bucket from array *)
 apply/[stepX tf, h1] @ h1=>//= _ _ [->->].
 (* split out the bucket in the heap *)
@@ -179,7 +179,7 @@ move: H2; rewrite (sepitT1 (hash k)) /table; case=>h3[h4][{h2}-> H3 H4].
 (* insert into the bucket *)
 apply/[stepX (bf (hash k))] @ h3=>{h3 H3}//= b' m2 H2.
 (* write the bucket to the array, return the pointer *)
-apply/[stepX tf] @ h1=>{h1 H1}//= _ m3 [E3 V3]; step=>_.
+apply/[stepX tf] @ h1=>{h1 H1}//= _ m3 E3; step=>_.
 (* update the array and buckets' specs *)
 exists [ffun z => if z == hash k then b' else tf z],
        (fun b => if b == hash k then ins k v (bf b) else bf b); split=>/=.
@@ -193,7 +193,7 @@ exists [ffun z => if z == hash k then b' else tf z],
 - move=>i0 k0; case: eqP; last by move=>_; apply: Hh.
   by move=>->; rewrite supp_ins inE=>/orP; case; [move/eqP=>->|apply: Hh].
 (* the shape is respected: first, the array fits *)
-exists m3, (m2 \+ h4); split=>{Hf Hh m3 E3 V3}//.
+exists m3, (m2 \+ h4); split=>{Hf Hh m3 E3}//.
 (* split out the modified bucket *)
 rewrite (sepitT1 (hash k)) /table /= ffunE eq_refl.
 exists m2, h4; split=>{m2 H2} //.
@@ -216,7 +216,7 @@ Program Definition remove x k :
       ret x).
 Next Obligation.
 (* pull out ghost + destructure precondition *)
-move=>/= x k [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> [/= H1 _] H2]].
+move=>/= x k [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> /= H1 H2]].
 (* read the bucket from array *)
 apply/[stepX tf, h1] @ h1=>//= _ _ [->->].
 (* split out the bucket in the heap *)
@@ -224,7 +224,7 @@ move: H2; rewrite (sepitT1 (hash k)); case=>h3[h4][{h2}-> H3 H4].
 (* insert into the bucket *)
 apply/[stepX (bf (hash k))] @ h3=>{h3 H3}//= b' m2 H2.
 (* write the bucket to the array, return the pointer *)
-apply/[stepX tf] @ h1=>{H1}//= _ m3 [E3 V3]; step=>_.
+apply/[stepX tf] @ h1=>{H1}//= _ m3 E3; step=>_.
 (* update the array and buckets' specs *)
 exists [ffun z => if z == hash k then b' else tf z],
        (fun b => if b == hash k then rem k (bf b) else bf b); split=>/=.
@@ -238,7 +238,7 @@ exists [ffun z => if z == hash k then b' else tf z],
 - move=>i0 k0; case: eqP; last by move=>_; apply: Hh.
   by move=>->; rewrite supp_rem !inE=>/andP [] _; apply: Hh.
 (* the shape is respected: first, the array fits *)
-exists m3, (m2\+ h4); split=>{m3 E3 V3 Hf Hh}//.
+exists m3, (m2\+ h4); split=>{m3 E3 Hf Hh}//.
 (* split out the modified bucket *)
 rewrite (sepitT1 (hash k)) /table /= ffunE eq_refl.
 exists m2, h4; split=>{m2 H2} //.

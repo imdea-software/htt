@@ -266,11 +266,11 @@ move=>a i j /= [f][] h /= H.
 case: ifP=>[/eqP->|Hij].
 - by step=>_; rewrite tperm1 pffunE1.
 do 2!apply: [stepE f, h]=>//= _ _ [->->].
-apply: [stepE f]=>//= _ _ [-> V1].
+apply: [stepE f]=>//= _ _ ->.
 set f1 := finfun [eta f  with i |-> f j].
-apply: [gE   f1]=>//= _ _ [-> V2].
+apply: [gE   f1]=>//= _ _ ->.
 set f2 := finfun [eta f1 with j |-> f i].
-move=>{h H}_; split=>//=; suff {V1 V2}: f2 = pffun (tperm i j) f by move=>->.
+move=>{h H} _; suff : f2 = pffun (tperm i j) f by move=>->.
 rewrite {}/f2 {}/f1; apply/ffunP=>/= x; rewrite !ffunE /= ffunE /=.
 by case: tpermP=>[->|->|/eqP/negbTE->/eqP/negbTE->] {x}//; rewrite eqxx // Hij.
 Qed.
@@ -413,7 +413,7 @@ Program Definition partition_lm (a : {array 'I_n -> A})
       swap a v hi;;
       ret v).
 Next Obligation.
-move=> a lo hi Hlo /= [f][] h /= [E V].
+move=> a lo hi Hlo /= [f][] h /= E.
 apply: [stepE f, h]=>//= _ _ [->->].
 apply: [stepE f]=>//= v m [Hi][p][Pm Hm Al Ah].
 apply: [stepE (pffun p f)]=>//= _ k Hj.
