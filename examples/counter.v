@@ -66,8 +66,9 @@ Definition interp (r : rep) : Pred heap := [Pred h | h = rptr r :-> rval r].
 
 Record scnt : Type :=
   SCount {sinv : nat -> rep;
-          smethod : STsep {v : nat} (interp (sinv v),
-                                    [vfun y m => y = v /\ m \In interp (sinv v.+1)])}.
+          smethod : STsep {v : nat} 
+                      (interp (sinv v),
+                      [vfun y m => y = v /\ m \In interp (sinv v.+1)])}.
 
 Program Definition snew : STsep (emp,
                                 [vfun y m => m \In interp (sinv y 0)]) :=
@@ -106,8 +107,9 @@ Definition pinterp (R : rep -> Prop) : Pred heap :=
 
 Record pcnt : Type :=
   PCount {pinv : nat -> rep -> Prop;
-          pmethod : STsep {v : nat} (pinterp (pinv v),
-                                     [vfun y m => y = v /\ m \In pinterp (pinv v.+1)])}.
+          pmethod : STsep {v : nat} 
+                      (pinterp (pinv v),
+                      [vfun y m => y = v /\ m \In pinterp (pinv v.+1)])}.
 
 Program Definition pnew : STsep (emp,
                                 [vfun y m => m \In pinterp (pinv y 0)]) :=

@@ -165,8 +165,6 @@ Qed.
 
 (* Tree in-order traversal, storing the values in a linked list *)
 
-Opaque insert new.
-
 (* loop invariant: *)
 (* the subtree is unchanged, its values are prepended to the accumulator list *)
 Definition inordertravT : Type := forall (ps : ptr * ptr),
@@ -206,8 +204,8 @@ move=>s1 _ [hr'][hs][-> Hr' Hs].
 apply: [stepX (inorder r ++ xs)]@hs=>//= pa _ [s2][h'][-> H'].
 (* run the traversal on the left branch with updated list *)
 apply: [gX l, (a::inorder r ++ xs)]@(hl \+ pa :-> a \+ pa.+1 :-> s2 \+ h')=>//=.
-- (* the precondition is satisfied by simple heap manipulation *)
-  move=>_; exists hl, (pa :-> a \+ (pa.+1 :-> s2 \+ h')).
+(* the precondition is satisfied by simple heap manipulation *)
+- exists hl, (pa :-> a \+ (pa.+1 :-> s2 \+ h')).
   by split=>//=; [rewrite !joinA | vauto].
 (* the postcondition is also satisfied by simple massaging *)
 move=>s3 _ [hl''][hs'][-> Hl'' Hs'] _.
@@ -228,8 +226,6 @@ by move=>s m; rewrite cats0.
 Qed.
 
 (* Expanding the tree to the right *)
-
-Opaque mknode.
 
 (* loop invariant: the value is added to the rightmost branch *)
 Definition expandrightT x : Type := forall (p : ptr),

@@ -23,17 +23,16 @@ From htt Require Import array.
 From mathcomp Require order.
 Import order.Order.NatOrder order.Order.TTheory.
 
-(* Mathematics of (bubble) array sorting:                                   *)
-(* A theory of permutations built out of (adjacent-element) swaps acting on *)
-(* finite functions from bounded nats to ordered values.                    *)
+(* Brief mathematics of (bubble) array sorting: *)
+(* Theory of permutations built out of (adjacent-element) swaps acting on *)
+(* finite functions from bounded nats to ordered values. *)
 
 (* Shorthands for previous/next indices *)
 (* TODO use fintype.lift instead ? *)
 Section OrdArith.
 
 (* widen by 1 *)
-Definition Wo n : 'I_n -> 'I_n.+1 :=
-  widen_ord (leqnSn _).
+Definition Wo n : 'I_n -> 'I_n.+1 := widen_ord (leqnSn _).
 
 (* increase by 1 *)
 Definition So n : 'I_n -> 'I_n.+1 :=
@@ -47,8 +46,8 @@ Proof. by case: i. Qed.
 
 Lemma So_WoN n (i : 'I_n) : So i != Wo i.
 Proof.
-case: i=>/= m prf; rewrite /Wo /widen_ord /=; apply/negP=>/eqP; case=>/eqP.
-by rewrite eqn_leq leqnSn andbT ltnn.
+case: i=>/= m prf; rewrite /Wo /widen_ord /=.
+by apply/negP=>/eqP [/eqP]; rewrite eqn_leq leqnSn andbT ltnn.
 Qed.
 
 (* decrease by 1 *)
@@ -71,34 +70,31 @@ Proof. by case: i prf=>/= m prf0 prf1; apply/ord_inj. Qed.
 (* subtract 2 and decrease bound by 1 *)
 Definition M2lo n (i : 'I_n) (pi : 1%N < i) : 'I_n.-1.
 Proof.
-case: i pi=>m prf /= Hm.
-apply: (Ordinal (n:=n.-1) (m:=m.-2)).
+case: i pi=>m prf /= Hm; apply: (Ordinal (n:=n.-1) (m:=m.-2)).
 rewrite ltn_predRL; case: m prf Hm=>//=; case=>//= m Hm _.
 by apply: ltnW.
 Defined.
 
 Lemma M2lo_eq n (i : 'I_n) (prf : 1%N < i) : nat_of_ord (M2lo prf) = i.-2.
 Proof. by case: i prf. Qed.
-
 End OrdArith.
 
 (* Taking current/next element *)
 Section OnthCodom.
-Variable (A : Type).
+Variable A : Type.
 
-Corollary onth_codom1 {n} (i : 'I_n) (f: {ffun 'I_n.+1 -> A}) :
-            onth (fgraph f) i = Some (f (Wo i)).
+Lemma onth_codom1 {n} (i : 'I_n) (f: {ffun 'I_n.+1 -> A}) :
+        onth (fgraph f) i = Some (f (Wo i)).
 Proof. by rewrite (onth_codom (Wo i)). Qed.
 
-Corollary onth_codom1S {n} (i : 'I_n) (f: {ffun 'I_n.+1 -> A}) :
-            onth (fgraph f) i.+1 = Some (f (So i)).
+Lemma onth_codom1S {n} (i : 'I_n) (f: {ffun 'I_n.+1 -> A}) :
+        onth (fgraph f) i.+1 = Some (f (So i)).
 Proof. by rewrite -(onth_codom (So i)) /= So_eq. Qed.
-
 End OnthCodom.
 
 (* Slicing on finfun codomains *)
 Section CodomSlice.
-Variable (n : nat) (A : Type).
+Variables (n : nat) (A : Type).
 
 Lemma codom1_split (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
         codom f = &:(fgraph f) `]-oo, i : nat[ ++
@@ -107,8 +103,8 @@ Lemma codom1_split (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
 Proof.
 set i0 := Wo i; set i1 := So i.
 rewrite {1}codomE (enum_split i0) /= {2}(enum_split i1) /= /heap.indx
-  (index_enum_ord i0) (index_enum_ord i1) drop_cat size_take
-  size_enum_ord ltn_ord So_eq ltnn subnn /= map_cat /= map_take map_drop -codomE.
+  (index_enum_ord i0) (index_enum_ord i1) drop_cat size_take size_enum_ord 
+  ltn_ord So_eq ltnn subnn /= map_cat /= map_take map_drop -codomE.
 by rewrite /slice.slice/= addn0 addn1 /= drop0 take_size.
 Qed.
 
@@ -120,14 +116,15 @@ Proof. by rewrite slice_xL // onth_codom1S. Qed.
 (* TODO notation fails *)
 Lemma codom1_ax_rcons (f : {ffun 'I_n.+1 -> A}) (a : itv_bound nat) (i : 'I_n) :
         order.Order.le a (BLeft (i : nat)) ->
-               &:(fgraph f) (Interval a (BRight (i : nat))) =
+        &:(fgraph f) (Interval a (BRight (i : nat))) =
         rcons (&:(fgraph f) (Interval a (BLeft (i : nat)))) (f (Wo i)).
 Proof. by move=>H; rewrite slice_xR //= onth_codom1 /=. Qed.
 
 Lemma codom1_ax_rcons2 (f : {ffun 'I_n.+1 -> A}) (a : itv_bound nat) (i : 'I_n) :
         order.Order.le a (BLeft (i : nat)) ->
                       &:(fgraph f) (Interval a (BRight i.+1)) =
-        rcons (rcons (&:(fgraph f) (Interval a (BLeft (i : nat)))) (f (Wo i))) (f (So i)).
+        rcons (rcons (&:(fgraph f) (Interval a (BLeft (i : nat)))) 
+              (f (Wo i))) (f (So i)).
 Proof.
 move=>H; rewrite slice_xR; last first.
 - by apply: ltW; case: a H=>[[] ax|ab] //; rewrite !bnd_simp ltEnat /= =>/ltnW.
@@ -146,17 +143,15 @@ Qed.
 Lemma codom1_Skk (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
         &:(fgraph f) `[i.+1, i.+1] = [:: f (So i)].
 Proof.
-rewrite slice_kk /=.
-pose i' := cast_ord (esym (card_ord n.+1)) (So i).
+rewrite slice_kk /=; pose i' := cast_ord (esym (card_ord n.+1)) (So i).
 move: (onth_tnth (codom_tuple f) i')=>/=; rewrite So_eq =>->.
 by move: (@tnth_fgraph _ _ f i'); rewrite enum_val_ord {2}/i' cast_ordKV=>->.
 Qed.
-
 End CodomSlice.
 
 (* Sortedness on codomain slices *)
 Section CodomSliceOrd.
-Variable (n : nat) (A : ordType).
+Variables (n : nat) (A : ordType).
 
 Lemma codom1_sortedS (f: {ffun 'I_n.+1 -> A}) (i : 'I_n) :
         oleq (f (Wo i)) (f (So i)) ->
@@ -173,14 +168,15 @@ End CodomSliceOrd.
 
 (* Swapping adjacent elements and its interaction with slicing *)
 Section SwapNext.
-Variable (n : nat) (A : Type).
+Variables (n : nat) (A : Type).
 
 Definition swnx (i : 'I_n) : 'S_n.+1 := tperm (Wo i) (So i).
 
 Lemma swnxE1 (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
         pffun (swnx i) f (Wo i) = f (So i).
 Proof.
-by rewrite /swnx ffunE; case: tpermP=>// /eqP; rewrite eq_sym (negbTE (So_WoN i)).
+rewrite /swnx ffunE; case: tpermP=>// /eqP.
+by rewrite eq_sym (negbTE (So_WoN i)).
 Qed.
 
 Lemma swnxE2 (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
@@ -218,24 +214,22 @@ move=>_ Hx; case: j Hx Hij=>[[] jx|[]] //=.
 by rewrite addn1 ltEnat /= ltnS leEnat =>->.
 Qed.
 
-Corollary swnx_ao (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) x k :
-            (k <= i)%N ->
-            &:(fgraph (pffun (swnx i) f)) (Interval x (BLeft k)) =
-            &:(fgraph f) (Interval x (BLeft k)).
+Lemma swnx_ao (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) x k :
+        (k <= i)%N ->
+        &:(fgraph (pffun (swnx i) f)) (Interval x (BLeft k)) =
+        &:(fgraph f) (Interval x (BLeft k)).
 Proof.
-move=>Hk.
-apply: swnx_notin; rewrite in_itv /= negb_and ltEnat /= -leqNgt; apply/orP; right=>//.
-by apply: ltnW.
+move=>Hk; apply: swnx_notin; rewrite in_itv /= negb_and ltEnat /= -leqNgt;
+by apply/orP; right=>//; apply: ltnW.
 Qed.
 
-Corollary swnx_oa (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) k y :
-            (i.+1 <= k)%N ->
-            &:(fgraph (pffun (swnx i) f)) (Interval (BRight k) y) =
-            &:(fgraph f) (Interval (BRight k) y).
+Lemma swnx_oa (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) k y :
+        (i.+1 <= k)%N ->
+        &:(fgraph (pffun (swnx i) f)) (Interval (BRight k) y) =
+        &:(fgraph f) (Interval (BRight k) y).
 Proof.
-move=>Hk.
-apply: swnx_notin; rewrite in_itv /= negb_and ltEnat /= -leqNgt; apply/orP; left=>//.
-by apply: ltnW.
+move=>Hk; apply: swnx_notin; rewrite in_itv /= negb_and ltEnat /= -leqNgt;
+by apply/orP; left=>//; apply: ltnW.
 Qed.
 
 Lemma swnx_split (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
@@ -265,12 +259,11 @@ Proof. by rewrite codom1_xu_cons swnx_oa // swnxE2. Qed.
 Lemma swnx_Skk (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
         &:(fgraph (pffun (swnx i) f)) `[i.+1, i.+1] = [:: f (Wo i)].
 Proof. by rewrite codom1_Skk swnxE2. Qed.
-
 End SwapNext.
 
 (* Swaps/slices with decidable equality *)
 Section SwapNextEq.
-Variable (n : nat) (A : eqType).
+Variables (n : nat) (A : eqType).
 
 Lemma perm_swnx (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
         perm_eq (fgraph f) (fgraph (pffun (swnx i) f)).
@@ -281,22 +274,26 @@ Qed.
 
 Lemma perm_swnx_ux (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) k :
         i <= k ->
-        perm_eq (&:(fgraph f) `]-oo, k.+1]) (&:(fgraph (pffun (swnx i) f)) `]-oo, k.+1]).
+        perm_eq &:(fgraph f) `]-oo, k.+1] 
+                &:(fgraph (pffun (swnx i) f)) `]-oo, k.+1].
 Proof.
 move=>H; move: (perm_swnx f i).
 set f' : {ffun 'I_n.+1 -> A} := pffun (swnx i) f.
 rewrite {1}(slice_uxou (fgraph f) k.+1) {1}(slice_uxou (fgraph f') k.+1).
 by rewrite swnx_oa /=; [rewrite perm_cat2r | rewrite ltnS].
 Qed.
-
 End SwapNextEq.
 
 Section Bubble.
-Variable (n : nat) (A : ordType).
+Variables (n : nat) (A : ordType).
 
-Opaque Array.write Array.read.
+(*****************)
+(*****************)
+(* Verifications *)
+(*****************)
+(*****************)
 
-(* We verify 3 versions of the algorithm.                              *)
+(* Verified 3 versions of the algorithm.                               *)
 (*                                                                     *)
 (* The flag/swapped index is threaded through as a functional argument *)
 (* instead of storing and reading it from the heap. This would be      *)
@@ -350,20 +347,19 @@ Program Definition cas_next (a : {array 'I_n.+2 -> A}) (i : 'I_n.+1) :
           ret true
         else ret false).
 Next Obligation.
-move=>a i /= [f][] h /= [E V].
-set i0 := Wo i; set i1 := So i.
+move=>a i /= [f][] h /= [E V]; set i0 := Wo i; set i1 := So i.
 do 2!apply: [stepE f, h]=>//= _ _ [->->].
 case: oleqP=>H; first by step=>_; exists 1%g; split=>//; rewrite pffunE1.
-apply: [stepE f ]=>//= _ _ [-> Vs ]; set fs  := finfun [eta f  with i0 |-> f i1].
-apply: [stepE fs]=>//= _ _ [-> Vsw]; set fsw := finfun [eta fs with i1 |-> f i0].
+apply: [stepE f ]=>//= _ _ [-> Vs ].
+set fs  := finfun [eta f  with i0 |-> f i1].
+apply: [stepE fs]=>//= _ _ [-> Vsw].
+set fsw := finfun [eta fs with i1 |-> f i0].
 step=>_; exists (swnx i); do!split=>//=.
 suff: fsw = pffun (swnx i) f by move=>->.
 rewrite /fsw /fs /swnx; apply/ffunP=>/= x; rewrite !ffunE /= ffunE /=.
 case: tpermP=>[->|->|/eqP/negbTE->/eqP/negbTE->] //; rewrite eqxx //.
 by rewrite /i1 eq_sym (negbTE (So_WoN i)).
 Qed.
-
-Opaque cas_next.
 
 Definition bubble_pass_loop (a : {array 'I_n.+2 -> A}) :=
   forall isw : 'I_n.+1 * bool,
@@ -395,10 +391,10 @@ Next Obligation.
 move=>a loop _ i sw [f][] h /= [H Hs].
 set i0 := Wo i; set i1 := So i.
 apply: [stepE f]=>//= sw0 m [p][{}H Hsw]; case: decP=>Hin.
-- (* i < n, recursive call *)
-  apply: [gE (pffun p f)]=>//=.
-  - (* precondition *)
-    split=>//; rewrite negb_or andbC Sbo_eq.
+(* i < n, recursive call *)
+- apply: [gE (pffun p f)]=>//=.
+  (* precondition *)
+  - split=>//; rewrite negb_or andbC Sbo_eq.
     case: sw0 Hsw=>//=; case=>{p H}-> Hf; rewrite pffunE1.
     (* swap didn't happen in this iteration *)
     apply/(implyb_trans Hs)/implyP=>{Hs}.
@@ -416,8 +412,10 @@ step=>Vm; exists p; split=>//; first by apply/implyP=>->.
 (* swap didn't happen in last iteration, check initial flag *)
 case: sw0 Hsw=>/=; first by rewrite orbT.
 (* flag wasn't set, so the pass didn't swap anything - the array is sorted *)
-case=>-> Hf; rewrite orbF eqxx /=; apply/(implyb_trans Hs)/implyP=>{}Hs.
-rewrite (slice_usize (codom f)) size_codom /= card_ord slice_oSR -[X in `]-oo, X.+1]]Hin.
+case=>-> Hf; rewrite orbF eqxx /=.
+apply/(implyb_trans Hs)/implyP=>{}Hs.
+rewrite (slice_usize (codom f)) size_codom /= card_ord
+slice_oSR -[X in `]-oo, X.+1]]Hin.
 by apply: codom1_sortedS Hs.
 Qed.
 Next Obligation.
@@ -426,8 +424,6 @@ apply: [gE f]=>//= [|v m [p][Hm _ Hv] _]; last by exists p.
 split=>//; apply: sorted1.
 by rewrite slice_size /= add0n subn0 size_codom /= card_ord.
 Qed.
-
-Opaque bubble_pass.
 
 Definition bubble_sort_loop (a : {array 'I_n.+2 -> A}) : Type :=
   unit ->
@@ -438,7 +434,8 @@ Definition bubble_sort_loop (a : {array 'I_n.+2 -> A}) : Type :=
              h \In Array.shape a (pffun p f) /\
              sorted oleq (fgraph (pffun p f))]).
 
-Program Definition bubble_sort (a : {array 'I_n.+2 -> A}) : bubble_sort_loop a :=
+Program Definition bubble_sort (a : {array 'I_n.+2 -> A}) : 
+    bubble_sort_loop a :=
   ffix (fun (go : bubble_sort_loop a) _ =>
     Do (sw <-- bubble_pass a;
         if sw
@@ -460,8 +457,6 @@ End Bubble.
 
 Section BubbleOpt.
 Variable (n : nat) (A : ordType).
-
-Opaque cas_next.
 
 (*******************)
 (* optimization #1 *)
@@ -488,26 +483,26 @@ Opaque cas_next.
 Definition bubble_pass_opt_loop (a : {array 'I_n.+2 -> A}) (k : 'I_n.+1) :=
   forall isw : 'I_n.+1 * bool,
   STsep {f : {ffun 'I_n.+2 -> A}}
-        (fun h => [/\ h \In Array.shape a f,
-                      (* all elements before f(k+2) are smaller than it *)
-                      allrel oleq (&:(fgraph f) `]-oo, k.+1])
-                                  (&:(fgraph f) `]k.+1, +oo[),
-                      (* and the suffix is sorted *)
-                      sorted oleq (&:(fgraph f) `]k.+1, +oo[),
-                      (* we don't touch it *)
-                      isw.1 <= k,
-                      (* all elements before f(i) are smaller than it *)
-                      all (oleq^~ (f (Wo isw.1))) (&:(fgraph f) `]-oo, isw.1 : nat[) &
-                      ~~ isw.2 ==> sorted oleq (&:(fgraph f) `]-oo, isw.1 : nat[)],
-        [vfun (b : bool) h =>
-          exists (p : 'S_n.+2), let f' := pffun p f in
-          [/\ h \In Array.shape a f',
-              isw.2 ==> b &
-              if b then
-                allrel oleq (&:(fgraph f') `]-oo, k : nat])
-                            (&:(fgraph f') `]k : nat, +oo[) &&
-                sorted oleq (&:(fgraph f') `]k : nat, +oo[)
-              else (p == 1%g) && sorted oleq (fgraph f)]]).
+    (fun h => [/\ h \In Array.shape a f,
+         (* all elements before f(k+2) are smaller than it *)
+         allrel oleq (&:(fgraph f) `]-oo, k.+1])
+                     (&:(fgraph f) `]k.+1, +oo[),
+         (* and the suffix is sorted *)
+         sorted oleq (&:(fgraph f) `]k.+1, +oo[),
+         (* we don't touch it *)
+         isw.1 <= k,
+         (* all elements before f(i) are smaller than it *)
+         all (oleq^~ (f (Wo isw.1))) (&:(fgraph f) `]-oo, isw.1 : nat[) &
+         ~~ isw.2 ==> sorted oleq (&:(fgraph f) `]-oo, isw.1 : nat[)],
+    [vfun (b : bool) h =>
+       exists (p : 'S_n.+2), let f' := pffun p f in
+       [/\ h \In Array.shape a f',
+           isw.2 ==> b &
+           if b then
+             allrel oleq (&:(fgraph f') `]-oo, k : nat])
+                         (&:(fgraph f') `]k : nat, +oo[) &&
+             sorted oleq (&:(fgraph f') `]k : nat, +oo[)
+           else (p == 1%g) && sorted oleq (fgraph f)]]).
 
 Program Definition bubble_pass_opt (a : {array 'I_n.+2 -> A}) (k : 'I_n.+1) :
   STsep {f : {ffun 'I_n.+2 -> A}}
@@ -538,13 +533,13 @@ Next Obligation.
 move=>a k loop _ i sw [f][] h /= [H Hak Hsk Hik Hai Hsi].
 set i0 := Wo i; set i1 := So i.
 apply: [stepE f]=>//= sw0 m [p][Hm Hsw]; case: decP=>{}H.
-- (* i < k, recursive call *)
-  apply: [gE (pffun p f)]=>//=.
-  - (* precondition *)
-    rewrite Sbo_eq Wo_Sbo_eq negb_or slice_oSR.
+(* i < k, recursive call *)
+- apply: [gE (pffun p f)]=>//=.
+  (* precondition *)
+  - rewrite Sbo_eq Wo_Sbo_eq negb_or slice_oSR.
     case: sw0 Hsw=>/=; case=>Ep Hf; rewrite {p}Ep ?pffunE1 in Hm *.
-    - (* swap happened before the call *)
-      rewrite andbF /= swnx_oa //; split=>//.
+    (* swap happened before the call *)
+    - rewrite andbF /= swnx_oa //; split=>//.
       - rewrite (@allrel_in_l _ _ _ _ &:(codom f) `]-oo, k.+1] ) //.
         by apply/perm_mem; rewrite perm_sym; apply: perm_swnx_ux.
       by rewrite swnx_ux_rcons all_rcons swnxE2 Hai andbT; apply: ordW.
@@ -565,8 +560,8 @@ have {H}Hik : nat_of_ord i = k.
 step=>Vm; exists p; split=>//; first by apply/implyP=>->.
 rewrite -Hik in Hak Hsk *; rewrite -slice_oSL.
 case: sw0 Hsw=>/=; case=>-> Hf.
-- (* swap happened on last iteration *)
-  rewrite orbT swnx_xu_cons /=; apply/andP; split.
+(* swap happened on last iteration *)
+- rewrite orbT swnx_xu_cons /=; apply/andP; split.
   - rewrite swnx_ux_rcons allrel_rconsl allrel_consr /=.
     move: Hak; rewrite codom1_ax_rcons2 // !allrel_rconsl -/i0 -/i1 -andbA.
     by case/and3P=>-> _ ->; rewrite (ordW Hf) /= !andbT.
@@ -575,8 +570,8 @@ case: sw0 Hsw=>/=; case=>-> Hf.
   by rewrite codom1_ax_rcons2 // 4!(mem_rcons, inE) eqxx /= orbT.
 (* swap didn't happen on last iteration *)
 rewrite orbF pffunE1 eqxx /=; case: sw Hsi=>/=[_|].
-- (* flag was set *)
-  apply/andP; split.
+(* flag was set *)
+- apply/andP; split.
   - rewrite codom1_ax_rcons // codom1_xu_cons allrel_rconsl allrel_consr /=.
     move: Hak; rewrite codom1_ax_rcons2 // !allrel_rconsl -andbA -/i0 -/i1.
     case/and3P=>->-> _; rewrite Hf /= !andbT.
@@ -584,10 +579,13 @@ rewrite orbF pffunE1 eqxx /=; case: sw Hsi=>/=[_|].
   rewrite codom1_xu_cons /= (path_sortedE (@otrans A)) Hsk andbT.
   by move: Hak; rewrite codom1_ax_rcons2 // !allrel_rconsl -andbA; case/and3P.
 (* flag wasn't set, so the pass didn't swap anything - the array is sorted *)
-move=>Hs2; rewrite (codom1_split f i) -/i0 -/i1 /=; rewrite Hik in Hai Hs2 Hsk *.
-rewrite (sorted_pairwise (@otrans A)) pairwise_cat /= -!(sorted_pairwise (@otrans A)).
+move=>Hs2; rewrite (codom1_split f i) -/i0 -/i1 /=.
+rewrite Hik in Hai Hs2 Hsk *.
+rewrite (sorted_pairwise (@otrans A)) pairwise_cat /=.
+rewrite -!(sorted_pairwise (@otrans A)).
 rewrite Hf Hsk Hs2 /= andbT !allrel_consr -!andbA Hai /=.
-move: Hak; rewrite -Hik codom1_ax_rcons2 // !allrel_rconsl -andbA; case/and3P=>->->->/=.
+move: Hak; rewrite -Hik codom1_ax_rcons2 // !allrel_rconsl -andbA.
+case/and3P=>->->->/=.
 by rewrite andbT Hik; apply/sub_all/Hai=>z /otrans; apply.
 Qed.
 Next Obligation.
@@ -595,8 +593,6 @@ move=>a k [f][] h /= [H Ha Hs].
 apply: [gE f]=>//= [|v m [p][Hm _ Hv] _]; last by exists p.
 by rewrite itv_under0R.
 Qed.
-
-Opaque bubble_pass_opt.
 
 Definition bubble_sort_opt_loop (a : {array 'I_n.+2 -> A}) : Type :=
   forall (k : 'I_n.+1),
@@ -625,9 +621,10 @@ Program Definition bubble_sort_opt (a : {array 'I_n.+2 -> A}) :
       in go ord_max).
 Next Obligation.
 move=>a go k [f][] h /= [H Ha Hs].
-apply: [stepE f]=>{H Ha Hs}//=; case=>m; case=>p [Hm /andP [H Hs]]; last first.
-- (* id permutation *)
-  rewrite {p H}(eqP H) in Hm.
+apply: [stepE f]=>{H Ha Hs}//=; case=>m; case=>p [Hm /andP [H Hs]]; 
+last first.
+(* id permutation *)
+- rewrite {p H}(eqP H) in Hm.
   by step=>_; exists 1%g; split=>//; rewrite pffunE1.
 apply: [gE (pffun p f)]=>//=; last first.
 - by move=> _ m2 [p'][H2 Hs'] _; exists (p' * p)%g; rewrite pffunEM.
@@ -653,8 +650,6 @@ End BubbleOpt.
 
 Section BubbleOpt2.
 Variable (n : nat) (A : ordType).
-
-Opaque cas_next.
 
 (*******************)
 (* optimization #2 *)
@@ -725,18 +720,19 @@ Next Obligation.
 move=>a k loop _ i ls [f][] h /= [Hs Hak Hsk /andP [Hils Hik] Hai Hsi].
 set i0 := Wo i; set i1 := So i.
 apply: [stepE f]=>//= sw m [p][Hm Hsw]; case: decP=>H.
-- (* i < k, recursive call *)
-  apply: [gE (pffun p f)]=>//=.
-  - (* precondition *)
-    rewrite Sbo_eq.
+(* i < k, recursive call *)
+- apply: [gE (pffun p f)]=>//=.
+  (* precondition *)
+  - rewrite Sbo_eq.
     case: sw Hsw=>/=; case=>Ep Hf; rewrite {p}Ep ?pffunE1 in Hm *.
-    - (* swap happened before the call *)
-      rewrite So_eq swnx_oa; last by rewrite ltnS; apply: ltnW.
+    (* swap happened before the call *)
+    - rewrite So_eq swnx_oa; last by rewrite ltnS; apply: ltnW.
       rewrite swnx_Skk /=; split=>//.
       - rewrite (@allrel_in_l _ _ _ _ &:(codom f) `]-oo, k.+1]) //.
         by apply/perm_mem; rewrite perm_sym; apply: perm_swnx_ux.
       - by rewrite ltnS leqnn.
-      rewrite allrel1r slice_oSR (slice_split (x:=ls) _ true); last by rewrite in_itv.
+      rewrite allrel1r slice_oSR (slice_split (x:=ls) _ true); 
+        last by rewrite in_itv.
       rewrite /= all_cat; apply/andP; split.
       - rewrite swnx_ao //; move: Hai.
         by rewrite codom1_ax_rcons // allrel_rconsr; case/andP.
@@ -769,9 +765,10 @@ have {H}Hik : nat_of_ord i = k.
   by move/negP: H; rewrite -leqNgt.
 rewrite -{loop k}Hik in Hak Hsk *.
 step=>Vm; exists p; case: sw Hsw=>/=; case=>Ep Hf.
-- (* swap happened on last iteration *)
-  rewrite So_eq; split=>//=; first by apply: ltnW.
-  - rewrite Ep slice_oSR swnx_ux_rcons swnx_xu_cons allrel_rconsl allrel_consr /=.
+(* swap happened on last iteration *)
+- rewrite So_eq; split=>//=; first by apply: ltnW.
+  - rewrite Ep slice_oSR swnx_ux_rcons swnx_xu_cons 
+            allrel_rconsl allrel_consr /=.
     move: Hak; rewrite codom1_ax_rcons2 // !allrel_rconsl -/i0 -/i1 -andbA.
     case/and3P=>-> _ ->; rewrite (ordW Hf) /= !andbT.
     move: Hai; rewrite codom1_ax_rcons //= allrel_rconsr=>/andP [_ Hals].
@@ -814,8 +811,6 @@ split=>//; first by rewrite itv_underR.
 by apply: sorted1; rewrite slice_size size_codom card_ord.
 Qed.
 
-Opaque bubble_pass_opt2.
-
 Definition bubble_sort_opt2_loop (a : {array 'I_n.+2 -> A}) : Type :=
   forall (k : 'I_n.+1),
   STsep {f : {ffun 'I_n.+2 -> A}}
@@ -850,8 +845,10 @@ case: decP=>Hx; last first.
   - by move=>Hx _; rewrite Hx -slice_0L slice_uu in Hs.
   case: (nat_of_ord x) Ha Hs=>//; case=>//= Ha1 Hs1 _ _.
   rewrite (slice_uoxu (codom (pffun p f)) 1).
-  rewrite (sorted_pairwise (@otrans A)) pairwise_cat -!(sorted_pairwise (@otrans A)).
-  by apply/and3P; split=>//; apply: sorted1; rewrite slice_size size_codom card_ord.
+  rewrite (sorted_pairwise (@otrans A)) pairwise_cat.
+  rewrite -!(sorted_pairwise (@otrans A)).
+  apply/and3P; split=>//; apply: sorted1.
+  by rewrite slice_size size_codom card_ord.
 apply: [gE (pffun p f)]=>//=; last first.
 - move=> _ m2 [p'][H2 Hs'] _; exists (p' * p)%g.
   by rewrite pffunEM.

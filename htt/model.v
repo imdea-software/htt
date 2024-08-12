@@ -141,7 +141,6 @@ Structure STspec G A (s : spec G A) := STprog {
 Arguments STspec G [A] s.
 
 (* some notation *)
-Notation "'Do' e" := (@STprog _ _ _ e _) (at level 80).
 Notation "x '<--' c1 ';' c2" := (bnd c1 (fun x => c2))
   (at level 81, right associativity, format
   "'[v' x  '<--'  c1 ';' '//' c2 ']'").
@@ -152,6 +151,11 @@ Notation "c1 ';;' c2" := (bnd c1 (fun _ => c2))
   (at level 81, right associativity).
 Notation "'!' x" := (read x) (at level 50).
 Notation "x '::=' e" := (write x e) (at level 60).
+(* using locked for Do, to make the Do definitions opaque *)
+(* otherwise, clients will inline the code of Do, preventing *)
+(* the use of the program with the spec that has been verified *)
+(* with Do. *)
+Notation "'Do' e" := (locked (@STprog _ _ _ e _)) (at level 80).
 
 (* Fixed point constructor *)
 (* We shall make fix work over *monotone closure* of argument function. *)
@@ -166,7 +170,6 @@ Parameter ffix : forall G A (B : A -> Type) (s : forall x : A, spec G (B x)),
   ((forall x : A, STspec G (s x)) -> forall x : A, STspec G (s x)) ->
   forall x : A, STspec G (s x).
 End VrfSig.
-
 
 (********************************)
 (* Definition of the Hoare type *)

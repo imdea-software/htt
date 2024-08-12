@@ -26,8 +26,6 @@ Section Stack.
 Variable T : Type.
 Notation stack := (stack T).
 
-Opaque insert head remove.
-
 (* stack is a pointer to a singly-linked list *)
 Definition shape s (xs : seq T) :=
   [Pred h | exists p h', [ /\ valid (s :-> p \+ h'),

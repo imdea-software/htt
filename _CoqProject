@@ -36,6 +36,7 @@ htt/model.v
 htt/heapauto.v
 examples/exploit.v
 examples/gcd.v
+examples/counter.v
 examples/llist.v
 examples/dlist.v
 examples/array.v
@@ -46,7 +47,6 @@ examples/bintree.v
 examples/bst.v
 examples/kvmaps.v
 examples/hashtab.v
-examples/counter.v
 examples/bubblesort.v
 examples/quicksort.v
 examples/congmath.v

@@ -67,7 +67,7 @@ Global Arguments ordtype_isOrdered_mixin [_] _.
 
 Section type.
 Local Unset Implicit Arguments.
-Polymorphic Cumulative Record 
+(* Polymorphic Cumulative *) Record 
   type : Type := Pack { sort : Type; _ : axioms_ sort; }.
 End type.
 
@@ -89,16 +89,17 @@ Global Arguments class : clear implicits.
 
 (* Polymorphic Universe annotations added *)
 Section PolymorphicClonePack.
-Polymorphic Universe ou.
-Polymorphic Variables (T : Type@{ou}) (cT : type@{ou}).
+(* Polymorphic Universe ou. *)
+(* Polymorphic Variables (T : Type@{ou}) (cT : type@{ou}). *)
+Variables (T : Type) (cT : type). 
 
-Polymorphic Definition phant_clone : forall (c : axioms_ T),
+(* Polymorphic *) Definition phant_clone : forall (c : axioms_ T),
   unify Type Type T (sort cT) nomsg ->
   unify type type cT (Pack (sort:=T) c) nomsg -> type :=
   fun (c : axioms_ T) =>
     fun=> (fun=> (Pack (sort:=T) c)).
 
-Polymorphic Definition pack_ := fun (m : Equality.mixin_of T)
+(* Polymorphic *) Definition pack_ := fun (m : Equality.mixin_of T)
   (m0 : isOrdered.axioms_ T m) => 
   Pack (sort:=T)
        {|eqtype_hasDecEq_mixin := m; ordtype_isOrdered_mixin := m0 |}.
@@ -114,7 +115,7 @@ Notation ordType := Ordered.type.
 #[reversible] Coercion sort : Ordered.type >-> Sortclass.
 
 (* Polymorphic annotation added *)
-Polymorphic Definition ordtype_Ordered_class__to__eqtype_Equality_class : 
+(* Polymorphic *) Definition ordtype_Ordered_class__to__eqtype_Equality_class : 
  forall T : Type, axioms_ T -> Equality.axioms_ T :=
    fun (T : Type) (c : axioms_ T) =>
      {| Equality.eqtype_hasDecEq_mixin := eqtype_hasDecEq_mixin c |}.
@@ -125,7 +126,7 @@ Local Arguments ordtype_Ordered_class__to__eqtype_Equality_class :
 #[reversible] Coercion ordtype_Ordered_class__to__eqtype_Equality_class : 
   ordtype.Ordered.axioms_ >-> eqtype.Equality.axioms_.
 
-Polymorphic Definition ordtype_Ordered__to__eqtype_Equality : 
+(* Polymorphic *) Definition ordtype_Ordered__to__eqtype_Equality : 
   ordType -> eqType :=
   fun s : ordType => {| Equality.sort := s; Equality.class := class s |}.
 

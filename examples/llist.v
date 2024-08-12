@@ -19,6 +19,8 @@ From htt Require Import options model heapauto.
 (* Linked lists, storing a value and next pointer in consecutive locations. *)
 (* We start with a more general "segment" definition, where the last node's *)
 (* next pointer is an arbitrary q *)
+(* NOTE: already defined in heap.v under the name llist, but repeated here *)
+(* to make the file self-contained. *)
 
 Fixpoint lseg {A} (p q : ptr) (xs : seq A) :=
   if xs is hd::tl then

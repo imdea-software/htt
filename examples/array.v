@@ -50,7 +50,7 @@ Definition shape (a : array) (f : {ffun I -> T}) :=
 Program Definition new (x : T) :
   STsep (emp, [vfun a => shape a [ffun => x]]) :=
   Do (x <-- allocb x #|I|;
-      ret (Array x)).
+       ret (Array x)).
 Next Obligation.
 (* pull out ghost vars, run the program *)
 move=>x [] _ /= ->; step=>y; step.
@@ -58,8 +58,6 @@ move=>x [] _ /= ->; step=>y; step.
 rewrite unitR=>H; split=>//; congr updi; rewrite codomE cardE.
 by elim: (enum I)=>[|t ts] //= ->; rewrite (ffunE _ _).
 Qed.
-
-Opaque new.
 
 (* new array corresponding to a domain of a finite function f *)
 
@@ -186,6 +184,7 @@ Qed.
 
 End Array.
 End Array.
+
 
 (* Tabulating a finite function over another one *)
 (* Useful in building linked data structures that are pointed to by *)

@@ -1442,14 +1442,6 @@ Implicit Type ltT leT : rel A.
 
 (* ordering with path, seq and last *)
 
-(* renaming *)
-#[deprecated(since="fcsl-pcm 1.4.0", note="Use order_path_min instead.")]
-Lemma path_all (xs : seq A) x r :
-        transitive r ->
-        path r x xs -> 
-        all (r x) xs.
-Proof. exact: order_path_min. Qed.
-
 Lemma eq_last (s : seq A) x y :
         x \in s -> 
         last y s = last x s.

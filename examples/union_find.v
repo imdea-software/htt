@@ -593,8 +593,6 @@ case=>m [] h [ts] [->-> V]. step=>p. do !step. move=>V2.
 by  exists (TNode p nil :: ts); split.
 Qed.
 
-Opaque newT.
-
 (********)
 (* FIND *)
 (********)
@@ -624,8 +622,6 @@ move=>x [rs][r][] h //= [[ts [->-> V]] H].
 apply: [gE fset ts, r]=>//=.
 by do !split=>//=; exists ts; split.
 Qed.
-
-Opaque find1.
 
 (*********)
 (* UNION *)
@@ -701,9 +697,6 @@ move/mem_range; rewrite range_tset //; last by apply: valid_fset_tset X1.
 rewrite inE => /eqP X4; move/negP: X2; apply; apply/eqP.
 by apply: flay_mem_eq X1 B J=>//; rewrite X4 rt_in.
 Qed.
-
-Opaque union.
-
 
 (*********)
 (* Tests *)
