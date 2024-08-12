@@ -28,15 +28,17 @@ Notation stack := (stack T).
 
 Opaque insert head remove.
 
-(* a stack is just a pointer to a singly-linked list *)
+(* stack is a pointer to a singly-linked list *)
 Definition shape s (xs : seq T) :=
   [Pred h | exists p h', [ /\ valid (s :-> p \+ h'),
                               h = s :-> p \+ h' &
                               h' \In lseq p xs]].
 
-(* a heap cannot match two different specs *)
+(* heap cannot match two different specs *)
 Lemma shape_inv : forall s xs1 xs2 h,
-        h \In shape s xs1 -> h \In shape s xs2 -> xs1 = xs2.
+        h \In shape s xs1 -> 
+        h \In shape s xs2 -> 
+        xs1 = xs2.
 Proof.
 move=>s xs1 xs2 _ [p][h1][D -> S][p2][h2][D2].
 case/(cancelO _ D)=><- _; rewrite !unitL=><-.
@@ -44,20 +46,19 @@ by apply: lseq_func=>//; move/validR: D.
 Qed.
 
 (* well-formed stack is a valid heap *)
-
-Lemma shapeD s xs : forall h, h \In shape s xs -> valid h.
-Proof. by move=>h [p][h'][D ->]. Qed.
+Lemma shapeD s xs h : 
+        h \In shape s xs -> 
+        valid h.
+Proof. by case=>p [h'][D ->]. Qed.
 
 (* main methods *)
 
 (* new stack is a pointer to an empty heap/list *)
-
 Program Definition new : STsep (emp, [vfun y => shape y [::]]) :=
   Do (alloc null).
 Next Obligation. by move=>/= [] i ?; step=>??; vauto. Qed.
 
 (* freeing a stack, possible only when it's empty *)
-
 Program Definition free s : STsep (shape s [::],
                                    [vfun _ h => h = Unit]) :=
   Do (dealloc s).
@@ -66,9 +67,8 @@ by case=>i [?][?][V ->][_ ->]; step=>_; rewrite unitR.
 Qed.
 
 (* pushing to the stack is inserting into the list and updating the pointer *)
-
 Program Definition push s x : STsep {xs} (shape s xs,
-                                          [vfun _ => shape s (x :: xs)]) :=
+                                         [vfun _ => shape s (x :: xs)]) :=
   Do (l <-- !s;
       l' <-- insert l x;
       s ::= l').
@@ -84,7 +84,6 @@ Qed.
 (* popping from the stack is: *)
 (* 1. trying to get the head *)
 (* 2. removing it from the list and updating the pointer on success *)
-
 Program Definition pop s :
   STsep {xs} (shape s xs,
               fun y h => shape s (behead xs) h /\

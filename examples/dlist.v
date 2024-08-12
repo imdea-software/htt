@@ -17,8 +17,8 @@ From pcm Require Import options axioms pred.
 From pcm Require Import pcm unionmap heap autopcm.
 From htt Require Import options model heapauto.
 
-(* Doubly linked lists, follows the same structure as singly-linked *)
-(* ones, adding a second pointer pointing backwards. *)
+(* Doubly-linked lists, follows the same structure as singly-linked *)
+(* lists, adding a second pointer pointing backwards. *)
 
 (* The arguments are: preceding node, first node, last node, succeeding node *)
 (* Internally we use three cells for a node: value, next node, last node *)
@@ -35,7 +35,7 @@ Variable A : Type.
 (* structure of a list segment with appended node *)
 
 (* adding the predecessor pointer breaks the symmetry with inductive lists *)
-(* so we rely on this lemma a lot to manually restructure the spec *)
+(* so we rely on this lemma to manually restructure the spec *)
 Lemma dseg_rcons (xs : seq A) x pp p q qn h :
         h \In dseg pp p q qn (rcons xs x) <->
         exists r h',
@@ -57,7 +57,7 @@ rewrite !joinA; split=>//; apply/IH.
 by exists r, h'; rewrite !joinA.
 Qed.
 
-(* first node being null means the list is empty *)
+(* if first node is null, then list is empty *)
 Lemma dseg_nullL (xs : seq A) pp q qn h :
         valid h -> 
         h \In dseg pp null q qn xs ->
@@ -67,7 +67,7 @@ case: xs=>[|x xs] /= D H; first by case: H.
 by case: H D=>r[h'][-> _]; rewrite validPtUn eq_refl.
 Qed.
 
-(* last node being null also means the list is empty *)
+(* if last node is null, then list is empty *)
 Lemma dseg_nullR (xs : seq A) pp p qn h :
         valid h -> 
         h \In dseg pp p null qn xs ->
@@ -78,7 +78,7 @@ case/dseg_rcons=>r[h'][]; move: D=>/[swap]->/validR.
 by rewrite validPtUn.
 Qed.
 
-(* deconstruct a non-trivial segment from the left *)
+(* deconstruct non-trivial segment from the left *)
 Lemma dseg_neqL (xs : seq A) (pp p q qn : ptr) h :
         p != qn -> 
         h \In dseg pp p q qn xs ->
@@ -92,7 +92,7 @@ case: xs=>[|x xs] /= H; last first.
 by case=>E; rewrite E eq_refl in H.
 Qed.
 
-(* deconstruct a non-trivial segment from the right *)
+(* deconstruct non-trivial segment from the right *)
 Lemma dseg_neqR (xs : seq A) (pp p q qn : ptr) h :
         pp != q -> 
         h \In dseg pp p q qn xs ->
@@ -107,9 +107,9 @@ case/dseg_rcons=>r[h'][{h}-> H'].
 by exists xs, x, r, h'.
 Qed.
 
-(* splitting the list corresponds to splitting the heap *)
+(* concatenating/splitting lists = concatenating/splitting heaps *)
 Lemma dseg_cat (xs ys : seq A) pp p q qn h :
-        h \In dseg pp p q qn (xs++ys) <->
+        h \In dseg pp p q qn (xs ++ ys) <->
         exists jn j, h \In dseg pp p j jn xs # dseg j jn q qn ys.
 Proof.
 elim: xs pp p h=>/=.
@@ -167,8 +167,7 @@ Proof. by rewrite eq_sym=>Hq /(dseg_neqR Hq). Qed.
 
 (* main methods *)
 
-(* prepend a value, return pointers to new first and last nodes *)
-
+(* prepend value x, return pointers to new first and last nodes *)
 Program Definition insertL p q (x : A) :
   STsep {l} (dseq p q l, [vfun pq => dseq pq.1 pq.2 (x :: l)]) :=
   Do (r <-- allocb x 3;
@@ -192,16 +191,15 @@ exists p, (p :-> y \+ (p.+1 :-> z \+ (p.+2 :-> r \+ h'))).
 by rewrite !joinA; split=>//; rewrite E /=; exists z, h'; rewrite !joinA.
 Qed.
 
-(* append a value (in constant), return pointers to new first and last nodes *)
-
+(* append value x, return pointers to new first and last nodes *)
 Program Definition insertR p q (x : A) :
   STsep {l} (dseq p q l, [vfun pq => dseq pq.1 pq.2 (rcons l x)]) :=
   Do (r <-- allocb x 3;
       r.+1 ::= null;;
       r.+2 ::= q;;
       if q == null then ret (r,r)
-        else q.+1 ::= r;;
-             ret (p,r)).
+      else q.+1 ::= r;;
+           ret (p,r)).
 Next Obligation.
 (* pull out ghost + precondition *)
 move=>p q x [l []] i /= H.
@@ -219,22 +217,22 @@ split; first by rewrite joinC.
 by apply/dseg_rcons; vauto.
 Qed.
 
-(* traversing the dlist backwards and consing all elements *)
+(* travers the dlist backwards and cons all elements *)
 (* reifies the specification *)
 
-(* the loop invariant: *)
-(* 1. the heap is unchanged *)
-(* 2. the result is remainder + accumulator *)
-(* we carry the pointer to the accumulator as a ghost var *)
+(* loop invariant: *)
+(* 1. heap is unchanged *)
+(* 2. result = remainder + accumulator *)
+(* carry the pointer to the accumulator as a logical var *)
 Definition traverse_backT (p : ptr) : Type :=
   forall (qs : ptr * seq A),
   STsep {l nx} (dseg null p qs.1 nx l,
-                [vfun r h => h \In dseg null p qs.1 nx l
-                          /\ r = l ++ qs.2]).
+               [vfun r h => h \In dseg null p qs.1 nx l /\ 
+                            r = l ++ qs.2]).
 
 Program Definition traverse_back p q :
   STsep {l} (dseq p q l,
-             [vfun r h => h \In dseq p q l /\ r = l]) :=
+            [vfun r h => h \In dseq p q l /\ r = l]) :=
   Do (let tb :=
         ffix (fun (go : traverse_backT p) '(r, acc) =>
               Do (if r == null then ret acc

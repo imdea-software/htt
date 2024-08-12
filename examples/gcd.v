@@ -27,8 +27,8 @@ Definition shape (p q : ptr) (x y : nat) :=
 Definition gcd_loopT (p q : ptr) : Type :=
   unit ->
   STsep {x y : nat} (shape p q x y,
-                     [vfun (_ : unit) h =>
-                        h \In shape p q (gcdn x y) (gcdn x y)]).
+                    [vfun (_ : unit) h =>
+                       h \In shape p q (gcdn x y) (gcdn x y)]).
 
 Program Definition gcd_loop (p q : ptr) :=
   ffix (fun (go : gcd_loopT p q) _ =>

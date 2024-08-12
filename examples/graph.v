@@ -33,8 +33,6 @@ From pcm Require Import pcm unionmap natmap autopcm automap.
 (* that encodes that the second child of x doesn't exist. *)
 (* Non-null dangling links are technically possible, *)
 (* but are treated same as null. *)
-(* If it's desired to treat a non-null dangling link differently *)
-(* from null, add that link to the graph to make it non-dangling. *)
 
 (* Pregraph differs from fingraph (of mathcomp) *)
 (* in that the set of nodes is drawn from an infinite set *)
@@ -96,8 +94,6 @@ Definition children (g : pregraph) x : seq node :=
 
 (* edge is applicative variant of children *)
 (* thus, dangling edges (null or non-null) are *not* edges. *)
-(* If it's desired to treat a non-null dangling node differently *)
-(* from null, add that node to the graph to make it non-dangling. *)
 Definition edge g : rel node := mem \o children g.
 Arguments edge g x y : simpl never.
 
@@ -277,6 +273,10 @@ Proof. by move=>x y; rewrite !inE => X Y; rewrite edge_umfiltk /= X Y. Qed.
 (* at depth n, starting from x, and avoiding v. *)
 (* Definition uses children, not links; *)
 (* thus, it doesn't follow dangling edges *)
+(* and dfs can't express reachability to an outside node. *)
+(* If the latter is desired, it can be separately defined *)
+(* as a conjunct of dfs and links properties. *)
+
 Fixpoint dfs (g : pregraph) (n : nat) (v : seq node) x :=
   if (x \notin dom g) || (x \in v) then v else
   if n is n'.+1 then foldl (dfs g n') (x :: v) (children g x) else v.

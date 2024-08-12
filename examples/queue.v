@@ -26,7 +26,8 @@ Section Queue.
 Variable T : Type.
 Notation queue := (queue T).
 
-(* a queue is specified as a singly-linked list split into an initial segment and a last node *)
+(* queue is singly-linked list split into *)
+(* the initial segment and the last node *)
 Definition is_queue (fr bq : ptr) (xs : seq T) :=
   if fr == null then [Pred h | [/\ bq = null, xs = [::] & h = Unit]]
   else [Pred h | exists xt x h',
@@ -35,8 +36,8 @@ Definition is_queue (fr bq : ptr) (xs : seq T) :=
                      h = h' \+ (bq :-> x \+ bq.+1 :-> null) &
                      h' \In lseg fr bq xt]].
 
-(* the structure itself is a pair of pointers to body + last node *)
-(* insertion happens at the last node, and removal at the head *)
+(* queue structure is a pair of pointers to body + last node *)
+(* insertion happens at the last node, removal at the head *)
 Definition shape (q : queue) (xs : seq T) :=
   [Pred h | exists fr bq h',
     [/\ valid (front q :-> fr \+ (back q :-> bq \+ h')),
@@ -44,12 +45,10 @@ Definition shape (q : queue) (xs : seq T) :=
         h' \In is_queue fr bq xs]].
 
 (* well-formed queue is a valid heap *)
-
 Lemma shapeD q xs h : h \In shape q xs -> valid h.
 Proof. by case=>h1[bq][h'] [] D ->. Qed.
 
 (* empty queue is a pair of null pointers *)
-
 Lemma is_queue_nil fr bq h :
         h \In is_queue fr bq [::] -> 
         [/\ fr = null, bq = null & h = Unit].
@@ -58,7 +57,6 @@ by rewrite /is_queue; case: eqP=>[->[-> _ ->] | _ [[|y xt][x][h'][]]].
 Qed.
 
 (* restructuring the specification for combined list *)
-
 Lemma is_queue_rcons fr bq xt x h :
          h \In is_queue fr bq (rcons xt x) <->
          (exists h', [/\ valid (h' \+ (bq :-> x \+ bq.+1 :-> null)),
@@ -73,8 +71,7 @@ move: (D)=>/[swap]; case/(lseg_null (validL D))=>->->->.
 by rewrite unitL validPtUn.
 Qed.
 
-(* pointers should agree in a well-formed queue *)
-
+(* pointers agree in a well-formed queue *)
 Lemma backfront fr bq xs h :
         h \In is_queue fr bq xs -> 
         (fr == null) = (bq == null).
@@ -86,7 +83,6 @@ Qed.
 (* main methods *)
 
 (* new queue is a pair of pointers to an empty segment *)
-
 Program Definition new :
           STsep (emp, [vfun v => shape v [::]]) :=
   Do (x <-- alloc null;
@@ -100,7 +96,6 @@ by exists null, null, Unit; rewrite !unitR /= in V *; rewrite joinC.
 Qed.
 
 (* freeing a queue, possible only when it's empty *)
-
 Program Definition free (q : queue) :
           STsep (shape q [::], [vfun _ h => h = Unit]) :=
   Do (dealloc (front q);;
@@ -114,10 +109,9 @@ case/is_queue_nil=>->->->; rewrite unitR=>V.
 by do 2![step]=>_; rewrite unitR.
 Qed.
 
-(* for enqueue/dequeue we manipulate the underlying segment directly *)
+(* enqueue/dequeue manipulate the underlying segment directly *)
 
-(* enqueuing is adding a node at the end *)
-
+(* enqueuing = adding a node at the end *)
 Program Definition enq (q : queue) (x : T) :
   STsep {xs} (shape q xs,
               [vfun _ => shape q (rcons xs x)]) :=
@@ -144,7 +138,8 @@ rewrite -(backfront H) unitR; case: ifP H=>Ef; rewrite /is_queue ?Ef.
 (* the queue wasn't empty, link the new node to the last one *)
 case=>s2[x2][i2][->] {}D -> H2; step=>V.
 (* massage the heap and simplify the goal *)
-exists fr, next, (i2 \+ bq :-> x2 \+ bq.+1 :-> next \+ next :-> x \+ next.+1 :-> null).
+exists fr, next, (i2 \+ bq :-> x2 \+ bq.+1 :-> next \+ 
+  next :-> x \+ next.+1 :-> null).
 split; first by apply: (validX V).
 - by rewrite joinC !joinA.
 (* the new node conforms to the queue spec *)
@@ -154,8 +149,7 @@ rewrite joinA; split=>//; first by apply: (validX V).
 by apply/lseg_rcons; exists bq, i2; rewrite joinA.
 Qed.
 
-(* dequeuing is removing the head node and adjusting pointers *)
-
+(* dequeuing = removing the head node and adjusting pointers *)
 Program Definition deq (q : queue) :
   STsep {xs} (shape q xs,
               fun y h => shape q (behead xs) h /\

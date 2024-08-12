@@ -128,14 +128,23 @@ Fixpoint rev_graph' m g ps t : pregraph :=
 
 Definition rev_graph m g s t := rev_graph' m g (rev s) t.
 
-(* turning (pre)graph into a heap *)
-Definition hp (g : pregraph) : heap := 
-  \big[join/Unit]_(x <- dom g) (x :-> (gl g x, gr g x)).
+(* layout of graph+marking as heap *)
+Definition lay (m : nmap mark) (g : pregraph) : heap := 
+  \big[join/Unit]_(x <- dom g) (x :-> (gl g x, gr g x, odflt L (find x m))).
 
-(* Aleks: not sure what this definition intends to say *)
-(* but at least it typechecks now *)
+(* reach m g s t holds iff *)
+(* each unmarked node x in g is reachable through unmarked nodes *)
+(* - either starting from t, or *)
+(* - starting from a right child of some node in s *)
 Definition reach (m : nmap mark) (g : pregraph) (s : seq node) t := 
-  forall x, x \notin dom m ->
-    x \in connect (mem (dom m)) g t \/ 
-    exists y, y \in s /\ x \in connect (mem (dom m)) g y.
+  forall x, 
+    (* x is node in g *)
+    x \in dom g ->
+    (* x is unmarked *)
+    x \notin dom m ->
+    (* x is reachable from t avoiding marked nodes *)
+    x \in connect (mem (dom m)) g t \/
+    (* or x is reachable from some right child of a node y in s *)
+    (* avoiding marked nodes *)
+    exists y, y \in s /\ x \in connect (mem (dom m)) g (gr g y).
 

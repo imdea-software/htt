@@ -18,9 +18,11 @@ From pcm Require Import pcm unionmap heap auto automap autopcm.
 From htt Require Import options model heapauto.
 From htt Require Import llist.
 
-(* a queue variant that has a fixed capacity and can overwrite data in a circular way *)
+(* queue variant with fixed capacity *)
+(* that overwrites data in a circular way *)
 
-(* the structure is a pair of pointers, a mutable length and immutable capacity *)
+(* the structure is a pair of pointers: *)
+(* a mutable length and immutable capacity *)
 Record buffer (T : Type) : Type :=
   Buf {active: ptr; inactive: ptr; len: ptr; capacity: nat}.
 
@@ -42,15 +44,14 @@ Definition is_buffer (a i : ptr) (m n : nat) (xs : seq T) :=
                 n = size xs + size ys,
                 m = size xs,
                 ha \In lseg a i xs &
-                hi \In lseg i a ys]
-  ].
+                hi \In lseg i a ys]].
 
 (* the structure itself requires three extra memory cells *)
 Definition shape (b : buffer) (xs : seq T) :=
   [Pred h | exists a i m h',
-            [/\ valid (active b :-> a \+ (inactive b :-> i \+ (len b :-> m \+ h'))),
-                h = active b :-> a \+ (inactive b :-> i \+ (len b :-> m \+ h')) &
-                h' \In is_buffer a i m (capacity b) xs]].
+    [/\ valid (active b :-> a \+ (inactive b :-> i \+ (len b :-> m \+ h'))),
+        h = active b :-> a \+ (inactive b :-> i \+ (len b :-> m \+ h')) &
+        h' \In is_buffer a i m (capacity b) xs]].
 
 (* main methods *)
 
@@ -170,12 +171,13 @@ exists a, i, (size xs), h; split=>//.
 by exists [::], ha, hi; rewrite Eys in Ec Hi.
 Qed.
 
-(* a version that overwrites data in a cyclic fashion *)
-(* we make checking for capacity != 0 the client's problem so it can be dealt with globally *)
+(* version that overwrites data in a cyclic fashion *)
+(* checking that capacity != 0 is the client's problem *)
+(* so it can be dealt with globally *)
 Program Definition overwrite (x : T) (b : buffer) :
   STsep {xs} (fun h => 0 < capacity b /\ h \In shape b xs,
-              [vfun _ => shape b (drop ((size xs).+1 - capacity b) 
-                                 (rcons xs x))]) :=
+             [vfun _ => shape b (drop ((size xs).+1 - capacity b) 
+                                (rcons xs x))]) :=
   Do (i <-- !inactive b;
       i ::= x;;
       r <-- !i.+1;
@@ -191,26 +193,29 @@ move=>x b [xs []] _ /= [Hc][a][i][_][_][_ -> [ys][ha][hi][-> Ec -> Ha Hi]].
 (* read the inactive pointer, case split on inactive part *)
 (* we do this early on because we need to unroll the heap to proceed *)
 rewrite Ec in Hc *; step; case: ys Ec Hi Hc=>/=.
-- (* inactive part is empty, so the buffer is full & the active part is the whole cycle *)
-  rewrite addn0=>Ec [Ei {hi}->] Hxs; rewrite unitR; rewrite {i}Ei in Ha *.
-  (* unroll the (active) heap *)
+(* inactive part is empty, so the buffer is full *)
+(* and the active part is the whole cycle *)
+- rewrite addn0=>Ec [Ei {hi}->] Hxs; rewrite unitR; rewrite {i}Ei in Ha *.
+(* unroll the (active) heap *)
   case/(lseg_lt0n Hxs): Ha=>z[r][h'][Exs {ha}-> H'].
-  (* run the rest of the program, the postcondition simplifies to beheading the extended xs *)
+(* run the rest of the program *)
+(* the postcondition simplifies to beheading the extended xs *)
   do 4!step; rewrite ltnn subSnn drop1; step=>V.
-  (* the new structure is well-formed if the buffer is *)
+(* the new structure is well-formed if the buffer is *)
   exists r, r, (size xs), (a :-> x \+ (a.+1 :-> r \+ h')); split=>//.
-  (* most of the conditions hold trivially or by simple arithmetics *)
+(* most of the conditions hold trivially or by simple arithmetics *)
   exists [::], (a :-> x \+ (a.+1 :-> r \+ h')), Unit; split=>//=.
   - by rewrite unitR.
   - by rewrite addn0 size_behead size_rcons.
   - by rewrite size_behead size_rcons.
-  (* xs is non-empty so behead commutes with rcons *)
+(* xs is non-empty so behead commutes with rcons *)
   rewrite behead_rcons //; apply/lseg_rcons.
-  (* the segment is well-formed *)
+(* the segment is well-formed *)
   by exists a, h'; split=>//; rewrite [in RHS]joinC joinA.
 (* inactive part is non-empty, unroll the inactive heap *)
 move=>y ys Ec [r][h'][{hi}-> H'] _.
-(* run the rest of the program, the postcondition simplifies to just the extended xs *)
+(* run the rest of the program *)
+(* the postcondition simplifies to just the extended xs *)
 do 4![step]=>{y}; rewrite -{1}(addn0 (size xs)) ltn_add2l /=; step=>V.
 rewrite addnS subSS subnDA subnn sub0n drop0.
 (* the new structure is well-formed if the buffer is *)
@@ -223,13 +228,13 @@ exists ys, (ha \+ (i :-> x \+ i.+1 :-> r)), h'; split=>//.
 by apply/lseg_rcons; exists i, ha.
 Qed.
 
-(* reading (or rather popping) a value from the buffer *)
+(* reading (popping) a value from the buffer *)
 Program Definition read (b : buffer) :
   STsep {xs} (shape b xs,
-              fun y h => match y with
-                         | Val x => h \In shape b (behead xs) /\ ohead xs = Some x
-                         | Exn e => e = BufferEmpty /\ xs = [::]
-                         end) :=
+    fun y h => match y with
+               | Val x => h \In shape b (behead xs) /\ ohead xs = Some x
+               | Exn e => e = BufferEmpty /\ xs = [::]
+               end) :=
   Do (m <-- !len b;
       if 0 < m then
         a <-- !active b;
@@ -240,19 +245,19 @@ Program Definition read (b : buffer) :
         ret x
       else throw BufferEmpty).
 Next Obligation.
-(* pull out ghost, destructure the precondition *)
+(* pull out ghost, destructure precondition *)
 move=>b [xs []] _ /= [a][i][_][_][_ -> [ys][ha][hi][-> Hc -> Ha Hi]].
 (* read the length, match on it *)
 step; case: ltnP.
-- (* buffer is non-empty, read the active pointer *)
-  move=>Hxs; step.
-  (* unroll the active heap to proceed *)
+(* buffer is non-empty, read the active pointer *)
+- move=>Hxs; step.
+(* unroll the active heap to proceed *)
   case/(lseg_lt0n Hxs): Ha=>x[r][h'][Exs {ha}-> H'].
-  (* run the rest of the program *)
+(* run the rest of the program *)
   do 5![step]=>V; split; last by rewrite Exs.
-  (* the new structure is well-formed if the buffer is *)
+(* the new structure is well-formed if the buffer is *)
   exists r, i, (size xs).-1, (a :-> x \+ (a.+1 :-> r \+ h') \+ hi); split=>//.
-  (* the buffer is well-formed by simple arithmetics *)
+(* the buffer is well-formed by simple arithmetics *)
   exists (rcons ys x), h', (hi \+ (a :-> x \+ a.+1 :-> r)); split=>//.
   - by rewrite [LHS](pullX (h' \+ hi)) !joinA.
   - by rewrite size_rcons Hc {1}Exs /= addnS addSn.
@@ -263,18 +268,18 @@ by rewrite leqn0=>/nilP->; step.
 Qed.
 
 (* deallocating the buffer *)
-(* we do check for capacity = 0 here since this should be a rare operation *)
+(* check that capacity = 0 here, since this should be a rare operation *)
 (* of course, it could also be moved into the precondition as for overwrite *)
 
 (* loop invariant for deallocating the inner structure *)
 Definition free_loopT (n : nat) : Type :=
   forall (pk : ptr * nat),
   STsep {q (xs : seq T)} (fun h => h \In lseg pk.1 q xs /\ size xs = n - pk.2,
-                          [vfun _ : unit => emp]).
+                         [vfun _ : unit => emp]).
 
 Program Definition free (b : buffer) :
   STsep {xs} (fun h => h \In shape b xs,
-              [vfun _ => emp]) :=
+             [vfun _ => emp]) :=
   Do (let run := ffix (fun (go : free_loopT (capacity b)) '(r,k) =>
                       Do (if k < capacity b then
                             p' <-- !r.+1;
@@ -294,13 +299,13 @@ Program Definition free (b : buffer) :
 Next Obligation.
 (* pull out ghosts, destructure the preconditions, match on k *)
 move=>b go _ r k [q][xs][] h /= [H Hs]; case: ltnP.
-- (* k < capacity, so the spec is still non-empty *)
-  move=>Hk; have {Hk}Hxs: 0 < size xs by rewrite Hs subn_gt0.
-  (* unroll the heap *)
+(* k < capacity, so the spec is still non-empty *)
+- move=>Hk; have {Hk}Hxs: 0 < size xs by rewrite Hs subn_gt0.
+(* unroll the heap *)
   case/(lseg_lt0n Hxs): H=>x[p][h'][E {h}-> H'].
-  (* save the next node pointer and deallocate the node *)
+(* save the next node pointer and deallocate the node *)
   do 3!step; rewrite !unitL.
-  (* run the recursive call, simplify *)
+(* run the recursive call, simplify *)
   apply: [gE q, behead xs]=>//=; split=>//.
   by rewrite subnS; move: Hs; rewrite {1}E /= =><-.
 (* k = capacity, so the spec is empty *)
@@ -312,18 +317,18 @@ Qed.
 Next Obligation.
 (* pull out ghost, destructure the precondition, match on capacity *)
 move=>b [xs][] _ /= [a][i][m][_][_ -> [ys][ha][hi][-> Hc -> Ha Hi]]; case: ltnP.
-- (* 0 < capacity, first apply the vrf_bind primitive to "step into" the `if` block *)
-  (* run the loop starting from the active part, frame on the corresponding heaps *)
-  move=>_; apply/vrf_bnd; step; apply: [stepX a, xs++ys]@(ha \+ hi)=>//=.
-  - (* concatenate the active and inactive parts to satisfy the loop precondition *)
-    move=>_; split; last by rewrite size_cat subn0.
+(* 0 < capacity, first apply vrf_bind to "step into" the `if` block *)
+(* run the loop starting from the active part, frame the corresponding heaps *)
+- move=>_; apply/vrf_bnd; step; apply: [stepX a, xs++ys]@(ha \+ hi)=>//=.
+(* concatenate the active and inactive parts to satisfy the loop precondition *)
+  - move=>_; split; last by rewrite size_cat subn0.
     by apply/lseg_cat; exists i, ha, hi.
-  (* by deallocating the structure we empty the heap fully *)
+(* by deallocating the structure, the heap is emptied *)
   by move=>_ _ ->; rewrite unitR; step=>V; do 3![step]=>_; rewrite !unitR.
 (* capacity = 0, so just deallocate the structure *)
 rewrite leqn0=>/eqP E; do 4!step; rewrite !unitL=>_.
 (* both parts of the spec are empty and so are the corresponding heaps *)
-move: Hc; rewrite E =>/eqP; rewrite eq_sym addn_eq0; case/andP=>/nilP Ex /nilP Ey.
+move: Hc; rewrite E =>/eqP; rewrite eq_sym addn_eq0=>/andP [/nilP Ex /nilP Ey].
 move: Ha; rewrite Ex /=; case=>_->; move: Hi; rewrite Ey /=; case=>_->.
 by rewrite unitR.
 Qed.

@@ -31,8 +31,7 @@ Definition EmptyList : exn := exn_from_nat 15.
 Section LSeg.
 Variable A : Type.
 
-(* appending a value to the list segment *)
-
+(* appending value to list segment *)
 Lemma lseg_rcons (xs : seq A) x p r h :
         h \In lseg p r (rcons xs x) <->
         exists q h', h = h' \+ (q :-> x \+ q.+1 :-> r) /\ 
@@ -48,8 +47,7 @@ exists z, (h2 \+ q :-> y \+ q.+1 :-> r).
 by rewrite -!joinA; split=>//; apply/IH; eauto.
 Qed.
 
-(* null pointer represents an empty segment *)
-
+(* null pointer represents empty segment *)
 Lemma lseg_null (xs : seq A) q h :
         valid h -> 
         h \In lseg null q xs ->
@@ -59,8 +57,7 @@ case: xs=>[|x xs] D /= H; first by case: H=><- ->.
 case: H D=>r [h'][->] _; rewrite validPtUn; hhauto.
 Qed.
 
-(* empty heap represents an empty segment *)
-
+(* empty heap represents empty segment *)
 Lemma lseg_empty (xs : seq A) p q : 
         Unit \In lseg p q xs -> 
         p = q /\ xs = [::].
@@ -69,7 +66,6 @@ by case: xs=>[|x xs][] //= r [h][/esym/umap0E][/unitbP]; rewrite um_unitbU.
 Qed.
 
 (* reformulation of the specification *)
-
 Lemma lseg_case (xs : seq A) p q h :
         h \In lseg p q xs ->
         [/\ p = q, xs = [::] & h = Unit] \/
@@ -83,8 +79,7 @@ by case=>r [h'][->] H; right; hhauto.
 Qed.
 
 (* non-trivial segment represents a non-empty list *)
-
-Corollary lseg_neq (xs : seq A) p q h :
+Lemma lseg_neq (xs : seq A) p q h :
         p != q -> h \In lseg p q xs ->
         exists x r h',
          [/\ xs = x :: behead xs,
@@ -96,7 +91,6 @@ by rewrite E eq_refl in H.
 Qed.
 
 (* non-empty list is represented by a non-trivial segment *)
-
 Lemma lseg_lt0n (xs : seq A) p q h :
         0 < size xs -> h \In lseg p q xs ->
         exists x r h',
@@ -109,7 +103,6 @@ by rewrite E in H.
 Qed.
 
 (* splitting the list corresponds to splitting the heap *)
-
 Lemma lseg_cat (xs ys : seq A) p q h :
         h \In lseg p q (xs++ys) <->
           exists j, h \In lseg p j xs # lseg j q ys.
@@ -151,12 +144,13 @@ Lemma lseq_pos (xs : seq A) p h :
               h' \In lseq r (behead xs)].
 Proof. by apply: lseg_neq. Qed.
 
-(* a valid heap cannot match two different specs *)
+(* valid heap cannot match two different specs *)
 
 Lemma lseq_func (l1 l2 : seq A) p h :
         valid h -> 
         h \In lseq p l1 -> 
-        h \In lseq p l2 -> l1 = l2.
+        h \In lseq p l2 -> 
+        l1 = l2.
 Proof.
 elim: l1 l2 p h => [|x1 xt IH] /= l2 p h V.
 - by case=>->->; case/lseq_null.
@@ -175,7 +169,6 @@ Program Definition new : STsep (emp, [vfun x => lseq x (@nil A)]) :=
 Next Obligation. by move=>[] /= _ ->; step. Qed.
 
 (* prepending a value *)
-
 Program Definition insert p (x : A) :
   STsep {l} (lseq p l, [vfun p' => lseq p' (x::l)]) :=
   Do (q <-- allocb p 2;
@@ -190,7 +183,6 @@ Qed.
 
 (* getting the head element *)
 (* an example of a partial program, doesn't modify the heap *)
-
 Program Definition head p :
   STsep {l} (lseq p l,
               fun (y : ans A) h => h \In lseq p l /\
@@ -212,7 +204,6 @@ by do 2![step]=>_; split=>//; rewrite E; hhauto.
 Qed.
 
 (* removing the head element, no-op for an empty list *)
-
 Program Definition remove p :
   STsep {xs : seq A} (lseq p xs, [vfun p' => lseq p' (behead xs)]) :=
   Do (if p == null then ret p
@@ -232,16 +223,16 @@ Qed.
 
 (* calculating the list length *)
 
-(* the loop invariant: *)
+(* loop invariant: *)
 (* 1. heap is unchanged *)
 (* 2. total length is accumulator + the length of unprocessed list *)
 Definition lenT : Type := forall (pl : ptr * nat),
   STsep {xs : seq A} (lseq pl.1 xs,
-                      [vfun l h => l == pl.2 + length xs /\ lseq pl.1 xs h]).
+                     [vfun l h => l == pl.2 + length xs /\ lseq pl.1 xs h]).
 
 Program Definition len p :
   STsep {xs : seq A} (lseq p xs,
-                      [vfun l h => l == length xs /\ lseq p xs h]) :=
+                     [vfun l h => l == length xs /\ lseq p xs h]) :=
   Do (let len := ffix (fun (go : lenT) '(p, l) =>
                         Do (if p == null then ret l
                             else pnext <-- !p.+1;
@@ -265,22 +256,22 @@ Qed.
 
 (* concatenation: modifies the first list, returning nothing *)
 
-(* the loop invariant: *)
-(* the first list should not be empty and not overlap the second *)
+(* loop invariant: *)
+(* first list isn't empty and doesn't overlap with the second *)
 Definition catT (p2 : ptr) : Type :=
   forall (p1 : ptr), STsep {xs1 xs2 : seq A}
     (fun h => p1 != null /\ (lseq p1 xs1 # lseq p2 xs2) h,
-     [vfun _ : unit => lseq p1 (xs1 ++ xs2)]).
+    [vfun _ : unit => lseq p1 (xs1 ++ xs2)]).
 
 Program Definition concat p1 p2 :
   STsep {xs1 xs2 : seq A} (lseq p1 xs1 # lseq p2 xs2,
-                           [vfun a => lseq a (xs1 ++ xs2)]) :=
+                          [vfun a => lseq a (xs1 ++ xs2)]) :=
   Do (let cat := ffix (fun (go : catT p2) q =>
-                       Do (next <-- !q.+1;
-                           if (next : ptr) == null
-                              then q.+1 ::= p2;;
-                                   ret tt
-                              else go next))
+        Do (next <-- !q.+1;
+            if (next : ptr) == null
+            then q.+1 ::= p2;;
+                 ret tt
+            else go next))
       in if p1 == null
            then ret p2
            else cat p1;;
@@ -320,20 +311,20 @@ Qed.
 
 (* in-place reversal by pointer swinging *)
 
-(* the loop invariant: *)
-(* 1. the processed and remaining parts should not overlap *)
-(* 2. the result is processed part + a reversal of remainder *)
+(* loop invariant: *)
+(* 1. processed and remaining parts don't overlap *)
+(* 2.  result = processed part + reversal of remainder *)
 Definition revT : Type := forall (p : ptr * ptr),
   STsep {i done : seq A} (lseq p.1 i # lseq p.2 done,
-                          [vfun y => lseq y (catrev i done)]).
+                         [vfun y => lseq y (catrev i done)]).
 
 Program Definition reverse p :
   STsep {xs : seq A} (lseq p xs, [vfun p' => lseq p' (rev xs)]) :=
   Do (let reverse := ffix (fun (go : revT) '(i, done) =>
-                           Do (if i == null then ret done
-                               else next <-- !i.+1;
-                                    i.+1 ::= done;;
-                                    go (next, i)))
+        Do (if i == null then ret done
+            else next <-- !i.+1;
+                 i.+1 ::= done;;
+                 go (next, i)))
       in reverse (p, null)).
 (* first, the loop *)
 Next Obligation.

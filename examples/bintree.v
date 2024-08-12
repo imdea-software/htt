@@ -35,14 +35,13 @@ Fixpoint inorder {A} (t : tree A) : seq A :=
   else [::].
 
 (* Add an element to the rightmost branch *)
-
 Fixpoint addr {A} (y : A) (t : tree A) : tree A :=
   if t is Node l x r
     then Node l x (addr y r)
   else Node leaf y leaf.
 
-(* Tree heap predicate: [left branch pointer, value, right branch pointer] *)
-
+(* Tree heap predicate: *)
+(* [left branch pointer, value, right branch pointer] *)
 Fixpoint shape {A} (p : ptr) (t : tree A) :=
   if t is Node l a r then
     [Pred h | exists l' r' h',
@@ -51,7 +50,6 @@ Fixpoint shape {A} (p : ptr) (t : tree A) :=
   else [Pred h | p = null /\ h = Unit].
 
 (* Null pointer represents a leaf *)
-
 Lemma shape_null {A} (t : tree A) h :
         valid h -> 
         h \In shape null t ->
@@ -62,7 +60,6 @@ by case=>?[?][?][E]; rewrite E validPtUn in V.
 Qed.
 
 (* Non-null pointer represents a node *)
-
 Lemma shape_cont {A} (t : tree A) p h :
         p != null -> 
         h \In shape p t ->
@@ -73,15 +70,14 @@ Lemma shape_cont {A} (t : tree A) p h :
 Proof.
 move=>E; case: t=>/= [|l a r].
 - by case=>E0; rewrite E0 in E.
-case=>l'[r'][h'][E1 E2].
-by exists l,a,r,l',r',h'.
+case=>l' [r'][h'][E1 E2].
+by exists l, a, r, l', r', h'.
 Qed.
 
 Section Tree.
 Variable A : Type.
 
 (* Node creation *)
-
 Program Definition mknode (x : A) :
   STsep (emp,
         [vfun p => shape p (Node leaf x leaf)]) :=
@@ -99,7 +95,7 @@ Qed.
 
 (* Recursive tree disposal *)
 
-(* We start from a well-formed tree and arrive at an empty heap *)
+(* Start from a well-formed tree, and arrive at empty heap *)
 Definition disposetreeT : Type :=
   forall p, STsep {t : tree A} (shape p t, [vfun _ : unit => emp]).
 
@@ -129,17 +125,17 @@ apply: [stepX r]@hr=>//= _ _ ->; rewrite unitR.
 by do 3!step; rewrite !unitL.
 Qed.
 
-(* Calculation of tree size *)
+(* Calculate tree size *)
 
 (* loop invariant: *)
 (* the subtree size is added to the accumulator *)
 Definition treesizeT : Type := forall (ps : ptr * nat),
   STsep {t : tree A} (shape ps.1 t,
-                      [vfun s h => s == ps.2 + size_tree t /\ shape ps.1 t h]).
+                     [vfun s h => s == ps.2 + size_tree t /\ shape ps.1 t h]).
 
 Program Definition treesize p :
   STsep {t : tree A} (shape p t,
-                      [vfun s h => s == size_tree t /\ shape p t h]) :=
+                     [vfun s h => s == size_tree t /\ shape p t h]) :=
   Do (let len := ffix (fun (go : treesizeT) '(p, s) =>
                        Do (if p == null then ret s
                            else l <-- !p;
@@ -150,10 +146,10 @@ Program Definition treesize p :
 Next Obligation.
 (* pull out ghost var + precondition, branch on null check *)
 move=>_ go _ p s /= [t][] i /= H; case: eqP H=>[{p}->|/eqP Ep] H.
-- (* empty tree has size 0 *)
-  by step=>V; case: (shape_null V H)=>->->/=; rewrite addn0.
+(* empty tree has size 0 *)
+- by step=>V; case: (shape_null V H)=>->->/=; rewrite addn0.
 (* non-null pointer is a node, deconstruct it, read branch pointers *)
-  case: (shape_cont Ep H)=>l[a][r][l'][r'][_][{t H}-> {i}-> [hl][hr][-> Hl Hr]] /=.
+case: (shape_cont Ep H)=>l[a][r][l'][r'][_][{t H}-> {i}-> [hl][hr][-> Hl Hr]].
 do 2!step.
 (* calculate left branch size, update the accumulator *)
 apply: [stepX l]@hl=>//= _ hl' [/eqP -> Hl'].
@@ -163,7 +159,7 @@ apply: [gX r]@hr=>//= _ hr' [/eqP -> Hr'] _.
 by split; [rewrite addnS addSn addnA | vauto].
 Qed.
 Next Obligation.
-(* pull out ghost var + precondition, start the loop with empty accumulator *)
+(* pull out ghost var + precondition, start loop with empty accumulator *)
 by move=>/= p [t][] i /= H; apply: [gE t].
 Qed.
 
@@ -176,11 +172,11 @@ Opaque insert new.
 Definition inordertravT : Type := forall (ps : ptr * ptr),
   STsep {(t : tree A) (l : seq A)}
       (shape ps.1 t # lseq ps.2 l,
-       [vfun s h => h \In shape ps.1 t # lseq s (inorder t ++ l)]).
+      [vfun s h => h \In shape ps.1 t # lseq s (inorder t ++ l)]).
 
 Program Definition inordertrav p :
   STsep {t : tree A} (shape p t,
-                      [vfun s h => h \In shape p t # lseq s (inorder t)]) :=
+                     [vfun s h => h \In shape p t # lseq s (inorder t)]) :=
   Do (let loop := ffix (fun (go : inordertravT) '(p, s) =>
                        Do (if p == null then ret s
                            else l <-- !p;
@@ -192,17 +188,19 @@ Program Definition inordertrav p :
       in n <-- new A;
          loop (p, n)).
 Next Obligation.
-(* pull out ghosts + precondition, deconstruct the heap, branch on null check *)
+(* pull out ghosts + precondition, destruct heap, branch on null check *)
 move=>_ go _ p s /= [t][xs][] _ /= [h1][h2][-> H1 H2].
 case: eqP H1=>[{p}->|/eqP Ep] H1.
-- (* return the accumulated list - empty tree has no values *)
-  by step=>V; case: (shape_null (validL V) H1)=>->->/=; vauto.
-(* non-empty tree is a node, deconstruct the node, read the pointers and the value *)
-case: (shape_cont Ep H1)=>l[a][r][l'][r'][_][{t H1}-> {h1}-> [hl][hr][-> Hl Hr]] /=.
-do 3!step.
-(* run traversal on the right branch first (it's cheaper to grow a linked list to the left) *)
+(* return the accumulated list - empty tree has no values *)
+- by step=>V; case: (shape_null (validL V) H1)=>->->/=; vauto.
+(* non-empty tree is a node *)
+(* deconstruct the node, read the pointers and the value *)
+case: (shape_cont Ep H1)=>l[a][r][l'][r'][_][{t H1}-> {h1}->
+[hl][hr][-> Hl Hr]] /=; do 3!step.
+(* run traversal on the right branch first *)
+(* (it's cheaper to grow a linked list to the left) *)
 apply: [stepX r, xs]@(hr \+ h2)=>//=; first by vauto.
-(* we have subheaps corresponding to the left+right branches and the updated list *)
+(* subheaps exist corresponding to left/right branches and updated list *)
 move=>s1 _ [hr'][hs][-> Hr' Hs].
 (* prepend the node value to the list *)
 apply: [stepX (inorder r ++ xs)]@hs=>//= pa _ [s2][h'][-> H'].
@@ -236,7 +234,7 @@ Opaque mknode.
 (* loop invariant: the value is added to the rightmost branch *)
 Definition expandrightT x : Type := forall (p : ptr),
   STsep {t : tree A} (shape p t,
-                      [vfun p' => shape p' (addr x t)]).
+                     [vfun p' => shape p' (addr x t)]).
 
 Program Definition expandright x : expandrightT x :=
   ffix (fun (go : expandrightT x) p =>

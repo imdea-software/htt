@@ -19,11 +19,12 @@ From htt Require Import options model heapauto.
 
 Definition indx {I : finType} (x : I) := index x (enum I).
 
-(***********************************)
-(* Arrays indexed by a finite type *)
-(***********************************)
+(*********************************)
+(* Arrays indexed by finite type *)
+(*********************************)
 
-(* an array is a pointer to a contiguous memory region holding its values *)
+(* array is (pointer to) a contiguous memory region *)
+(* holding the array values *)
 
 Record array (I : finType) (T : Type) : Type := Array {orig :> ptr}.
 Arguments Array {I T}.
@@ -38,16 +39,14 @@ Section Array.
 Variable (I : finType) (T : Type).
 Notation array := {array I -> T}.
 
-(* an array is specified by a finite function *)
-
+(* array is specified by finite function *)
 Definition shape (a : array) (f : {ffun I -> T}) :=
   [Pred h | h = updi a (fgraph f) /\ valid h].
 
 (* main methods *)
 
-(* a new empty array preallocates all cells for all possible index values *)
+(* new empty array preallocates all cells for all possible index values *)
 (* initializing all of them to `x` *)
-
 Program Definition new (x : T) :
   STsep (emp, [vfun a => shape a [ffun => x]]) :=
   Do (x <-- allocb x #|I|;
@@ -62,16 +61,17 @@ Qed.
 
 Opaque new.
 
-(* a new array corresponding to a domain of a finite function f *)
+(* new array corresponding to a domain of a finite function f *)
 
-(* the loop invariant: *)
-(* a partially filled array corresponds to some finite function g acting as a prefix of f *)
+(* loop invariant: *)
+(* partially filled array corresponds to finite function g *)
+(* acting as prefix of f *)
 Definition fill_loop a (f : {ffun I -> T}) : Type :=
   forall s : seq I, STsep (fun i => exists g s',
                                       [/\ i \In shape a g,
                                           s' ++ s = enum I &
                                           forall x, x \in s' -> g x = f x],
-                           [vfun a => shape a f]).
+                          [vfun a => shape a f]).
 
 Program Definition newf (f : {ffun I -> T}) :
   STsep (emp, [vfun a => shape a f]) :=
@@ -82,10 +82,10 @@ Program Definition newf (f : {ffun I -> T}) :
         x <-- new (f v);
         (* fill it with values of f on I *)
         let fill := ffix (fun (loop : fill_loop x f) s =>
-                       Do (if s is k::t return _ then
-                             x .+ (indx k) ::= f k;;
-                             loop t
-                           else ret (Array x)))
+          Do (if s is k::t return _ then
+                x .+ (indx k) ::= f k;;
+                loop t
+              else ret (Array x)))
         in fill (enum I)
       else ret (Array null)).
 (* first the loop *)
@@ -130,11 +130,11 @@ Definition free_loop (a : array) : Type :=
                             [/\ i = updi (a .+ k) xs,
                                 valid i &
                                 size xs + k = #|I|],
-                   [vfun _ : unit => emp]).
+                  [vfun _ : unit => emp]).
 
 Program Definition free (a : array) :
   STsep (fun i => exists f, i \In shape a f,
-         [vfun _ : unit => emp]) :=
+        [vfun _ : unit => emp]) :=
   Do (let go := ffix (fun (loop : free_loop a) k =>
                    Do (if k == #|I| then ret tt
                        else dealloc a.+k;;
@@ -160,10 +160,9 @@ by rewrite ptr0 V {3}codomE size_map -cardE addn0.
 Qed.
 
 (* reading from an array, doesn't modify the heap *)
-
 Program Definition read (a : array) (k : I) :
    STsep {f h} (fun i => i = h /\ i \In shape a f,
-                [vfun (y : T) m => m = h /\ y = f k]) :=
+               [vfun (y : T) m => m = h /\ y = f k]) :=
   Do (!a .+ (indx k)).
 Next Obligation.
 (* pull out ghost vars *)
@@ -176,7 +175,7 @@ Qed.
 
 Program Definition write (a : array) (k : I) (x : T) :
   STsep {f} (shape a f,
-             [vfun _ : unit => shape a (finfun [eta f with k |-> x])]) :=
+            [vfun _ : unit => shape a (finfun [eta f with k |-> x])]) :=
   Do (a .+ (indx k) ::= x).
 Next Obligation.
 (* pull out ghost vars, split the heap *)
