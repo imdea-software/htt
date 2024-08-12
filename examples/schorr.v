@@ -54,6 +54,9 @@ Notation gl g x := (get_nth g x 0).
 Notation gr g x := (get_nth g x 1).
 
 (* type of markings *)
+(* Aleks NOTE: Should we need U? My impression was that *)
+(* being unmarked is represented by not being in *)
+(* the appropriate map? *)
 Inductive mark := U | L | R | LR.
 (* decidable equality on marks *)
 Definition eq_mark l1 l2 : bool :=
@@ -67,7 +70,6 @@ HB.instance Definition _ := hasDecEq.Build mark eq_markP.
 (* given marking map m, x is m-child of y iff: *)
 (* - m y = L and x is left child of y *)
 (* - m y = R and x is right child of y *)
-
 Definition ch (m : nmap mark) (g : pregraph) (x y : nat) := 
   [|| (find y m == Some L) && (gl g y == x) |
       (find y m == Some R) && (gr g y == x)].
@@ -129,6 +131,9 @@ Definition reach (m : nmap mark) (g : pregraph) (s : seq node) t :=
     (* x is unmarked *)
     x \notin dom m ->
     (* x is reachable from t avoiding marked nodes *)
+    (* Aleks note: if unmarked nodes are represented by a marking U *)
+    (* then this conjunct will have to change, as it currently assumes *)
+    (* that unmarked nodes are just those that aren't in m *)
     x \in connect (mem (dom m)) g t \/
     (* or x is reachable from some right child of a node y in s *)
     (* avoiding marked nodes *)
