@@ -170,9 +170,9 @@ step=>p; step=>_; exists (Ptrs r clist ulist htab p); split=>//.
 exists (Data [ffun x => x] [ffun c => [:: c]] [ffun c => [::]] (nil K V) [::]).
 split; last by case: (initP s).
 split=>[s a|/=]; first by rewrite !ffunE !inE. 
-exists f, [ffun s => null]. 
-rewrite (_ : p :-> null \+ _ = hr \+ ((hc' \+ hrest) \+ (hu \+ Unit \+
-  (ht \+ (p :-> null \+ Unit))))); last by heap_congr=>//; rewrite unitR.
+exists f, [ffun s => null].
+rewrite (_ : p :-> null \+ _ = hr \+ ((hc' \+ hrest) \+ (hu \+ Unit \+ 
+  (ht \+ (p :-> null \+ Unit))))); last by rewrite unitR; heap_congr. 
 hhauto; rewrite sepit_emp //= => k.
 by rewrite /utab/table !ffunE; split=>//; case=>_ ->.
 Qed.
