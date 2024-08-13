@@ -150,29 +150,23 @@ case: decP=>[{}pf|] /=; last first.
   step=>_; split=>//; exists f, hc, hct; split=>//. 
   apply: tableP2 Hct=>// ?; rewrite !in_set (eqP pf). 
   by rewrite /n cardE index_mem /index mem_enum. 
-apply: hstep=>x; apply: hstep=>/=; rewrite -!joinA !(xpull _ hc).
-apply/vrf_bnd/vrf_frame/[gE f]=>//= [[m]] Em _ _. 
-apply: [gE]=>[||??[]] //=; split=>//.
-eexists [ffun z => if z == ith k pf then x else f z], m, _. 
-split=>//; rewrite (sepitS (ith k pf)) in_set indx_ith ltnSn. 
-rewrite /ctab/table !ffunE eq_refl joinA unitL.
-hhauto; apply: tableP2 Hct=>// s. 
+step=>x; step; rewrite -!joinA !(xpull _ hc).
+apply: [stepX f]@hc=>//= [[m]] Em; apply: [gE]=>[||??[]//] //=. 
+split=>//; eexists [ffun z => if z == ith k pf then x else f z].
+hhauto; rewrite (sepitS (ith k pf)) in_set indx_ith ltnSn. 
+rewrite /ctab/table !ffunE eq_refl joinA; hhauto.
+apply: tableP2 Hct=>// s. 
 - by rewrite !in_set ltnS in_set1 indx_injE; case: ltngtP.
 by rewrite !in_set !ffunE indx_injE; case: eqP=>// ->; rewrite ltnn.
 Qed.
 Next Obligation.
-case=>_ ->; apply: [stepE]=>//= r hr Er; rewrite -[hr]unitL.
-apply/vrf_bnd/vrf_frame/[gE]=>//= clist hc Ec _ _.
-apply: [stepX]@hc=>[||??[]] //=.
+case=>_ ->; apply: [stepE]=>//= r hr Er; apply: [stepU]=>//= clist hc Ec.
+ apply: [stepX]@hc=>[||??[]] //=.
 - split=>//; exists [ffun x => null], hc, Unit; rewrite unitR.
   by split=>//; rewrite (_ : [set c | indx c < 0] = set0) // sepit0.
 case=>n0 [_][f][hc'][hrest][->] Hc' Hrest.
-rewrite -[hc' \+ _]unitL -joinA.
-apply/vrf_bnd/vrf_frame/[gE]=>//= ulist hu Ehu _ _.
-rewrite -[hu \+ _]unitL -joinA.
-apply/vrf_bnd/vrf_frame/[gE]=>//= htab ht Ht _ _.
-apply/vrf_bnd/vrf_alloc=>p D; apply: vrf_ret=>// D'.
-exists (Ptrs r clist ulist htab p); split=>//. 
+apply: [stepU]=>//= ulist hu Ehu; apply: [stepU]=>//= htab ht Ht.
+step=>p; step=>_; exists (Ptrs r clist ulist htab p); split=>//. 
 exists (Data [ffun x => x] [ffun c => [:: c]] [ffun c => [::]] (nil K V) [::]).
 split; last by case: (initP s).
 split=>[s a|/=]; first by rewrite !ffunE !inE. 
