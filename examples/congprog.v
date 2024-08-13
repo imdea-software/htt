@@ -150,9 +150,9 @@ case: decP=>[{}pf|] /=; last first.
   split=>//; exists f, hc, hct; split=>//. 
   apply: tableP2 Hct=>// x; rewrite !in_set Ekn.
   by rewrite /n cardE index_mem /index mem_enum.
-step=>x; step; rewrite -!joinA !(xpull _ hc).
-apply: [stepX f]@hc=>//= [[m]] Em; apply: [gE]=>[||??[]//] //=. 
-split=>//; eexists [ffun z => if z == ith k pf then x else f z].
+step=>x; step; apply: [stepX f]@hc=>//= [[m]] Em.
+apply: [gE]=>[||?? []] //=; split=>//; rewrite !(xpull _ m). 
+eexists [ffun z => if z == ith k pf then x else f z].
 hhauto; rewrite (sepitS (ith k pf)) in_set indx_ith ltnSn. 
 rewrite /ctab/table !ffunE eq_refl joinA; hhauto.
 apply: tableP2 Hct=>// s. 
