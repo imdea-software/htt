@@ -7,7 +7,7 @@ From Coq Require SetoidTactics.
 From mathcomp Require Import ssreflect ssrbool ssrnat.
 From mathcomp Require Import eqtype ssrfun div finset seq fintype finfun.
 From mathcomp Require Import choice.
-From pcm Require Import axioms ordtype finmap pred pcm unionmap heap autopcm.
+From pcm Require Import axioms prelude ordtype finmap pred pcm unionmap heap autopcm automap.
 From htt Require Import options model heapauto llist array.
 From htt Require Import kvmaps hashtab congmath.
 Import Prenex Implicits.
@@ -34,7 +34,10 @@ Proof. exact: ltn_pmod. Qed.
 
 Definition hash10 k : 'I_10 := Ordinal (@hash_ord 10 k erefl).
 
-Definition LT := locked (HT V hash10).
+Definition LT := HT V hash10.
+
+Definition hash_shape : KVmap.tp LT -> finMap K V -> Pred heap := 
+  @HashTab.shape K _ (AssocList.AssocList K V) 10 hash10.
 
 (* the tables relating arrays with the content of the lists *)
 (* ctab is for class lists, utab is for use lists *)
@@ -59,17 +62,18 @@ Section ShapePredicates.
 Variable (r : {array symb -> symb}).
 Variable (clist : {array symb -> llist symb}).
 Variable (ulist : {array symb -> llist (symb*symb*symb)}).
-Variable (htab : KVmap.tp LT).
+Variable (htab : KVmap.tp LT). 
 Variable (p : ptr).
 
 (* The layout of the data structure *)
 
 Definition ashape D :=
   [Pred h | let: (d, ct, ut) := D in
-     h \In Array.shape r (rep d : {ffun symb -> symb}) #
+     h \In 
+     Array.shape r (rep d : {ffun symb -> symb}) #
      (Array.shape clist ct # sepit setT (ctab ct (class d))) #
      (Array.shape ulist ut # sepit setT (utab ut (use d))) #
-     KVmap.shape htab (lookup d) #
+     hash_shape htab (lookup d) #
      [Pred h' | exists l, h' \In Pred1 (p :-> l) # lseq l (pending d)]].
 
 Definition bshape d :=
@@ -178,201 +182,361 @@ by rewrite /utab/table !ffunE; split=>//; case=>_ ->.
 Qed.
 
 
-UP TO HERE
-
-
 Variable (r : {array symb -> symb}).
 Variable (clist : {array symb -> llist symb}).
 Variable (ulist : {array symb -> llist (symb*symb*symb)}).
 Variable (htab : KVmap.tp LT).
-Variable (p : loc).
+Variable (p : ptr).
 
 Notation ashape' := (ashape r clist ulist htab p).
 Notation bshape' := (bshape r clist ulist htab p).
 Notation shape' := (shape r clist ulist htab p).
 
 Definition cT (a' b' : symb) : Type :=
-  forall x:unit, STsep unit
-    (fun i => (exists D, i \In ashape' D) /\ a' != b',
-     fun y i m => forall D, i \In ashape' D -> y = Val tt /\ exists ct, exists ut,
+  forall x:unit, STsep {D}
+    (fun i => i \In ashape' D /\ a' != b',
+     fun y m => y = Val tt /\ exists ct, exists ut,
                   let: (d, _, _) := D in
                   m \In ashape'
-                    (Data [ffun s => if s \in (class d a') then b'
+                    (Data [ffun s => if s \in class d a' then b'
                                      else rep d s]
                           [ffun s => if s == a' then [::] else
                                      if s == b' then rev (class d a') ++ class d b'
                                      else class d s]
                      (use d) (lookup d) (pending d), ct, ut)).
 
-Program
-Definition join_hclass (a' b' : symb) :
-             STsep unit (fun i => (exists d, i \In bshape' d) /\ a' != b',
-                         fun y i m => forall d, i \In bshape' d ->
-                                  y = Val tt /\
-                                   m \In bshape' (join_class d a' b')) :=
-  Do (Fix (fun (loop : cT a' b') (x : unit) =>
+Program Definition join_hclass (a' b' : symb) :
+  STsep {d} (fun i => i \In bshape' d /\ a' != b',
+             fun y m => y = Val tt /\ 
+               m \In bshape' (join_class d a' b')) :=
+  Do (ffix (fun (loop : cT a' b') (x : unit) =>
         Do (a <-- Array.read clist a';
             b <-- Array.read clist b';
-            If a == null :> loc then ret tt
+            if a == null then ret tt
             else
               s <-- !a;
-              next <-- !(a .+ 1);
-              a .+ 1 ::= b;;
+              next <-- !a.+1;
+              a.+1 ::= b;;
               Array.write clist b' a;;
               Array.write clist a' next;;
               Array.write r s b';;
               loop tt)) tt).
 Next Obligation.
-apply: (ghost (d, f0, f)) H1.
-move: H0=>{loop f0 f d} N [[d]] ct ut H.
-move: (H)=>[i1][w][->][R][[w']][i4][->{w}][[i2]][i3][->{w'}][Ct][Cv] _ [R'] _ D.
-move: Cv; rewrite (sepitT1 a') (sepitS b') 3!in_set eq_sym N {1 2}/table /= => Cv.
-move: Cv D=>[i5][w][->{i3}][Ca][[i3]][i6][->{w}][Cb][Cc] _ _.
-rewrite -(unA i2) -(unCA i2); apply: bnd_gh (Ct)=>[a w [[->]] <-{w}|??[] //].
-apply: bnd_gh (Ct)=>[b w [[->]] <-{w}|??[] //]; rewrite (unCA i2) (unA i2).
-case: ifP Ca=>E.
-- rewrite (eqP E); case/lseq_null=>Ce -> D.
-  apply: val_ret=>//; split=>//; exists ct; exists ut.
-  rewrite InE /= (sepitT1 a') (sepitS b') 3!in_set eq_sym N {1 2}/table /=
-    (eqP E) Ce /= !ffunE !eq_refl eq_sym (negbTE N) /=
-    (_ : [ffun s => rep d s] = rep d); last first.
-  - by rewrite -ffunP => ?; rewrite ffunE.
-  hauto D; apply: tableP Cc=>?; rewrite !in_set // !ffunE.
-  by case: ifP=>W; [rewrite (eqP W) Ce | case: eqP].
-case/(lseq_pos (negbT E))=>s [q][i7][Ca] _ [<-{i5}] /= Cq.
-rewrite -(unA i2) -2!(unA (ct a' :-> _)) -2!(unA (ct a' .+ 1 :-> _))
-        -(unA i7) -(unA i3).
-rewrite -2!(push (ct a'))=>D; apply: bnd_read=>//; rewrite 2!(push (ct a')) in D *.
-rewrite -3!(push (ct a' .+ 1)) in D *; apply: bnd_read=>//.
-apply: bnd_write=>{D} //; rewrite 3!(push (ct a' .+ 1)) -(unCA i2).
-do 2![apply: {i2} bnd_gh Ct=>[[] i2 [Ct _]|[?]?[]] //]; rewrite (unCA i2).
-apply: {i1} bnd_gh R=>[[] i1 [R _]|[?]?[]] //.
-rewrite (unA i3) (unA i7) 2!(unA (ct a' .+ 1 :-> _)) 2!(unA (ct a' :-> _)) (unA i2).
-set r2 := (finfun _ )in R; set ct2 := (finfun _) in Ct=>D.
+move=>a' b' loop [[[[/= d ct] ut]]][i][H N] /=.
+case: H=>/= rh [_][->{i} Rh][_][h][->][th][ctx][->] Th Ctx H.
+rewrite (sepitT1 a') in Ctx; case: Ctx=>cta [w][->{ctx}Cta].
+rewrite (sepitS b') !in_set in_set1 eq_sym {1}N /=.  
+case=>ctb [ctx][->{w}Ctb Ctx]; rewrite /ctab/table in Cta Ctb.
+apply: [stepX ct, th]@th=>//= _ _ [->->].
+apply: [stepX ct, th]@th=>//= _ _ [->->].
+apply: vrfV=>V; case: (ct a' =P null) Cta=>[/[dup] Ea' ->|/eqP Na'].
+- case/(lseq_null (validX V))=>/= ->->{cta V}. 
+  step=>{}V; split=>//; exists ct, ut.
+  rewrite (_ : rh \+ _ = rh \+ (th \+ (Unit \+ 
+    (ctb \+ ctx)) \+ h)); last by heap_congr.
+  rewrite -fin_eta; hhauto; rewrite (sepitT1 a'); hhauto.
+  - by rewrite /ctab/table ffunE eqxx /= /= Ea'.
+  rewrite (sepitS b') !in_set in_set1 eq_sym N; hhauto.
+  - by rewrite /ctab/table /= ffunE eqxx eq_sym (negbTE N).
+  apply: tableP Ctx=>// x; rewrite !in_set !in_set1 andbT ffunE.
+  by case/andP=>/negbTE -> /negbTE ->.
+case/(lseq_pos Na')=>s {V} [next][cta'][Eca ->{cta}Cta'].
+do 3!step; apply: [stepX ct]@th=>//= [_] {th Th} th1 Th1.
+set ct1 := (finfun _) in Th1.
+apply: [stepX ct1]@th1=>//= [_] {th1 Th1} th2 Th2.
+set ct2 := (finfun _) in Th2.
+apply: [stepX rep d]@rh=>//= _ {rh Rh} rh1 Rh1.
+set r1 := (finfun _) in Rh1.
 set cv2 := [ffun z => if z == a' then (behead (class d a'))
-            else if z == b' then s :: (class d b') else class d z].
-apply: (cons_gh1 (Data r2 cv2 (use d) (lookup d) (pending d), ct2, ut))=>
-       [P|[] m [_][ct1][ut1] /= Wm Dm|??[]||] //=; last 1 first.
-- hauto D; rewrite /ct2 (sepitT1 a') (sepitS b') 3!in_set eq_sym N /= /table /=
-  !ffunE !eq_refl !(eq_sym b') (negbTE N) -!unA -!(unCA i7) !unA unC -!unA unC -unA.
-  by hauto D; apply: tableP Cc=>?; rewrite !in_set !ffunE; do 2![case: eqP=>//].
-- by split=>//; first by eauto.
-split=>{ct2 Ct D} //; exists ct1; exists ut1.
-set r1 := (finfun _) in Wm; set c1 := (finfun _) in Wm.
-rewrite (_ : (finfun _) = r1); last first.
-- rewrite /r1 -ffunP=>?; rewrite !ffunE eq_refl.
-  case: eqP=>[->|]; first by rewrite if_same Ca inE eq_refl.
-  by rewrite Ca inE; case: eqP.
-rewrite (_ : (finfun _) = c1) //.
-rewrite /c1 -ffunP=>?; rewrite !ffunE !eq_refl !(eq_sym b') (negbTE N).
-case: eqP=>// H1; case: eqP=>// H2.
-by rewrite Ca rev_cons cat_rcons.
+            else if z == b' then s :: class d b' else class d z].
+apply: [gE (Data r1 cv2 (use d) (lookup d) (pending d), ct2, ut)]=>/=; 
+last by move=>?? [].
+- rewrite (_ : rh1 \+ _ = rh1 \+ (th2 \+ (cta' \+ (ct a' :-> s \+ 
+    ((ct a').+1 :-> ct b' \+ ctb) \+ ctx)) \+ h)); last by heap_congr.
+  hhauto; rewrite (sepitT1 a'); hhauto. 
+  - by rewrite /ctab/table/ct2/cv2 !ffunE /= eqxx.
+  rewrite (sepitS b') !in_set in_set1 eq_sym N; hhauto.
+  - rewrite /ctab/table/ct2/cv2/ct1 !ffunE /= ffunE /= eqxx;
+    by rewrite eq_sym (negbTE N); hhauto.
+  apply: tableP Ctx=>x; rewrite /ct2/cv2/ct1 !ffunE /= ?ffunE /=;
+  by rewrite !in_set !in_set1 andbT; case/andP=>/negbTE -> /negbTE ->.
+case=>m [_][] {Th2}ct2 [ut2] /= Hm _; split=>//; exists ct2, ut2.
+congr (m \In ashape' (Data _ _ _ _ _, ct2, ut2)): Hm; apply/ffunP=>x.
+- by rewrite !ffunE eqxx {2}Eca inE /=; case: (x =P s)=>//= _; rewrite if_same.
+rewrite !ffunE !eqxx /= (eq_sym b') (negbTE N).
+case: (x =P a')=>// _; case: (x =P b')=>// _.  
+by rewrite Eca rev_cons cat_rcons.
 Qed.
 Next Obligation.
-apply: (ghost H) H1; move: H0 {H}=> N d [I][ct][ut] H; move: (ashapeD H).
-apply: (cons_gh1 (d, ct, ut))=>[||??[]|] //; first by eauto.
-move=>[] m [_] [ct1][ut1] W; split=>//; set d' := (Data _ _ _ _ _) in W.
-suff E : join_class d a' b' = d'
-  by split; [apply: join_class_classP | rewrite E; eauto].
-congr Data.
-by set v := (finfun _); rewrite -(ffunP v) /v => x; rewrite !ffunE /= I.
+move=>a' b' [d][i][[C]][/= ct][ut H] N.
+apply: [gE (d, ct, ut)]=>[||?? []] //= [m][_][ct1][ut1] W _. 
+set d' := (Data _ _ _ _ _) in W; suff E : join_class d a' b' = d'.
+- by split=>//; split; [apply: join_class_classP|rewrite E; eauto].
+by congr Data; apply/ffunP=>x; rewrite !ffunE /= C.
 Qed.
 
-Module Dummy23. End Dummy23.
-
-Let proj0 (e : symb*symb*symb) := let: (c, c1, c2) := e in c.
-Let proj1 (e : symb*symb*symb) := let: (c, c1, c2) := e in c1.
-Let proj2 (e : symb*symb*symb) := let: (c, c1, c2) := e in c2.
-Notation "e ..0" := (proj0 e) (at level 2).
-Notation "e ..1" := (proj1 e) (at level 2).
-Notation "e ..2" := (proj2 e) (at level 2).
-
+Check HashTab.lookup.
 Definition uT (a' b' : symb) := forall x : unit,
-  STsep unit (fun i => exists d, exists done, a' != b' /\
-                         i \In bshape' (join_use' d a' b' done) /\
-                         use d a' = done ++ use (join_use' d a' b' done) a',
-              fun y i m => forall d, i \In bshape' d -> y = Val tt /\
-                             m \In bshape' (join_use d a' b')).
+  STsep {d} (fun i => exists don, a' != b' /\
+               i \In bshape' (join_use' d a' b' don) /\
+               use d a' = don ++ use (join_use' d a' b' don) a',
+             fun y m => y = Val tt /\
+               m \In bshape' (join_use d a' b')).
 
 Program Definition join_huse (a' b' : symb) :
-           STsep unit (fun i => exists d, a' != b' /\ i \In bshape' d,
-                       fun y i m => forall d, i \In bshape' d ->
-                         y = Val tt /\ m \In bshape' (join_use d a' b')) :=
-  Do (Fix (fun (loop : uT a' b') x =>
+  STsep {d} (fun i => a' != b' /\ i \In bshape' d,
+             fun y m => y = Val tt /\ 
+               m \In bshape' (join_use d a' b')) :=
+  Do (ffix (fun (loop : uT a' b') x =>
        Do (a <-- Array.read ulist a';
-           If a == null :> loc then ret tt
+           if a == null then ret tt
            else
              eq <-- !a;
-             next <-- !(a .+ 1);
+             next <-- !a.+1;
              Array.write ulist a' next;;
-             c1 <-- Array.read r eq..1;
-             c2 <-- Array.read r eq..2;
-             v <-- KVmap.lookup htab (c1, c2);
-             match_opt v then
-               KVmap.insert htab (c1, c2) eq;;
-               b <-- Array.read ulist b';
-               a .+ 1 ::= b;;
-               Array.write ulist b' a;;
-               loop tt
-             else [d]
+             c1 <-- Array.read r eq.1.2;
+             c2 <-- Array.read r eq.2;
+             v <-- HashTab.lookup hash10 htab (c1, c2);
+             if v is Some d then 
                dealloc a;;
-               dealloc a .+ 1;;
+               dealloc a.+1;;
                p' <-- !p;
                q <-- insert p' (comp_pend eq d);
                p ::= q;;
+               loop tt
+             else 
+               HashTab.insert hash10 htab (c1, c2) eq;;
+               b <-- Array.read ulist b';
+               a.+1 ::= b;;
+               Array.write ulist b' a;;
                loop tt)) tt).
 Next Obligation.
-apply: (ghost1 (join_use' H a' b' H0))=>[?|]; first by apply: bshape_inv.
-move: H H0 H1 H2 H3=>d done N.
-set d1 := join_use' d a' b' done.
-move=>[C1][ct][ut][h1][w][->][H1][[h2]][w'][->{w}][H2][[w]][w''][->{w'}];
-move=>[[h3]][u][->{w}][Ut][U] _ [[h7]][w][->{w''}][H7][[l]][w'][h8][->{w}][];
-case/swp=>->{w'} _ [H8] _ _ _ _ D E; move: D.
-move: U; rewrite (sepitT1 a') (sepitS b') 3!in_set eq_sym N {1 2} /table /=.
-move=>[h4][w][->{u}][Ua][[h5]][h6][->{w}][Ub][Ru] _ _.
-rewrite -(unA h3) -2!(unCA h3); apply: bnd_gh (Ut)=>[_ _ [[->]] <-|??[]] //.
-case: ifP=>E1.
-- rewrite (eqP E1) in Ua; case/lseq_null: Ua=>E2 ->.
-  rewrite 2!(unCA h3) (unA h3) /join_use E2=>D; apply: val_ret=>//; do !split=>//.
-  exists ct; exists ut; hauto D.
-  by rewrite (sepitT1 a') (sepitS b') 3!in_set eq_sym N /table (eqP E1) E2; hauto D.
-case/(lseq_pos (negbT E1)): Ua.
-move=>[[c1 c2] c][next][h9][E2] _ [<-{h4}] H9.
-rewrite -2!(unA (ut a' :-> _)) -3!(push (ut a'))=>D; apply: bnd_read=>//.
-rewrite -2!(unA (ut a' .+ 1 :-> _)) -4!(push (ut a' .+ 1)) in D *.
-apply: bnd_read=>//; move: D; rewrite -2!(unCA h3).
-apply: {h3} bnd_gh Ut=>[[] h3 [Ut _]|??[] //]; rewrite -3!(unCA h1).
-apply: bnd_gh (H1)=>[c1' _ [[Ec1]] <-|??[] //].
-apply: bnd_gh (H1)=>[c2' _ [[Ec2]] <-|??[] //].
-rewrite -(unA h9) -(unA h5) -8!(unCA h7).
-apply: {h7} bnd_gh H7=>[v h7 [H7][Eqv]|??[] //].
-set d2 := join_use' d a' b' (done ++ [:: (c1, c2, c)]).
-have E3: use d2 a' = behead (use d1 a').
-- rewrite /d2 (@join_useT (behead (use d1 a'))); last by rewrite /= -E2.
-  by apply: join_use_useE; rewrite /= -E2.
+move=>a' b' loop [[/= d]][i][don][N][H Eu].
+case: H=>C [/= ct][ut][h1][w][->{i} H1][h2][w'][->{w} H2][w][w''][->{w'}].
+case=>h3 [u][->{w} Ut U] H.
+case: H=>h7 [wx][->{w''} H7 H8].
+case: H8=>p' [h8][h9][->{wx} <-{h8} /= H].
+set d1 := join_use' d a' b' don in Eu C H1 H2 U H7 H.
+
+move: U. rewrite (sepitT1 a').
+case=>h4 [w][->{u} Ua]. 
+rewrite (sepitS b') !in_set !in_set1 eq_sym {1}N /=.
+case=>h5 [h6][->{w} Ub Ru]. 
+apply: [stepX ut, h3]@h3=>//= _ _ [->->].
+rewrite /utab/table/= in Ua.
+apply: vrfV=>V.
+case: (ut a' =P null) Ua=>[/[dup] Ea' ->|/eqP Na'].
+- case/(lseq_null (validX V))=>/= {V} E2 ->{h4}.
+  step=>_. split=>//.
+  rewrite (_ : h1 \+ _ =
+    h1 \+ (h2 \+ (h3 \+ (Unit \+ (h5 \+ h6)) \+ (h7 \+ (p:-> p' \+ h9))))); last by heap_congr.
+  rewrite /join_use /=. rewrite /class_inv /= in C.
+  rewrite E2 cats0 in Eu.
+  rewrite Eu -/d1.
+  split=>//=. exists ct, ut.
+  hhauto; rewrite (sepitT1 a'). hhauto. 
+  - by rewrite /utab/table Ea' E2.
+  rewrite (sepitS b') !in_set !in_set1 eq_sym N /=.
+  by hhauto.    
+
+case/(lseq_pos Na')=>[[[c1 c2 c]]][nxt][h10][E2] ->{V h4} H10.
+step. step.
+apply: [stepX ut]@h3=>//=.
+case=>{Ut}h3 Ut.
+apply: [stepX rep d1, h1]@h1=>//= _ _ [->->].
+apply: [stepX rep d1, h1]@h1=>//= _ _ [->->].
+apply: [stepX lookup d1]@h7=>//=.
+
+move=>v h7' [H7' Eqv].
+set d2 := join_use' d a' b' (don ++ [:: (c1, c2, c)]).
+
+have E3 : use d2 a' = behead (use d1 a').
+- rewrite /d2.
+  rewrite (join_useT (t:=behead (use d1 a'))) //; last first.
+  - by rewrite /= -E2 -Eu. 
+  apply: join_use_useE.  simpl. by rewrite E2 /=. 
+
 have E4: join_use d2 a' b' = join_use d1 a' b'.
-- by rewrite /join_use E3 -!(@join_useT [::]) ?cats0 -?catA ?E /= -?E2.
-case: v Eqv=>[[[e1 e2] e]|] /= Eqv.
-- rewrite -4!(push (ut a')); apply: bnd_dealloc.
-  rewrite -3!(push (ut a' .+ 1)); apply: bnd_dealloc.
-  rewrite -7!(push p)=>D; apply: bnd_read=>//; move: D.
-  rewrite -(unC h8) -7!(unCA h8).
-  apply: bnd_gh H8=>{h8 x0} [_ h8 [q][H8][->]|??[?][]//].
-  rewrite -(push p); apply: bnd_write=>D.
-  apply: (cons_gh1 d2)=>[?|[] m [_] P _|??[]||] //.
-  - by exists d; exists (done ++ [:: (c1, c2, c)]); rewrite -/d2 E3 -catA /= -E2.
-  - by rewrite -E4.
-  rewrite (_ : _ :+ _ =
-           h1 :+ (h2 :+ (h3 :+ (h9 :+ (h5 :+ h6)) :+ (h7 :+ (p :-> q :+ h8))))) in D *;
-  last by heap_congr.
-  case: H8 D=>x0 [h'] [_] <- H8 D.
-  rewrite /d2 (@join_useT (behead (use d1 a'))) -/d1 /= -?E2 // -Ec1 -Ec2 -Eqv; split=>//.
+- rewrite /join_use E3. rewrite /d2.
+  rewrite -!(join_useT (t:=[::])) /=.
+  - congr join_use'.
+    rewrite {2}E2 /= -/d1 //. by rewrite -catA //=.
+  - by rewrite cats0.
+  by rewrite cats0 -catA /= -E2 -Eu.
+
+case: v Eqv=>[[[e1 e2 e3]]|] /= Eqv.
+
+- have E5 : rep d2 = rep d1.
+  - rewrite /d2 (join_useT (t:=behead (use d1 a'))) -/d1 /=.
+    - by rewrite -Eqv /=.
+    by rewrite Eu E2.
+  have E6 : class d2 = class d1.
+  - rewrite /d2 (join_useT (t:=behead (use d1 a'))) -/d1 /=.
+    - by rewrite -Eqv /=.
+    by rewrite Eu E2.
+  have E7 x : x != a' -> use d2 x = use d1 x.
+  - rewrite /d2. move=>Na.
+    rewrite (join_useT (t:=behead (use d1 a'))) /= -/d1.
+    - by rewrite -Eqv /= ffunE (negbTE Na).
+    by rewrite Eu E2.
+  have E8 : lookup d2 = lookup d1.
+  - rewrite /d2 (join_useT (t:=behead (use d1 a'))) /= -/d1.
+    - by rewrite -Eqv //=.
+    by rewrite Eu E2.
+  have E9 : pending d2 = comp_pend (c1, c2, c) (e1, e2, e3) :: pending d1.
+  - rewrite /d2 (join_useT (t:=behead (use d1 a'))) /= -/d1.
+    - by rewrite -Eqv //=. 
+     by rewrite Eu E2.
+
+  step. step. step.
+  apply: [stepX pending d1]@h9=>//=. 
+  move=>q h11 [r][{H}h9][->{h11} H].
+  step.
+  apply: [gE d]=>[||??[]] //=.
+  exists (don ++ [:: (c1, c2, c)]). split=>//.
+  split; last first.
+  - by rewrite -catA /= E3 -E2 -Eu. 
+  rewrite -/d2. 
+  econstructor=>//=.
+  - by rewrite /class_inv /= E5 E6.
+
   set ut2 := (finfun _) in Ut.
-  exists ct; exists ut2; hauto D.
-  rewrite (sepitT1 a') (sepitS b') 3!in_set eq_sym N /table /=.
-  rewrite !ffunE !eq_refl !(eq_sym b') (negbTE N); hauto D.
-  by apply: tableP Ru=>s; rewrite !in_set /ut2 ffunE;
-     case: (s == a')=>//; rewrite andbF.
+  exists ct, ut2.
+  rewrite (_ : _ \+ _ = h1 \+ (h2 \+ ((h3 \+ (h10 \+ (h5 \+ h6))) \+ (h7' \+ 
+     (p :-> q \+ (q :-> comp_pend (c1, c2, c) (e1, e2, e3) \+ 
+    (q.+1 :-> r \+ h9))))))); last by heap_congr.
+  econstructor=>//=.
+  econstructor=>//=.
+  econstructor=>//=. 
+  - by rewrite E5.
+  econstructor=>//=.
+  econstructor=>//=.
+  econstructor=>//=.
+  - by rewrite E6.
+  econstructor=>//=.
+  econstructor=>//=.
+  econstructor=>//=.
+  - econstructor=>//=.
+    econstructor=>//=.
+    econstructor=>//=.
+    - rewrite (sepitT1 a').  exists h10, (h5 \+ h6). split=>//.
+      - by rewrite /utab/table E3/ut2 ffunE /= eqxx.
+      rewrite (sepitS b') !in_set !in_set1 eq_sym N /=.
+      eexists h5, h6. split=>//.
+      - rewrite /utab/table/ut2 ffunE /= eq_sym (negbTE N) /=. 
+        by rewrite E7 // eq_sym //.
+      apply: tableP Ru=>x //=; 
+      rewrite !in_set !in_set1 andbT /d2/ut2 ?ffunE /=.
+      - by case/andP=>_ /negbTE ->.
+      by case/andP=>_ X; rewrite E7 //.
+    econstructor=>//=.
+    econstructor=>//=.
+    econstructor=>//=. 
+    - by rewrite E8.
+    econstructor=>//.
+    econstructor=>//.
+    econstructor=>//.
+    econstructor=>//. rewrite E9 /=.
+    rewrite /lseq /= InE. simpl. 
+    econstructor=>//.
+    by econstructor=>//.
+
+apply: [stepX lookup d1]@h7'=>//=.
+move=>htab' h7'' H7''.
+
+set ut2 := (finfun _) in Ut.
+
+apply: [stepX ut2, h3]@h3=>//= _ _ [->->].
+step.
+apply: [stepX ut2]@h3=>//=.
+case=>{Ut}h3 Ut.
+set ut3 := (finfun _) in Ut.
+apply: [gE d]=>[||??[]] //=.
+exists (don++[:: (c1, c2, c)]).
+split=>//=.
+split; last first.
+- by rewrite Eu -catA /= E2 E3.
+rewrite -/d2.
+
+have E5 : rep d2 = rep d1.
+- rewrite /d2 (join_useT (t:=behead (use d1 a'))) -/d1 /=.
+    - by rewrite -Eqv /=.
+    by rewrite Eu E2.
+have E6 : class d2 = class d1.
+  - rewrite /d2 (join_useT (t:=behead (use d1 a'))) -/d1 /=.
+    - by rewrite -Eqv /=.
+    by rewrite Eu E2.
+have E7 x : x != a' -> use d2 x = 
+ if x == b' then (c1, c2, c) :: use d1 x else use d1 x.
+- rewrite /d2. move=>Na.
+  rewrite (join_useT (t:=behead (use d1 a'))) /= -/d1.
+  - by rewrite -Eqv /= ffunE (negbTE Na) //.
+  by rewrite Eu E2.
+
+have E8 : lookup d2 =  ins (rep d1 c2, rep d1 c) (c1, c2, c) (lookup d1).
+- rewrite /d2 (join_useT (t:=behead (use d1 a'))) /= -/d1.
+  - by rewrite -Eqv //=.
+  by rewrite Eu E2.
+have E9 : pending d2 = pending d1.
+- rewrite /d2 (join_useT (t:=behead (use d1 a'))) /= -/d1.
+  - by rewrite -Eqv //=. 
+  by rewrite Eu E2.
+
+rewrite (_ : _ \+ _ = h1 \+ (h2 \+ ((h3 \+ (h10 \+ 
+  ((ut a' :-> (c1, c2, c) \+
+   ((ut a').+1 :-> ut2 b' \+ h5)) \+ h6))) \+ (h7'' \+ (p :-> p' \+ h9))))); last by heap_congr.
+
+econstructor.
+- by rewrite /class_inv /= E5 E6.
+econstructor=>//=.
+econstructor=>//=.
+econstructor=>//=.
+econstructor=>//=.
+econstructor=>//=.
+- by rewrite E5.
+econstructor=>//=.
+econstructor=>//=.
+econstructor=>//=.
+- by rewrite E6; exact: H2.
+econstructor=>//=.
+econstructor=>//=.
+econstructor=>//=.
+- econstructor=>//=.
+  econstructor=>//=.
+  econstructor=>//=. 
+  - exact :Ut.
+  rewrite (sepitT1 a').
+  econstructor=>//=.
+  econstructor=>//=.
+  econstructor=>//=.
+  - rewrite /utab/table/ut3 ffunE /= (negbTE N) /ut2 ffunE /= eqxx.
+    by rewrite E3.
+  rewrite (sepitS b') !in_set !in_set1 /= eq_sym N /=.
+  econstructor=>//=.
+  econstructor=>//=.
+  econstructor=>//=.
+  - rewrite /utab/table/=/ut3 !ffunE /= eqxx.
+    rewrite eq_sym (negbTE N).
+    rewrite E7; last first. by rewrite eq_sym (negbTE N).
+    rewrite eqxx /=.
+    rewrite InE /=. exists (ut b'). exists h5. split=>//.
+  apply: tableP Ru=>x /=; 
+  rewrite !in_set !in_set1 andbT /ut3 ?ffunE /= /ut2 ?ffunE /=.
+  - by case/andP=>/negbTE -> /negbTE ->.
+  case/andP=>X1 X2.
+  by rewrite E7 // (negbTE X1).
+
+econstructor=>//=.
+econstructor=>//=.
+econstructor=>//=.
+- rewrite E8 /=.  
+
+
+   
+
+
+
+
 apply: bnd_gh H7=>{h7} [[] h7 [H7 _]|??[] //]; rewrite -2!(unCA h3).
 apply: bnd_gh (Ut)=>[_ _ [[->]] <-|??[] //]; rewrite -3!(push (ut a' .+ 1)).
 apply: bnd_write; rewrite ffunE (eq_sym b') (negbTE N) -(unCA h3).

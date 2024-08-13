@@ -35,10 +35,10 @@ Record Sig (K : ordType) (V : Type) : Type :=
                                    [vfun _ : unit => emp]);
         insert : forall x k v,
                    STsep {s} (shape x s,
-                             [vfun y => shape y (ins k v s)]);
+                             [vfun _ : unit => shape x (ins k v s)]);
         remove : forall x k,
                    STsep {s} (shape x s,
-                             [vfun y => shape y (rem k s)]);
+                             [vfun _ : unit => shape x (rem k s)]);
         lookup : forall x k,
                    STsep {s} (shape x s,
                              [vfun y m => m \In shape x s /\ y = fnd k s])}.
