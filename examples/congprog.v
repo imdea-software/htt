@@ -146,10 +146,10 @@ Program Definition init :
 Next Obligation.
 move=>r clist loop k H i [pf][/= f][hc][hct][->{i} Hc Hct].
 case: decP=>[{}pf|] /=; last first.
-- case: leqP pf (eqn_leq k n)=>// _ -> /= pf _.
-  step=>_; split=>//; exists f, hc, hct; split=>//. 
-  apply: tableP2 Hct=>// ?; rewrite !in_set (eqP pf). 
-  by rewrite /n cardE index_mem /index mem_enum. 
+- case: (ltngtP k n) pf=>// Ekn _ _; step=>_.
+  split=>//; exists f, hc, hct; split=>//. 
+  apply: tableP2 Hct=>// x; rewrite !in_set Ekn.
+  by rewrite /n cardE index_mem /index mem_enum.
 step=>x; step; rewrite -!joinA !(xpull _ hc).
 apply: [stepX f]@hc=>//= [[m]] Em; apply: [gE]=>[||??[]//] //=. 
 split=>//; eexists [ffun z => if z == ith k pf then x else f z].
