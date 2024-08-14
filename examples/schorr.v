@@ -139,3 +139,12 @@ Definition reach (m : nmap mark) (g : pregraph) (s : seq node) t :=
     (* avoiding marked nodes *)
     exists y, y \in s /\ x \in connect (mem (dom m)) g (gr g y).
 
+Definition shape g0 r p t :=
+  fun h:heap =>  (exists s g m,
+              dom g  = dom h /\
+              h = lay m g /\ 
+              path (ch m g) null s /\ 
+              rev_graph m g s t = g0 /\
+              reach m g s t /\ 
+              p = last null s /\
+              r = head t s).
