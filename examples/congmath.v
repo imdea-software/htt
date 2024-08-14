@@ -12,11 +12,9 @@ limitations under the License.
 *)
 
 From HB Require Import structures.
-From Coq Require Import Recdef ssreflect ssrbool ssrfun.
+From Coq Require Import Recdef Setoid ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype choice ssrnat seq bigop fintype finfun.
 From pcm Require Import options prelude ordtype finmap pred seqext.
-
-Ltac add_morphism_tactic := SetoidTactics.add_morphism_tactic.
 
 (**********************)
 (* Congruence closure *)
@@ -215,7 +213,9 @@ Hint Resolve reflC symC : core.
 
 (* lemmas about closure *)
 
-Lemma closE (R1 R2 : rel_exp) : R1 <~> R2 -> closure R1 <~> closure R2.
+Lemma closE (R1 R2 : rel_exp) : 
+        R1 <~> R2 -> 
+        closure R1 <~> closure R2.
 Proof.
 suff H: forall R1 R2, R1 <~> R2 -> closure R1 ~> closure R2.
 - by split; apply: H; [| symmetry].
@@ -1769,3 +1769,10 @@ Qed.
 End Congruence.
 
 Notation rel_exp s := (Pred (exp s * exp s)).
+
+(* repeat the morphism declaration outside the section *)
+Add Parametric Morphism s : (@closure s) with
+  signature Morphisms.respectful (fun e1 e2 => e1 <~> e2) 
+   (fun e1 e2 => e1 <~> e2) as closure_morph'.
+Proof. by apply: closE. Qed.
+

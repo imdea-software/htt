@@ -24,18 +24,22 @@ Section HashTab.
 
 (* hash table is array of buckets, i.e. KV maps *)
 (* bucket indices are provided by the hash function *)
+(* using dynaming kv-maps for buckets *)
+(* DEVCOMMENT: *)
+(*  it's possible to develop this with static buckers *)
+(* /DEVCOMMENT *)
 
-Variables (K : ordType) (V : Type) (buckets : KVmap.Sig K V)
+Variables (K : ordType) (V : Type) (buckets : DynKVmap.Sig K V)
           (n : nat) (hash : K -> 'I_n).
-Definition hashtab := {array 'I_n -> KVmap.tp buckets}.
-Notation KVshape := (@KVmap.shape _ _ buckets).
+Definition hashtab := {array 'I_n -> DynKVmap.tp buckets}.
+Notation KVshape := (@DynKVmap.shape _ _ buckets).
 Notation table := (table KVshape).
 Notation nil := (nil K V).
 
 (* hash table is specified by a single finMap *)
 (* which is the "flattening" of all buckets *)
 Definition shape x (s : finMap K V) :=
-  [Pred h | exists (tab : {ffun 'I_n -> KVmap.tp buckets})   (* array spec *)
+  [Pred h | exists (tab : {ffun 'I_n -> DynKVmap.tp buckets})   (* array spec *)
                    (bucket : 'I_n -> finMap K V),            (* buckets spec *)
             [/\ forall k, fnd k s = fnd k (bucket (hash k)),
                 forall i k, k \in supp (bucket i) -> hash k = i &
@@ -52,10 +56,10 @@ Definition new_loopinv x := forall k,
         [vfun y => shape y nil]).
 
 Program Definition new : STsep (emp, [vfun y => shape y nil]) :=
-  Do (t <-- Array.new _ (KVmap.default buckets);
+  Do (t <-- Array.new 'I_n (DynKVmap.default buckets);
       let go := ffix (fun (loop : new_loopinv t) k =>
                   Do (if decP (b := k < n) idP is left pf then
-                        b <-- KVmap.new buckets;
+                        b <-- DynKVmap.new buckets;
                         Array.write t (Ordinal pf) b;;
                         loop k.+1
                       else ret t))
@@ -97,7 +101,7 @@ apply: [stepE]=>//= y m Hm.
 (* invoke the loop with index 0 *)
 apply: [gE]=>//=; split=>//.
 (* the table is empty *)
-exists [ffun => KVmap.default buckets], m, Unit; split=>//=.
+exists [ffun => DynKVmap.default buckets], m, Unit; split=>//=.
 - by rewrite unitR.
 (* there are no buckets in the heap yet *)
 by rewrite (eq_sepit (s2 := set0)) // sepit0.
@@ -119,7 +123,7 @@ Program Definition free x : STsep {s} (shape x s,
   Do (ffix (fun (loop : free_loopinv x) k =>
         Do (if decP (b := k < n) idP is left pf then
               b <-- Array.read x (Ordinal pf);
-              KVmap.free b;;
+              DynKVmap.free b;;
               loop k.+1
              else Array.free x)) 0).
 (* first the loop *)
@@ -159,16 +163,14 @@ Qed.
 
 (* inserting into hashmap is inserting into *)
 (* corresponding bucket + updating the array *)
-(* returning the pointer is technically not needed *)
+(* returning the pointer is not needed *)
 (* as the array is not moved *)
-(* but one needs to fit the KV map API *)
 Program Definition insert x k v : 
-  STsep {s} (shape x s, [vfun y => shape y (ins k v s)]) :=
+  STsep {s} (shape x s, [vfun _ : unit => shape x (ins k v s)]) :=
   Do (let hk := hash k in
       b  <-- Array.read x hk;
-      b' <-- KVmap.insert b k v;
-      Array.write x hk b';;
-      ret x).
+      b' <-- DynKVmap.insert b k v;
+      Array.write x hk b').
 Next Obligation.
 (* pull out ghost + deconstruct precondition *)
 move=>/= x k v [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> /= H1 H2]]. 
@@ -179,7 +181,7 @@ move: H2; rewrite (sepitT1 (hash k)) /table; case=>h3[h4][{h2}-> H3 H4].
 (* insert into the bucket *)
 apply/[stepX (bf (hash k))] @ h3=>{h3 H3}//= b' m2 H2.
 (* write the bucket to the array, return the pointer *)
-apply/[stepX tf] @ h1=>{h1 H1}//= _ m3 E3; step=>_.
+apply: [gX tf]@h1=>{h1 H1} //= _ m3 E3 _.
 (* update the array and buckets' specs *)
 exists [ffun z => if z == hash k then b' else tf z],
        (fun b => if b == hash k then ins k v (bf b) else bf b); split=>/=.
@@ -205,15 +207,13 @@ Qed.
 (* removing from hashmap is removing from *)
 (* corresponding bucket + updating the array *)
 (* returning the pointer is again not needed *)
-(* except for the API fit *)
 Program Definition remove x k :
   STsep {s} (shape x s,
-             [vfun y => shape y (rem k s)]) :=
+             [vfun _ : unit => shape x (rem k s)]) :=
   Do (let hk := hash k in
       b  <-- Array.read x hk;
-      b' <-- KVmap.remove b k;
-      Array.write x hk b';;
-      ret x).
+      b' <-- DynKVmap.remove b k;
+      Array.write x hk b').
 Next Obligation.
 (* pull out ghost + destructure precondition *)
 move=>/= x k [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> /= H1 H2]].
@@ -224,7 +224,7 @@ move: H2; rewrite (sepitT1 (hash k)); case=>h3[h4][{h2}-> H3 H4].
 (* insert into the bucket *)
 apply/[stepX (bf (hash k))] @ h3=>{h3 H3}//= b' m2 H2.
 (* write the bucket to the array, return the pointer *)
-apply/[stepX tf] @ h1=>{H1}//= _ m3 E3; step=>_.
+apply/[gX tf] @ h1=>{H1}//= _ m3 E3 _.
 (* update the array and buckets' specs *)
 exists [ffun z => if z == hash k then b' else tf z],
        (fun b => if b == hash k then rem k (bf b) else bf b); split=>/=.
@@ -252,7 +252,7 @@ Program Definition lookup x k :
   STsep {s} (shape x s,
              [vfun y m => m \In shape x s /\ y = fnd k s]) :=
   Do (b <-- Array.read x (hash k);
-      KVmap.lookup b k).
+      DynKVmap.lookup b k).
 Next Obligation.
 (* pull out ghost + destructure precondition *)
 move=>/= x k [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> H1 H2]].
@@ -268,10 +268,10 @@ exists tf, bf; split=>//=; exists h1, (m2 \+ h4); split=>{h1 H1} //.
 by rewrite (sepitT1 (hash k)); vauto.
 Qed.
 
-(* hash table is a KV map *)
+(* hash table is a *static* KV map *)
 Definition HashTab := KVmap.make (Array null) new free insert remove lookup.
 
 End HashTab.
 End HashTab.
 
-Definition HT K V := HashTab.HashTab (AssocList.AssocList K V).
+Definition HT K V := HashTab.HashTab (DynAssocList.AssocList K V).

@@ -19,7 +19,7 @@ limitations under the License.
 From HB Require Import structures.
 From Coq Require Import ssreflect ssrfun Eqdep. 
 From mathcomp Require Import ssrbool ssrnat seq eqtype choice.
-From mathcomp Require Import  fintype finfun tuple perm fingroup.
+From mathcomp Require Import fintype finset finfun tuple perm fingroup.
 From pcm Require Import options axioms.
 
 (***********)
@@ -1128,6 +1128,53 @@ Proof. by apply/ffunP => i; rewrite !ffunE permM. Qed.
 
 End PermFfun.
 
+(* Finite sets *)
+
+Lemma enum_T (I : finType) : enum setT = enum I.
+Proof. by rewrite enum_setT enumT. Qed.
+
+Lemma enum_0 (I : finType) (s : {set I}) : 
+        s =i set0 ->
+        enum s = [::].
+Proof. by move/eq_enum=>->; rewrite enum_set0. Qed.
+
+Lemma setTE (I : finType) (p : pred I) : 
+         p =1 xpredT ->
+         [set x | p x] = setT :> {set I}.
+Proof. by move=>H; apply/setP=>x; rewrite !inE H. Qed.
+
+Lemma set0E (I : finType) (p : pred I) : 
+         p =1 xpred0 ->
+         [set x | p x] = set0 :> {set I}.
+Proof. by move=>H; apply/setP=>x; rewrite !inE H. Qed.
+
+(* streamlining for ordinals *)
+
+Lemma set_ord0N m (p : pred nat) :  
+        (forall x, x < m -> ~~ p x) ->
+        [set x | p (\val x)] = set0 :> {set 'I_m}.
+Proof. by move=>H; apply: set0E; case=>z pf; rewrite (negbTE (H z pf)). Qed.
+
+Lemma set_ord0 m (p : pred nat) :  
+        (forall x, p x -> m <= x) ->
+        [set x | p (\val x)] = set0 :> {set 'I_m}.
+Proof. 
+move=>H; apply: set_ord0N=>x; rewrite ltnNge.
+by apply/contra/H.
+Qed.
+
+Lemma set_ordT m (p : pred nat) :  
+        (forall x, x < m -> p x) ->
+        [set x | p (\val x)] = setT :> {set 'I_m}.
+Proof. by move=>H; apply: setTE; case=>z pf; rewrite H. Qed.
+
+Lemma set_ordTN m (p : pred nat) :  
+        (forall x, ~~ p x -> m <= x) ->
+        [set x | p (\val x)] = setT :> {set 'I_m}.
+Proof. 
+move=>H; apply/set_ordT=>x; rewrite ltnNge.
+by apply/contraR/H.
+Qed.
 
 (* Tagging *)
 
