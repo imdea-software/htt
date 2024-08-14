@@ -1,7 +1,3 @@
-(*******************************)
-(* Stateful congruence closure *)
-(*******************************)
-
 From HB Require Import structures.
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun.
 From mathcomp Require Import div finset seq fintype finfun choice.
@@ -10,33 +6,184 @@ From pcm Require Import  unionmap heap autopcm automap.
 From htt Require Import options model heapauto llist array.
 From htt Require Import kvmaps hashtab congmath.
 
+(***********************************)
+(* Congruence closure verification *)
+(***********************************)
+
+(* Spec, code and proofs for the verification of the *)
+(* Barcelogic Congruence Closure algorithm. *)
+(* Described in the POPL10 paper: *)
+(* Structure the verification of heap-manipulating programs *)
+(* by Nanevski, Vafeiadis and Berdine *)
+
+(* This file contains the verification of the stateful programs. *)
+(* The associated math properties used in the verification are *)
+(* proved in the accompanying file congmath.v *)
+
 Notation finE := finset.inE.
 
-Definition ith {I : finType} i (pf : i < #|I|) : I. Admitted.
+Lemma inhabF (I : finType) : 0 < #|I| -> ~ @predT I =1 xpred0.
+Proof. by case/card_gt0P=>x _ /(_ x). Qed.
 
-Lemma indx_ith {I : finType} i (pf : i < #|I|) : indx (ith i pf) = i.
-Proof.
-admit.
-Admitted.
-(* by move=>i pf; rewrite /ith /= /indx index_uniq // -?cardE // enum_uniq. *)
+Definition inhab0 {I : finType} (pf : 0 < #|I|) : I := 
+  match pickP predT with 
+  | Pick x _ => x
+  | Nopick qf => False_rect I (inhabF I pf qf)
+  end.
 
-Lemma ith_indx {I : finType} (s : I) (pf : indx s < #|I|) : ith (indx s) pf = s.
-Proof. Admitted.
-(* by move=>s /= pf; rewrite /ith /= nth_index // mem_enum. Qed.    *)
+Definition inhab {I : ifinType} : I := inhab0 card_inhab.
+
+(* variant of nth that needs no seed value *)
+Definition ith {I : finType} i (pf : i < #|I|) : I := 
+  nth (inhab0 (leq_ltn_trans (leq0n i) pf)) (enum I) i.
+
+(* dually, variant of index that doesn't overflow *)
+Definition indx {I : finType} (x : I) := index x (enum I).
+
+Lemma indx_ith {I : finType} i (pf : i < #|I|) : 
+         indx (ith i pf) = i.
+Proof. by rewrite /indx/ith index_uniq ?enum_uniq -?cardE. Qed.
+
+Lemma ith_indx {I : finType} (s : I) (pf : indx s < #|I|) : 
+         ith (indx s) pf = s.
+Proof. by rewrite /ith/indx nth_index // mem_enum. Qed.
 
 Lemma indx_inj I : injective (@indx I). 
-Admitted.
-
-Lemma indx_injE {I : finType} s i (pf : i < #|I|) : (s == ith i pf) = (indx s == i).
 Proof.
-Admitted.
+rewrite /indx=>x1 x2.
+have [] : x1 \in enum I /\ x2 \in enum I by rewrite !mem_enum.
+elim: (enum I)=>[|x xs IH]  //=; rewrite !inE !(eq_sym x).
+case: (x1 =P x)=>[<-|] _ /=; first by case: (x2 =P x1).
+by case: (x2 =P x)=>//= _ X1 X2 []; apply: IH X1 X2.
+Qed.
 
+From mathcomp Require Import bigop.
+From Coq Require Import Setoid.
+Prenex Implicits star.
 
-Lemma sepit_emp (A : eqType) (s : seq A) f : 
-         (forall x, x \in s -> f x =p emp (U:=heap)) -> 
-         IterStar.sepit s f =p emp.
+Add Parametric Morphism U : (@star U) with signature
+ @EqPredType _ _ ==> @EqPredType _ _ ==> @EqPredType _ _ as star_morph.
 Proof.
-Admitted.
+move=>x y E x1 y1 E1 m /=.
+split; case=>h1 [h2][-> H1 H2]; exists h1, h2; split=>//.
+  by apply/E. by apply/E1.
+  by apply/E. by apply/E1.
+Qed.
+
+Lemma sepit0' (U : pcm) A (f : A -> Pred U) : 
+        IterStar.sepit [::] f <~> emp.
+Proof. exact: IterStar.sepit0. Qed.
+
+Lemma sepit_cons' (U : pcm) A x (s : seq A) (f : A -> Pred U) : 
+        IterStar.sepit (x :: s) f <~> 
+        f x # IterStar.sepit s f.
+Proof. exact: IterStar.sepit_cons. Qed.
+
+Lemma sepitX (U : pcm) A (s : seq A) (f : A -> Pred U) : 
+         IterStar.sepit s f <~>
+         \big[star/emp]_(i <- s) f i.
+Proof. 
+elim: s=>[|x s IH]. 
+- rewrite sepit0'. rewrite big_nil. by [].
+rewrite sepit_cons'.
+rewrite big_cons. 
+move=>m. 
+split; case=>h1 [h2][Em H1 H2]; exists h1, h2; split=>//.
+- by rewrite -IH. 
+by rewrite IH.
+Qed.
+
+Lemma sepit0 (U : pcm) A (f : A -> Pred U) : 
+        IterStar.sepit [::] f <~> emp.
+Proof. by rewrite sepitX big_nil. Qed.
+
+Lemma sepit_cons (U : pcm) A x (s : seq A) (f : A -> Pred U) : 
+        IterStar.sepit (x::s) f <~> f x # IterStar.sepit s f.
+Proof. by rewrite sepitX big_cons sepitX. Qed.
+
+(* U has the laws of commutative monoids from bigop *)
+(* but doesn't really, as it's up to extensional equality *)
+Lemma starA (U : pcm) (x y z : Pred U) : 
+        x # y # z <~> (x # y) # z.
+Proof.
+move=>m /=; split; case=>h1 [h2][H1 H2].
+- case=>h3 [h4][H3 H4 H5]. 
+  subst h2.
+  eexists (h1 \+ h3), h4.  rewrite -joinA. split=>//.
+  by exists h1, h3. 
+case: H2=>h3 [h4][? H2 H3 H4]. subst h1.
+exists h3, (h4 \+ h2). rewrite joinA. split=>//.
+by exists h4, h2.
+Qed.
+
+Lemma starC (U : pcm) (x y : Pred U) : 
+        x # y <~> y # x.
+Proof.
+move=>m /=.
+split.
+- case=>h1 [h2][H H1 H2].
+  exists h2, h1. rewrite joinC. by [].
+case=>h1 [h2][H H1 H2].
+exists h2, h1. by rewrite joinC.
+Qed.
+
+Lemma starL (U : pcm) (x : Pred U) : 
+        emp # x <~> x.
+Proof.
+move=>m /=.
+split.
+- case=>h1 [h2][->->]. rewrite unitL. by [].
+move=>H.
+exists Unit, m. rewrite unitL. by [].
+Qed.
+
+Lemma starR (U : pcm) (x : Pred U) : 
+        x # emp <~> x.
+Proof. by rewrite starC starL. Qed.
+
+(*
+HB.instance Definition _ (U : pcm) := 
+  Monoid.isComLaw.Build (Pred U) emp (@star U) (@starA U) (@starC U) (@starL U).
+*)
+
+Lemma big_sepit_seq (U : pcm) A (s : seq A) (f : A -> U) m : 
+        m = \big[join/Unit]_(i <- s) f i  <->
+        m \In IterStar.sepit s (fun i h => h = f i).
+Proof.
+rewrite sepitX.
+elim: s m=>[|x xs IH] /= m.
+- by rewrite !big_nil.
+rewrite !big_cons. 
+split.
+- move=>E. rewrite InE. exists (f x), (\big[join/Unit]_(j <- xs) f j).
+  split=>//. rewrite -IH. by [].
+case=>h1 [h2][Em H1 H2]. rewrite -toPredE /= in H1.
+rewrite Em H1.  
+congr (_ \+ _).
+by rewrite IH.
+Qed.
+
+Lemma sepit_emp (U : pcm) (A : eqType) (s : seq A) (f : A -> Pred U) : 
+         (forall x, x \in s -> f x <~> emp (U:=U)) -> 
+         IterStar.sepit s f <~> emp.
+Proof.
+move=>H. 
+rewrite sepitX.
+elim: s H=>[|a xs IH] H.
+- by rewrite big_nil.
+rewrite big_cons.
+rewrite H; last by rewrite inE eqxx.
+rewrite starL IH //.  
+move=>x X. apply: H.
+by rewrite inE X orbT.
+Qed.
+
+Lemma big_sepit (U : pcm) (I : finType) (s : {set I}) (f : I -> U) m : 
+        m = \big[join/Unit]_(i in s) (f i) <->
+        m \In sepit s (fun i h => h = f i).
+Proof. by rewrite /sepit /= -big_sepit_seq -big_enum. Qed.
+
+
 
 
 (* empty congruence only relates constant symbols to themselves *)
@@ -110,10 +257,24 @@ Definition utab :=
 
 Definition n := #|{: symb}|.
 
-(* the algorithm starts with root pointers for the data *)
+(* roots for the structure *)
+(* all components are isomorphic to pointers *)
 Inductive ptrs : Set :=
-  Ptrs of {array symb -> symb} & {array symb -> llist symb} &
-          {array symb -> llist (symb*symb*symb)} & KVmap.tp LT & ptr.
+  Ptrs of 
+   (* array of representatives; for each c *)
+   (* returns symbol that represents c's class *)
+   {array symb -> symb} & 
+   (* class list; for each c *)
+   (* singly-linked list storing whole class of c *)
+   {array symb -> llist symb} &
+   (* use list; internal structure *)
+   (* see the paper for description *)
+   {array symb -> llist (symb*symb*symb)} & 
+   (* hash table; for each pair of representatives *)
+   (* stores equations; see paper for description *)
+   KVmap.tp LT & 
+   (* list of pending equations *)
+   ptr.
 
 (* renaming type to satisfy the signature check *)
 Definition tp := ptrs.
@@ -126,7 +287,7 @@ Let ulist := let: Ptrs r clist ulist htab p := rt in ulist.
 Let htab := let: Ptrs r clist ulist htab p := rt in htab.
 Let p := let: Ptrs r clist ulist htab p := rt in p.
 
-(* The layout of the data structure *)
+(* Data structure's layout in the heap *)
 
 Definition ashape D :=
   [Pred h | let: (d, ct, ut) := D in
@@ -144,9 +305,10 @@ Definition shape (R : rel_exp s) : Pred heap :=
   [Pred h | exists d, h \In bshape d /\ propagate_inv d /\
                       pending d = [::] /\ CRel d <~> R].
 
-End ShapePredicates.
+End ShapePredicates.  
 
-(* Initialization procedure to generate the empty structure *)
+(* Initialization procedure to generate *)
+(* the empty structure and its root pointers *)
 
 Definition iT (clist : {array symb -> llist symb}): Type := forall k,
   STsep (fun i => k <= n /\ exists f, i \In Array.shape clist f #
@@ -156,21 +318,21 @@ Definition iT (clist : {array symb -> llist symb}): Type := forall k,
 
 Program Definition init :
   STsep (emp, [vfun rt m => m \In shape rt (empty_cong s)]) :=
-  Do (r <-- Array.newf [ffun x : symb => x];
-      clist <-- Array.new _ null;
-      ffix (fun (loop : iT clist) k =>
+  Do (rx <-- Array.newf [ffun x : symb => x];
+      cl <-- Array.new _ null;
+      ffix (fun (loop : iT cl) k =>
            Do (if decP (b:= k < n) idP is left pf then 
                  x <-- allocb (ith k pf) 2;
                  x.+1 ::= null;;
-                 Array.write clist (ith k pf) x;;
+                 Array.write cl (ith k pf) x;;
                  loop k.+1
                else ret tt)) 0;;
-      ulist <-- Array.new _ null;
-      htab <-- KVmap.new LT;
+      ul <-- Array.new _ null;
+      htb <-- KVmap.new LT;
       p <-- alloc null;
-      ret (Ptrs r clist ulist htab p)).
+      ret (Ptrs rx cl ul htb p)).
 Next Obligation. 
-move=>r clist loop k H i [pf][/= f][hc][hct][->{i} Hc Hct].
+move=>_ cl loop k H i [pf][/= f][hc][hct][->{i} Hc Hct].
 case: decP=>[{}pf|] /=; last first.
 - case: (ltngtP k n) pf=>// Ekn _ _; step=>_.
   exists f, hc, hct; split=>//. 
@@ -188,21 +350,24 @@ apply: tableP2 Hct=>// a.
 by rewrite !finE !ffunE indx_injE; case: eqP=>// ->; rewrite ltnn.
 Qed.
 Next Obligation.
-case=>_ ->; apply: [stepE]=>//= r hr Er; apply: [stepU]=>//= clist hc Ec.
+case=>_ ->; apply: [stepE]=>//= rx hr Er; apply: [stepU]=>//= cl hc Ec.
 apply: [stepX]@hc=>//=.
 - split=>//; exists [ffun x => null], hc, Unit; rewrite unitR.
   by split=>//; rewrite (_ : [set c | indx c < 0] = set0) // sepit0.
 case=>_ [f][hc'][hrest][-> Hc' Hrest].
-apply: [stepU]=>//= ulist hu Ehu; apply: [stepU]=>//= htab ht Ht.
+apply: [stepU]=>//= ul hu Ehu; apply: [stepU]=>//= htb ht Ht.
 set d := Data [ffun x => x] [ffun c => [:: c]] [ffun c => [::]] (nil K V) [::].
-step=>p; step; exists d; split; last by case: (initP s).
+step=>px; step; exists d; split; last by case: (initP s).
 split=>[a b|/=]; first by rewrite !ffunE !inE. 
 exists f, [ffun s => null].
-rewrite (_ : p :-> null \+ _ = hr \+ ((hc' \+ hrest) \+ (hu \+ Unit \+ 
-  (ht \+ (p :-> null \+ Unit))))); last by rewrite unitR; heap_congr. 
+rewrite (_ : px :-> null \+ _ = hr \+ ((hc' \+ hrest) \+ (hu \+ Unit \+ 
+  (ht \+ (px :-> null \+ Unit))))); last by rewrite unitR; heap_congr. 
 hhauto; rewrite sepit_emp //= => k.
 by rewrite /utab/table !ffunE; split=>//; case=>_ ->.
 Qed.
+
+(* Method implementations use various input root pointers. *)
+(* These are given explicit names as projections from rt. *)
 
 Section Internal.
 Variable rt : ptrs.
@@ -395,16 +560,15 @@ Next Obligation.
 by move=>a' b' [/= d][i][N H]; apply: [gE d]=>[||??[]] //; exists [::]. 
 Qed.
 
-Let pend0 (e : pend s) :=
-  match e with simp_pend a b => a | comp_pend (a,_,_) (b,_,_) => a end.
-Let pend1 (e : pend s) :=
-  match e with simp_pend a b => b | comp_pend (a,_,_) (b,_,_) => b end.
-Notation "e ..0" := (pend0 e) (at level 2).
-Notation "e ..1" := (pend1 e) (at level 2).
-
 Definition pT : Type := forall x : unit,
   STsep {d} (fun i => i \In bshape' d,
             [vfun (_ : unit) m => m \In bshape' (propagate d)]).
+
+(* left/right symbol in pending equation *)
+Definition pendL (e : pend s) :=
+  let: (simp_pend a _ | comp_pend (a,_,_) _) := e in a.
+Definition pendR (e : pend s) :=
+  let: (simp_pend _ b | comp_pend _ (b,_,_)) := e in b.
 
 Program Definition hpropagate :=
   ffix (fun (loop : pT) x =>
@@ -416,8 +580,8 @@ Program Definition hpropagate :=
              p ::= (next : ptr);;
              dealloc q;;
              dealloc q.+1;;
-             a' <-- Array.read r eq..0;
-             b' <-- Array.read r eq..1;
+             a' <-- Array.read r (pendL eq);
+             b' <-- Array.read r (pendR eq);
              if a' == b' then loop tt : ST _
              else 
                join_hclass a' b';;
@@ -566,9 +730,6 @@ hhauto; apply: tableP Hu2'=>/= a; rewrite !finE !ffunE /= andbT;
 by case/andP=>/negbTE -> /negbTE ->. 
 Qed.
 
-Let pend3 (e : symb*symb*symb) := let: (a, _, _) := e in a.
-Notation "e ..0" := (pend3 e) (at level 2).
-
 Definition nT : Type :=
   forall t, STsep {d} (fun i => i \In bshape' d,
                       [vfun y m => y = norm d t /\ m \In bshape' d]).
@@ -585,7 +746,7 @@ Program Definition hnorm :=
             if (u1, u2) is (const w1, const w2) then
               v <-- KVmap.lookup htab (w1, w2);
               if v is Some a then 
-                a' <-- Array.read r (a..0);
+                a' <-- Array.read r a.1.1;
                        ret (const a')
               else ret (app u1 u2)
             else ret (app u1 u2)
