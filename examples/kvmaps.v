@@ -31,7 +31,8 @@ From htt Require Import options model heapauto.
 (* Tp is abstracted to facilitate structures that may *)
 (* have more than one root pointers. Also, it enables *)
 (* passing K and V to methods thus reducing annotations *)
-
+(* There's no deep reason to make tp : Set, except that *)
+(* it should be thought of a collection of pointers, hence small. *)
 Module DynKVmap.
 Record Sig (K : ordType) (V : Type) : Type :=
   make {tp :> Set;

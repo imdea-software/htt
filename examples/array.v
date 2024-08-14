@@ -26,7 +26,7 @@ Definition indx {I : finType} (x : I) := index x (enum I).
 (* array is (pointer to) a contiguous memory region *)
 (* holding the array values *)
 
-Record array (I : finType) (T : Type) : Type := Array {orig :> ptr}.
+Record array (I : finType) (T : Type) : Set := Array {orig :> ptr}.
 Arguments Array {I T}.
 
 Definition array_for (I : finType) (T : Type) of phant (I -> T) := array I T.
