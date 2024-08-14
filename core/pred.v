@@ -469,7 +469,7 @@ Add Parametric Morphism T (pT : PredType T) : (@Mem T pT) with signature
 Proof. by move=>x y H p; rewrite /EqPredType -!toPredE in H *; rewrite H. Qed.
 
 Add Parametric Morphism T : (@PredU T) with signature
-  @EqPredType _ _ ==> @EqPredType _ _ ==> @EqSimplPred _ as predU_morph.
+  @EqPredType _ _ ==> @EqPredType _ _ ==> @EqPredType _ _ as predU_morph.
 Proof.
 move=>r1 s1 H1 r2 h2 H2 x; split;
 by case; [move/H1 | move/H2]=>/=; auto.

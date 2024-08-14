@@ -50,7 +50,7 @@ Definition shape (a : array) (f : {ffun I -> T}) :=
 Program Definition new (x : T) :
   STsep (emp, [vfun a => shape a [ffun => x]]) :=
   Do (x <-- allocb x #|I|;
-       ret (Array x)).
+      ret (Array x)).
 Next Obligation.
 (* pull out ghost vars, run the program *)
 move=>x [] _ /= ->; step=>y; step.
@@ -83,7 +83,7 @@ Program Definition newf (f : {ffun I -> T}) :
           Do (if s is k::t return _ then
                 x .+ (indx k) ::= f k;;
                 loop t
-              else ret (Array x)))
+              else ret x))
         in fill (enum I)
       else ret (Array null)).
 (* first the loop *)
@@ -123,7 +123,7 @@ Qed.
 (* the loop invariant: *)
 (* a partially freed array still contains valid #|I| - k cells *)
 (* corresponding to some suffix xs of the original array's spec *)
-Definition free_loop (a : array) : Type :=
+Definition free_loop (a : ptr) : Type :=
   forall k, STsep (fun i => exists xs: seq T,
                             [/\ i = updi (a .+ k) xs,
                                 valid i &
@@ -192,7 +192,7 @@ End Array.
 
 Section Table.
 
-Variables (I : finType) (T S : Type) (x : {array I -> T})
+Variables (I : finType) (T S : Type) (x : ptr)
           (Ps : T -> S -> Pred heap).
 
 Definition table (t : I -> T) (b : I -> S) (i : I) : Pred heap :=
@@ -201,7 +201,8 @@ Definition table (t : I -> T) (b : I -> S) (i : I) : Pred heap :=
 Lemma tableP (s : {set I}) t1 t2 b1 b2 h :
         (forall x, x \in s -> t1 x = t2 x) ->
         (forall x, x \in s -> b1 x = b2 x) ->
-        h \In sepit s (table t1 b1) -> h \In sepit s (table t2 b2).
+        h \In sepit s (table t1 b1) -> 
+        h \In sepit s (table t2 b2).
 Proof.
 move=>H1 H2 H.
 apply/(sepitF (f1 := table t1 b1))=>//.
@@ -212,7 +213,8 @@ Lemma tableP2 (s1 s2 : {set I}) t1 t2 b1 b2 h :
         s1 =i s2 ->
         (forall x, s1 =i s2 -> x \in s1 -> t1 x = t2 x) ->
         (forall x, s1 =i s2 -> x \in s1 -> b1 x = b2 x) ->
-        h \In sepit s1 (table t1 b1) -> h \In sepit s2 (table t2 b2).
+        h \In sepit s1 (table t1 b1) -> 
+        h \In sepit s2 (table t2 b2).
 Proof.
 move=>H1 H2 H3; rewrite (eq_sepit _ H1).
 by apply: tableP=>y; rewrite -H1=>R; [apply: H2 | apply: H3].

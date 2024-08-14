@@ -1477,13 +1477,16 @@ by move=>x; rewrite !mem_filter /= in_set0.
 Qed.
 
 Lemma sepitF (s : {set I}) f1 f2 :
-        (forall x, x \in s -> f1 x =p f2 x) -> sepit s f1 =p sepit s f2.
+        (forall x, x \in s -> f1 x =p f2 x) -> 
+        sepit s f1 =p sepit s f2.
 Proof.
 move=>H; apply: IterStar.eq_sepitF=>x H1; apply: H.
 by rewrite -mem_enum.
 Qed.
 
-Lemma eq_sepit (s1 s2 : {set I}) f : s1 =i s2 -> sepit s1 f =p sepit s2 f.
+Lemma eq_sepit (s1 s2 : {set I}) f : 
+        s1 =i s2 -> 
+        sepit s1 f =p sepit s2 f.
 Proof. by move/eq_enum=>H; apply: IterStar.perm_sepit; rewrite H. Qed.
 
 Lemma sepitS x (s : {set I}) f :
@@ -1502,5 +1505,31 @@ Qed.
 
 Lemma sepitT1 x f : sepit setT f =p f x # sepit (setT :\ x) f.
 Proof. by rewrite (sepitS x) in_setT. Qed.
+
+Lemma big_sepit (s : {set I}) (f : I -> U) m : 
+        m = \big[join/Unit]_(i in s) (f i) <->
+        m \In sepit s (fun i h => h = f i).
+Proof.
+rewrite {1}/sepit IterStar.sepitE/IterStar.sepit'/IterStar.seqjoin. 
+split; last first.
+- case=>hs [Es Em] H. 
+  suff {Em}E : hs = map f (enum s) by rewrite Em E big_map big_enum.
+  elim: hs (enum s) Es H=>[|h hs IH] es; first by move/esym/size0nil=>->. 
+  by case: es=>//= e es [E][H1 H2]; rewrite H1 -IH.
+move=>Em; exists (map f (enum s)); split.
+- by rewrite size_map.
+- by rewrite big_map big_enum.
+apply/AllP; case=>a b.
+rewrite {1}(_ : enum s = map id (enum s)); last by rewrite map_id.
+by rewrite zip_map; case/MapP=>x /= _ [->->]. 
+Qed.
+
+Lemma big_sepitT (f : I -> U) m : 
+        m = \big[join/Unit]_i (f i) <->
+        m \In sepit setT (fun i h => h = f i).
+Proof. 
+rewrite -big_sepit; apply: iff_sym.
+by rewrite -big_enum /= enum_T big_enum.
+Qed.
 
 End FinIterStar.

@@ -19,7 +19,7 @@ limitations under the License.
 
 From HB Require Import structures.
 From Coq Require Import ssreflect ssrbool ssrfun Eqdep.
-From mathcomp Require Import ssrnat eqtype seq path.
+From mathcomp Require Import ssrnat eqtype fintype seq path bigop.
 From pcm Require Import options axioms finmap.
 From pcm Require Import pcm unionmap natmap.
 
@@ -237,7 +237,7 @@ Prenex Implicits heap_eta heap_eta2.
 (*******************************************)
 
 Section BlockUpdate.
-Variable (A : Type).
+Variable A : Type.
 
 Fixpoint updi (x : ptr) (vs : seq A) {struct vs} : heap :=
   if vs is v'::vs' then x :-> v' \+ updi x.+1 vs' else Unit.
@@ -336,10 +336,39 @@ move=>[E]; rewrite -!joinA=>D; case/(hcancelV D)=><-{}D.
 by case/(IH _ _ _ _ E D)=>->->.
 Qed.
 
+Lemma updi_iota n (x : ptr) (f : nat -> A) : 
+        updi x (map f (iota 0 n)) = 
+        \big[join/Unit]_(i <- iota 0 n) x.+i :-> f i.
+Proof.
+elim: n x=>[|n IH] x; first by rewrite big_nil.
+rewrite -addn1 iotaD add0n map_cat /= big_cat big_seq1 /=.
+by rewrite updi_cat /= size_map size_iota /= unitR -IH.
+Qed.
+
+Lemma updi_ord n (x : ptr) (f : 'I_n -> A) :
+        updi x (map f (enum 'I_n)) =
+        \big[join/Unit]_(i in 'I_n) x.+i :-> f i.
+Proof.
+case: n f=>[|n] f; first by rewrite -big_enum enum_ord0 big_nil.
+set F := fun i => 
+  if decP (b:=i < n.+1) idP is left pf then f (Ordinal pf)
+  else f (Ordinal (n:=n.+1) (m:=0) erefl).
+have Ef i : f i = F i.
+- rewrite /F; case: decP=>//.
+  by case: i=>i pf1 pf2; rewrite (pf_irr pf1 pf2).
+set J := RHS.
+have -> : J = \big[join/Unit]_(i in 'I_n.+1) x.+i :-> F i.
+- by apply: eq_bigr=>i _; rewrite Ef.
+rewrite -big_enum -(big_map _ predT (fun i=>x.+i :-> F i)).
+rewrite val_enum_ord -updi_iota -val_enum_ord -map_comp. 
+by congr updi; apply: eq_map.
+Qed.
+
 End BlockUpdate.
 
 Lemma domeqUP A1 A2 x (xs1 : seq A1) (xs2 : seq A2) :
-        size xs1 = size xs2 -> dom_eq (updi x xs1) (updi x xs2).
+        size xs1 = size xs2 -> 
+        dom_eq (updi x xs1) (updi x xs2).
 Proof.
 move=>E; apply/domeqP; split; first by rewrite !updiD E.
 apply/domE=>z; case: updiP=>[[H][m][->]|X]; first by rewrite updimV H E.
