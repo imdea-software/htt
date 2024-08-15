@@ -145,6 +145,8 @@ Definition shape g0 r p t :=
               h = lay m g /\ 
               path (ch m g) null s /\ 
               rev_graph m g s t = g0 /\
-              reach m g s t /\ 
+              reach m g s t /\
+              [pcm um_filterv (fun v => ( eq_mark v L || eq_mark v LR)) g <= dom S ] /\ 
               p = last null s /\
-              r = head t s).
+              r = head t s /\
+              graph_axiom g).
