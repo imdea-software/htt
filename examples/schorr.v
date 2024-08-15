@@ -54,13 +54,10 @@ Notation gl g x := (get_nth g x 0).
 Notation gr g x := (get_nth g x 1).
 
 (* type of markings *)
-(* Aleks NOTE: Should we need U? My impression was that *)
-(* being unmarked is represented by not being in *)
-(* the appropriate map? *)
-Inductive mark := U | L | R | LR.
+Inductive mark := L | R | LR.
 (* decidable equality on marks *)
 Definition eq_mark l1 l2 : bool :=
-  if (l1, l2) is ((U, U)|(L, L)|(R, R)|(LR, LR)) then true else false.
+  if (l1, l2) is ((L, L)|(R, R)|(LR, LR)) then true else false.
 Lemma eq_markP : Equality.axiom eq_mark.
 Proof. by case; case=>//=; constructor. Qed.
 HB.instance Definition _ := hasDecEq.Build mark eq_markP.
@@ -146,7 +143,7 @@ Definition shape g0 r p t :=
               path (ch m g) null s /\ 
               rev_graph m g s t = g0 /\
               reach m g s t /\
-              [pcm um_filterv (fun v => ( eq_mark v L || eq_mark v LR)) m <= s ] /\ 
+              {subset dom (um_filterv (predU (pred1 L) (pred1 LR)) m) <= s} /\ 
               p = last null s /\
               r = head t s /\
               graph_axiom g).
