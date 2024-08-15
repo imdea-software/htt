@@ -25,14 +25,17 @@ From htt Require Import options model heapauto.
 (* stateful KV map ADT *)
 (***********************)
 
-(* Dynamic KV map is determined by the root pointer. *)
+(* Dynamic KV map is determined by its root pointer(s). *)
 (* Functions such insert and remove may modify *)
 (* the root, and will correspondingly return the new one. *)
-(* tp is abstracted to facilitate passing K and V to methods *)
-(* (thus, the move reduces annotations) *)
+(* Tp is abstracted to facilitate structures that may *)
+(* have more than one root pointers. Also, it enables *)
+(* passing K and V to methods thus reducing annotations *)
+(* There's no deep reason to make tp : Set, except that *)
+(* it should be thought of a collection of pointers, hence small. *)
 Module DynKVmap.
 Record Sig (K : ordType) (V : Type) : Type :=
-  make {tp :> Type;
+  make {tp :> Set;
         default : tp;
         shape : tp -> {finMap K -> V} -> Pred heap;
         new : STsep (emp, [vfun x => shape x (nil K V)]);
@@ -58,7 +61,7 @@ End DynKVmap.
 
 Module KVmap.
 Record Sig (K : ordType) (V : Type) : Type :=
-  make {tp :> Type;
+  make {tp :> Set;
         default : tp;
         shape : tp -> {finMap K -> V} -> Pred heap;
         (* allocate root pointer and empty structure *)

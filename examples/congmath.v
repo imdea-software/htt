@@ -22,9 +22,14 @@ From pcm Require Import options prelude ordtype finmap pred seqext.
 
 (* Background mathematics for the verification of the *)
 (* Barcelogic Congruence Closure algorithm. *)
-(* Described in the POPL10 paper *)
+(* Described in the POPL10 paper: *)
 (* Structure the verification of heap-manipulating programs *)
 (* by Nanevski, Vafeiadis and Berdine *)
+
+(* This file contains the proofs of the mathematical properties *)
+(* needed for the verification. The implementation and the *)
+(* proofs of the actual stateful programs is in the *)
+(* accompanying file congprog.v *)
 
 (**************************)
 (* Constants with arities *)
