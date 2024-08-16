@@ -35,8 +35,6 @@ From htt Require Import kvmaps hashtab congmath.
 
 Notation finE := finset.inE.
 
-Prenex Implicits sepit.
-
 (*************)
 (* Signature *)
 (*************)
@@ -46,10 +44,10 @@ Module Type CongrSig.
 (* seq const is the list of constants over which *)
 (* structure computes *)
 (* this is a global argument, hence exposed by tp *)
-Parameter tp : seq constant -> Set. 
+Parameter root : seq constant -> Set. 
 
 (* abstract predicate tying roots, (congruence) relation, heap *)
-Parameter shape : forall {s}, tp s -> rel_exp s -> Pred heap.
+Parameter shape : forall {s}, root s -> rel_exp s -> Pred heap.
 
 (* initialize empty congruence structure; return roots *)
 Parameter init : forall {s}, 
@@ -72,7 +70,7 @@ End CongrSig.
 (* Implementation *)
 (******************)
 
-(* faithful to Barcelogic's actual implementation *)
+(* faithful to Barcelogic's implementation *)
 
 Module Congr : CongrSig.
 Section Congr.
@@ -95,7 +93,7 @@ Definition hash10 k : 'I_10 := Ordinal (@hash_ord 10 k erefl).
 (* the tables relating arrays with the content of the lists *)
 (* ctab is for class lists, utab is for use lists *)
 
-Definition llist (T : Set) : Set := ptr.
+Definition llist_root (T : Set) : Set := ptr.
 
 Definition ctab := @table symb ptr (seq symb) (@lseq symb). 
 Definition utab := 
@@ -112,10 +110,10 @@ Inductive ptrs : Set :=
    {array symb -> symb} & 
    (* class list; for each c *)
    (* singly-linked list storing whole class of c *)
-   {array symb -> llist symb} &
+   {array symb -> llist_root symb} &
    (* use list; internal structure *)
    (* see the paper for description *)
-   {array symb -> llist (symb*symb*symb)} & 
+   {array symb -> llist_root (symb*symb*symb)} & 
    (* hash table; for each pair of representatives *)
    (* stores equations; see paper for description *)
    htab V hash10 & 
@@ -123,7 +121,7 @@ Inductive ptrs : Set :=
    ptr.
 
 (* renaming type to satisfy the signature check *)
-Definition tp := ptrs.
+Definition root := ptrs.
 
 Section ShapePredicates.
 Variable rt : ptrs.
@@ -156,7 +154,7 @@ End ShapePredicates.
 (* Initialization procedure to generate *)
 (* the empty structure and its root pointers *)
 
-Definition iT (clist : {array symb -> llist symb}): Type := forall k,
+Definition iT (clist : {array symb -> llist_root symb}): Type := forall k,
   STsep (fun i => k <= n /\ exists f, i \In Array.shape clist f #
             sepit [set c | indx c < k] (ctab f [ffun c => [:: c]]),
         [vfun (_ : unit) m => exists f, m \In Array.shape clist f #
@@ -183,7 +181,7 @@ case: decP=>[{}pf|] /=; last first.
 - case: (ltngtP k n) pf=>// Ekn _ _; step=>_.
   exists f, hc, hct; split=>//. 
   apply: tableP2 Hct=>// x; rewrite !finE Ekn.
-  by rewrite /n cardE index_mem /index mem_enum.
+  by rewrite /n cardE index_mem /index mem_enum. 
 step=>x; step; apply: [stepX f]@hc=>//= [[m]] Em.
 apply: [gE]=>//=; split=>//.
 eexists [ffun z => if z == ith k pf then x else f z].
@@ -202,7 +200,7 @@ apply: [stepX]@hc=>//=.
   by split=>//; rewrite (_ : [set c | indx c < 0] = set0) // sepit0.
 case=>_ [f][hc'][hrest][-> Hc' Hrest].
 apply: [stepU]=>//= ul hu Ehu; apply: [stepU]=>//= htb ht Ht.
-set d := Data [ffun x => x] [ffun c => [:: c]] [ffun c => [::]] (@nil K V) [::]. 
+set d := Data [ffun x => x] [ffun c => [:: c]] [ffun c => [::]] (@nil K V) [::].  
 step=>px; step; exists d; split; last by case: (initP s).
 split=>[a b|/=]; first by rewrite !ffunE !inE. 
 exists f, [ffun s => null].
