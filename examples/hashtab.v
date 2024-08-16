@@ -19,9 +19,6 @@ From pcm Require Import pcm unionmap heap autopcm.
 From htt Require Import options model heapauto.
 From htt Require Import array kvmaps.
 
-Module HashTab.
-Section HashTab.
-
 (* hash table is array of buckets, i.e. KV maps *)
 (* bucket indices are provided by the hash function *)
 (* using dynaming kv-maps for buckets *)
@@ -29,18 +26,49 @@ Section HashTab.
 (*  it's possible to develop this with static buckers *)
 (* /DEVCOMMENT *)
 
-Variables (K : ordType) (V : Type) (buckets : DynKVmap.Sig K V)
-          (n : nat) (hash : K -> 'I_n).
-Definition hashtab := {array 'I_n -> DynKVmap.tp buckets}.
-Notation KVshape := (@DynKVmap.shape _ _ buckets).
+Module Type Hashtab_sig.
+Parameter root : forall {K : ordType} {V : Type} (buckets : dkvm K V)
+  {n : nat} (hash : K -> 'I_n), Set.
+Parameter null_root : forall {K : ordType} {V : Type} {buckets : dkvm K V}
+  {n : nat} {hash : K -> 'I_n}, root buckets hash.
+Parameter shape : forall {K : ordType} {V : Type} {buckets : dkvm K V}
+  {n : nat} {hash : K -> 'I_n}, root buckets hash -> {finMap K -> V} -> 
+  Pred heap.
+Parameter new : forall {K : ordType} {V : Type} {buckets : dkvm K V}
+  {n : nat} {hash : K -> 'I_n}, 
+  STsep (emp, [vfun (x : root buckets hash) h => h \In shape x (nil K V)]).
+Parameter free : forall {K : ordType} {V : Type} {buckets : dkvm K V}
+  {n : nat} {hash : K -> 'I_n} (x : root buckets hash),
+  STsep {s} (shape x s, [vfun _ : unit => emp]).
+Parameter insert : forall {K : ordType} {V : Type} {buckets : dkvm K V}
+  {n : nat} {hash : K -> 'I_n} (x : root buckets hash) k v,
+  STsep {s} (shape x s, [vfun (_ : unit) h => h \In shape x (ins k v s)]).
+Parameter remove : forall {K : ordType} {V : Type} {buckets : dkvm K V}
+  {n : nat} {hash : K -> 'I_n} (x : root buckets hash) k,
+  STsep {s} (shape x s, [vfun (_ : unit) h => h \In shape x (rem k s)]).
+Parameter lookup : forall {K : ordType} {V : Type} {buckets : dkvm K V}
+  {n : nat} {hash : K -> 'I_n} (x : root buckets hash) k,
+  STsep {s} (shape x s, [vfun y h => h \In shape x s /\ y = fnd k s]).
+End Hashtab_sig.
+
+Module HashTab : Hashtab_sig.
+Definition root K V (buckets : dkvm K V) n (hash : K -> 'I_n) : 
+  Set := {array 'I_n -> buckets}.
+Definition null_root K V buckets n hash : 
+  @root K V buckets n hash := Array null.
+Section HashTab.
+Context (K : ordType) (V : Type) {buckets : dkvm K V}
+        {n : nat} {hash : K -> 'I_n}.
+Notation KVshape := (@dkvm_shape _ _ buckets). 
 Notation table := (table KVshape).
 Notation nil := (nil K V).
+Notation root := (root buckets hash).
 
 (* hash table is specified by a single finMap *)
 (* which is the "flattening" of all buckets *)
-Definition shape x (s : finMap K V) :=
-  [Pred h | exists (tab : {ffun 'I_n -> DynKVmap.tp buckets})   (* array spec *)
-                   (bucket : 'I_n -> finMap K V),            (* buckets spec *)
+Definition shape (x : root) (s : finMap K V) : Pred heap :=
+  [Pred h | exists (tab : {ffun 'I_n -> buckets})   (* array spec *)
+                   (bucket : 'I_n -> {finMap K -> V}),          (* buckets spec *)
             [/\ forall k, fnd k s = fnd k (bucket (hash k)),
                 forall i k, k \in supp (bucket i) -> hash k = i &
                 h \In Array.shape x tab # sepit setT (table tab bucket)] ].
@@ -56,16 +84,16 @@ Definition new_loopinv x := forall k,
         [vfun y => shape y nil]).
 
 Program Definition new : STsep (emp, [vfun y => shape y nil]) :=
-  Do (t <-- Array.new 'I_n (DynKVmap.default buckets);
+  Do (t <-- Array.new dkvm_null;
       let go := ffix (fun (loop : new_loopinv t) k =>
                   Do (if decP (b := k < n) idP is left pf then
-                        b <-- DynKVmap.new buckets;
+                        b <-- dkvm_new buckets;
                         Array.write t (Ordinal pf) b;;
                         loop k.+1
                       else ret t))
       in go 0).
 (* first the bucket initialization loop *)
-Next Obligation.
+Next Obligation.  
 (* pull out preconditions, branch on k comparison *)
 move=>/= arr loop k [] _ /= [Eleq][tab][h1][h2][-> H1].
 case: decP=>[{Eleq}pf H2|]; last first.
@@ -101,7 +129,7 @@ apply: [stepE]=>//= y m Hm.
 (* invoke the loop with index 0 *)
 apply: [gE]=>//=; split=>//.
 (* the table is empty *)
-exists [ffun => DynKVmap.default buckets], m, Unit; split=>//=.
+exists [ffun => dkvm_null], m, Unit; split=>//=.
 - by rewrite unitR.
 (* there are no buckets in the heap yet *)
 by rewrite (eq_sepit (s2 := set0)) // sepit0.
@@ -123,7 +151,7 @@ Program Definition free x : STsep {s} (shape x s,
   Do (ffix (fun (loop : free_loopinv x) k =>
         Do (if decP (b := k < n) idP is left pf then
               b <-- Array.read x (Ordinal pf);
-              DynKVmap.free b;;
+              dkvm_free b;;
               loop k.+1
              else Array.free x)) 0).
 (* first the loop *)
@@ -169,7 +197,7 @@ Program Definition insert x k v :
   STsep {s} (shape x s, [vfun _ : unit => shape x (ins k v s)]) :=
   Do (let hk := hash k in
       b  <-- Array.read x hk;
-      b' <-- DynKVmap.insert b k v;
+      b' <-- dkvm_insert b k v;
       Array.write x hk b').
 Next Obligation.
 (* pull out ghost + deconstruct precondition *)
@@ -212,7 +240,7 @@ Program Definition remove x k :
              [vfun _ : unit => shape x (rem k s)]) :=
   Do (let hk := hash k in
       b  <-- Array.read x hk;
-      b' <-- DynKVmap.remove b k;
+      b' <-- dkvm_remove b k;
       Array.write x hk b').
 Next Obligation.
 (* pull out ghost + destructure precondition *)
@@ -252,7 +280,7 @@ Program Definition lookup x k :
   STsep {s} (shape x s,
              [vfun y m => m \In shape x s /\ y = fnd k s]) :=
   Do (b <-- Array.read x (hash k);
-      DynKVmap.lookup b k).
+      dkvm_lookup b k).
 Next Obligation.
 (* pull out ghost + destructure precondition *)
 move=>/= x k [fm][] _ /= [tf][bf][Hf Hh [h1][h2][-> H1 H2]].
@@ -268,10 +296,17 @@ exists tf, bf; split=>//=; exists h1, (m2 \+ h4); split=>{h1 H1} //.
 by rewrite (sepitT1 (hash k)); vauto.
 Qed.
 
-(* hash table is a *static* KV map *)
-Definition HashTab := KVmap.make (Array null) new free insert remove lookup.
-
 End HashTab.
 End HashTab.
 
-Definition HT K V := HashTab.HashTab (DynAssocList.AssocList K V).
+(* hash table is (static) KV map *)
+Notation hashtab := HashTab.root.
+HB.instance Definition _ K V (buckets : dkvm K V) n (hash : K -> 'I_n) := 
+  isKVM.Build K V (hashtab buckets hash) HashTab.null_root 
+     HashTab.new HashTab.free HashTab.insert HashTab.remove HashTab.lookup.
+
+(* htab is specific simple hash tab where buckets are association lists *)
+Definition htab K V n hash := @hashtab K V (dalist K V) n hash.
+HB.instance Definition _ K V n hash := KVM.on (@htab K V n hash).
+
+

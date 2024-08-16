@@ -73,8 +73,8 @@ HB.instance Definition _ := isNatMap.Build (seq node) pregraph.
 HB.instance Definition _ := 
   hasDecEq.Build pregraph (@union_map_eqP node _ (seq node) pregraph).
 Canonical pregraph_PredType : PredType (node * (seq node)) := 
-  Mem_UmMap_PredType pregraph.
-Coercion Pred_of_history (x : pregraph) : Pred_Class := 
+  um_PredType pregraph.
+Coercion Pred_of_history (x : pregraph) : {Pred _} := 
   [eta Mem_UmMap x].
 
 Notation "x &-> v" := (ptsT pregraph x v) (at level 30).

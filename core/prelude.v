@@ -18,7 +18,7 @@ limitations under the License.
 
 From HB Require Import structures.
 From Coq Require Import ssreflect ssrfun Eqdep. 
-From mathcomp Require Import ssrbool ssrnat seq eqtype choice.
+From mathcomp Require Import ssrbool ssrnat seq eqtype choice path.
 From mathcomp Require Import fintype finset finfun tuple perm fingroup.
 From pcm Require Import options axioms.
 
@@ -224,6 +224,11 @@ Notation "f1 \** f2 " := (pmorphism f1 f2)
 (* product with functions *)
 Lemma prod_feta (A B : Type) : @idfun (A * B) = fst \** snd.
 Proof. by apply: fext=>x; rewrite /pmorphism -prod_eta. Qed.
+
+(* composing relation and function *)
+Definition rel_app A B (S : rel A) f : rel B := 
+  fun x y => S (f x) (f y).
+Arguments rel_app {A B} S f _ _ /.
 
 Reserved Notation "[ ** f1 & f2 ]" (at level 0).
 Reserved Notation "[ ** f1 , f2 & f3 ]" (at level 0, format
@@ -657,9 +662,191 @@ Proof. by elim: n. Qed.
 Lemma neqnS n : n != n.+1.
 Proof. by elim: n. Qed.
 
+Lemma subn_eq0P m n : reflect (m - n = 0) (m <= n).
+Proof. by rewrite -subn_eq0; apply/eqP. Qed.
+ 
 (**************************************)
 (* Inhabited (non-empty) finite types *)
 (**************************************)
+
+(* if a type is non-empty, one can pick an element *)
+
+Lemma inhabF {T : finType} : 
+        0 < #|T| -> ~ @predT T =1 xpred0.
+Proof. by case/card_gt0P=>x _ /(_ x). Qed.
+
+Definition inhab0 {T : finType} (pf : 0 < #|T|) : T := 
+  match pickP predT with 
+  | Pick x _ => x
+  | Nopick qf => False_rect T (inhabF pf qf)
+  end.
+
+(* variant of nth that needs no seed value *)
+Definition ith {T : finType} i (pf : i < #|T|) : T := 
+  nth (inhab0 (leq_ltn_trans (leq0n i) pf)) (enum T) i.
+
+Arguments ith {T}.
+
+(* dually, variant of index that doesn't overflow *)
+Definition indx {T : finType} (x : T) := index x (enum T).
+
+(* lemmas associated with ith/indx *)
+
+Lemma indx_card {T : finType} (i : T) : indx i < #|T|.
+Proof. by rewrite cardT index_mem mem_enum. Qed.
+
+Lemma indx_ith {T : finType} i (pf : i < #|T|) : 
+         indx (ith i pf) = i.
+Proof. by rewrite /indx/ith index_uniq ?enum_uniq -?cardE. Qed.
+
+Lemma ith_indx {T : finType} (i : T) (pf : indx i < #|T|) : 
+         ith (indx i) pf = i.
+Proof. by rewrite /ith/indx nth_index // mem_enum. Qed.
+
+Lemma indx_inj {T} : injective (@indx T). 
+Proof.
+rewrite /indx=>x1 x2.
+have [] : x1 \in enum T /\ x2 \in enum T by rewrite !mem_enum.
+elim: (enum T)=>[|x xs IH]  //=; rewrite !inE !(eq_sym x).
+case: (x1 =P x)=>[<-|] _ /=; first by case: (x2 =P x1).
+by case: (x2 =P x)=>//= _ X1 X2 []; apply: IH X1 X2.
+Qed.
+
+Lemma ith_inj {T : finType} i1 i2 (pf1 : i1 < #|T|) (pf2 : i2 < #|T|) : 
+        ith i1 pf1 = ith i2 pf2 -> 
+        i1 = i2.
+Proof.
+rewrite /ith; move: (inhab0 _) (inhab0 _)=>o1 o2 H.
+rewrite cardE in pf1 pf2.
+elim: (enum T) i1 i2 pf1 pf2 o1 o2 H (enum_uniq T)=>[|x xs IH] //=.
+case=>[|i1][|i2] //= pf1 pf2 o1 o2.
+- by move=>->; rewrite mem_nth.
+- by move=><-; rewrite mem_nth.
+by move=>H /andP [_ U]; rewrite (IH _ _ pf1 pf2 o1 o2).
+Qed.
+
+Lemma indx_injE {T : finType} s i (pf : i < #|T|) : 
+        (s == ith i pf) = (indx s == i).
+Proof.
+apply/eqP/eqP=>[->|E]; first by rewrite indx_ith.
+by rewrite -E in pf *; rewrite ith_indx.
+Qed.
+
+Lemma map_indx {T : finType} : map indx (enum T) = iota 0 #|T|.
+Proof.
+rewrite cardE /indx. 
+elim: (enum T) (enum_uniq T)=>[|x xs IH] //.
+set f := index^~(x :: xs)=>/= /andP [H1 H2].
+rewrite {1}/f /= eqxx; congr (0 :: _).
+case: (eq_in_map f (fun x=>(index x xs).+1) xs)=>E _. 
+rewrite E; last first.
+- by move=>z R; rewrite /f /=; case: (x =P z) R H1=>//= ->->.
+by rewrite -add1n iotaDl -IH // -map_comp. 
+Qed.
+
+Lemma take_enum {T : finType} x i : 
+        x \in take i (enum T) = (indx x < i).
+Proof.
+pose f x := indx x.
+rewrite -(mem_map indx_inj) map_take map_indx take_iota.
+case: (leqP i #|T|)=>H; rewrite mem_iota /=; first by rewrite add0n.
+rewrite add0n cardE index_mem mem_enum inE /=; apply: sym_eq.
+apply: (@ltn_trans #|T|) H.
+by rewrite cardE index_mem mem_enum.
+Qed.
+
+Lemma drop_enum {T : finType} x i : 
+        x \in drop i (enum T) = (i <= indx x).
+Proof.
+pose f x := index x (enum T).
+rewrite -(mem_map indx_inj) map_drop map_indx drop_iota mem_iota add0n.
+case H : (i <= indx x)=>//=; rewrite subnKC ?indx_card //. 
+by apply/(leq_trans H)/ltnW/indx_card.
+Qed.
+
+Lemma take_enum_filter {T : finType} k : 
+        filter (preim indx [pred x | x < k]) (enum T) = 
+        take k (enum T).
+Proof.
+apply: (inj_map indx_inj).
+rewrite map_take map_indx -filter_map map_indx.
+apply: (sorted_eq leq_trans anti_leq).
+- by apply/(sorted_filter leq_trans)/iota_sorted.
+- by apply/take_sorted/iota_sorted.
+apply: uniq_perm.
+- by rewrite filter_uniq // iota_uniq.
+- by rewrite take_uniq // iota_uniq.
+move=>x; rewrite mem_filter take_iota cardE.
+case: (leqP k (size _))=>H1; rewrite !mem_iota !add0n /=.
+- by case: (ltnP x k)=>H2 //=; apply: leq_trans H1.
+case: (ltnP x (size _))=>H2 //=; last by rewrite andbF.
+by rewrite andbT; apply: ltn_trans H1.
+Qed.
+
+Lemma drop_enum_filter {T : finType} k : 
+       filter (preim indx [pred x | x >= k]) (enum T) = 
+       drop k (enum T).
+Proof.
+apply: (inj_map indx_inj).
+rewrite map_drop map_indx -filter_map map_indx.
+apply: (sorted_eq leq_trans anti_leq).
+- by apply/(sorted_filter leq_trans)/iota_sorted.
+- by apply/drop_sorted/iota_sorted.
+apply: uniq_perm.
+- by rewrite filter_uniq // iota_uniq.
+- by rewrite drop_uniq // iota_uniq.
+move=>x; rewrite mem_filter drop_iota cardE !add0n inE.
+case: (leqP k (size (enum T)))=>H1; rewrite !mem_iota add0n.
+- by rewrite subnKC.
+case: subn_eq0P (ltnW H1)=>// -> _; rewrite addn0 leq0n /=.
+by case: (leqP k x)=>//= K1; case: ltngtP (leq_trans H1 K1).
+Qed.
+
+Lemma enum_split {T : finType} k :
+        enum T = take (indx k) (enum T) ++ k :: drop (indx k).+1 (enum T).
+Proof.
+rewrite -{2}(@nth_index T k k (enum T)) ?mem_enum //.
+by rewrite -drop_nth ?index_mem ?mem_enum // cat_take_drop.
+Qed.
+
+Lemma takeord {I : finType} T k x (f : {ffun I -> T}) :
+        take (indx k) (fgraph [ffun y => [eta f with k |-> x] y]) =
+        take (indx k) (fgraph f).
+Proof.
+set f' := (finfun _).
+suff E: {in take (indx k) (enum I), f =1 f'}.
+- by rewrite !fgraph_codom /= !codomE -2!map_take; move/eq_in_map: E.
+move: (enum_uniq I); rewrite {1}(enum_split k) cat_uniq /= =>H4.
+move=>y H5; rewrite /f' /= !ffunE /=; case: eqP H5 H4=>// -> ->.
+by rewrite andbF.
+Qed.
+
+Lemma dropord {I : finType} T k x (f : {ffun I -> T}) :
+        drop (indx k).+1 (fgraph [ffun y => [eta f with k |->x] y]) =
+        drop (indx k).+1 (fgraph f).
+Proof.
+set f' := (finfun _).
+suff E: {in drop (indx k).+1 (enum I), f =1 f'}.
+- by rewrite !fgraph_codom /= !codomE -2!map_drop; move/eq_in_map: E.
+move: (enum_uniq I); rewrite {1}(enum_split k) cat_uniq /= => H4.
+move=>y H5; rewrite /f' /= !ffunE /=; case: eqP H5 H4=>// -> ->.
+by rewrite !andbF.
+Qed.
+
+Lemma size_fgraph {I : finType} T1 T2 
+          (r1 : {ffun I -> T1}) (r2 : {ffun I -> T2}) :
+        size (fgraph r1) = size (fgraph r2).
+Proof. by rewrite !fgraph_codom /= !codomE !size_map. Qed.
+
+Lemma fgraphE {I : finType} T (r1 r2 : {ffun I -> T}) :
+        fgraph r1 = fgraph r2 -> 
+        r1 = r2.
+Proof.
+move=> eq_r12; apply/ffunP=> x.
+by rewrite -[x]enum_rankK -!tnth_fgraph eq_r12.
+Qed.
+
+(* building inhabited finite types *)
 
 Lemma inhabits (T : finType) (t : T) : 0 < #|T|.
 Proof. by apply/card_gt0P; exists t. Qed.
@@ -676,20 +863,13 @@ HB.mixin Record isInhabited T of Finite T := {
 #[short(type="ifinType")]
 HB.structure Definition Inhabited := {T of isInhabited T & Finite T}.
 
-Lemma inhabF (T : ifinType) : ~ (@predT T =1 xpred0).
-Proof. by case/card_gt0P: (@card_inhab T)=>x _ /(_ x). Qed.
-
-Definition inhab {T : ifinType} : T := 
-  match pickP predT with 
-  | Pick x _ => x
-  | Nopick pf => False_rect T (inhabF pf)
-  end.
-
 HB.instance Definition _ := isInhabited.Build unit (inhabits tt).
 HB.instance Definition _ := isInhabited.Build bool (inhabits false).
 HB.instance Definition _ n := isInhabited.Build 'I_n.+1 (inhabits ord0).
 HB.instance Definition _ (T : finType) := 
   isInhabited.Build (option T) (inhabits None).
+
+Definition inhab {I : ifinType} : I := inhab0 card_inhab.
 
 (*************************************)
 (* A copy of booleans with mnemonics *)

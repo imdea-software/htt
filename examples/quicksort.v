@@ -20,7 +20,6 @@ From pcm Require Import pcm unionmap heap.
 From htt Require Import options model heapauto.
 From htt Require Import array.
 
-(* hack to avoid "_ *p _" notation clash *)
 From mathcomp Require order.
 Import order.Order.NatOrder order.Order.TTheory.
 
@@ -266,11 +265,9 @@ move=>a i j /= [f][] h /= H.
 case: ifP=>[/eqP->|Hij].
 - by step=>_; rewrite tperm1 pffunE1.
 do 2!apply: [stepE f, h]=>//= _ _ [->->].
-apply: [stepE f]=>//= _ _ ->.
-set f1 := finfun [eta f  with i |-> f j].
-apply: [gE   f1]=>//= _ _ ->.
-set f2 := finfun [eta f1 with j |-> f i].
-move=>{h H} _; suff : f2 = pffun (tperm i j) f by move=>->.
+apply: [stepE f]=>//= _ {H}h H; set f1 := (finfun _) in H. 
+apply: [gE f1]=>//= _ {H}h H; set f2 := (finfun _) in H.
+suff {H}: f2 = pffun (tperm i j) f by move=><-.
 rewrite {}/f2 {}/f1; apply/ffunP=>/= x; rewrite !ffunE /= ffunE /=.
 by case: tpermP=>[->|->|/eqP/negbTE->/eqP/negbTE->] {x}//; rewrite eqxx // Hij.
 Qed.

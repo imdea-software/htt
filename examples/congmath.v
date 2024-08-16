@@ -187,7 +187,7 @@ Definition mono_cong (R : rel_exp) : congruence R -> monotone R.
 Proof. by move=>[[]]. Qed.
 
 Definition closure (R : rel_exp) : rel_exp :=
-  [Pred e1 e2 | forall C, R ~> C -> congruence C -> (e1, e2) \In C].
+  [Pred e | forall C, R ~> C -> congruence C -> e \In C].
 
 Lemma cong_clos (R : rel_exp) : congruence (closure R).
 Proof.
@@ -259,12 +259,13 @@ Lemma closRK (R1 R2 K : rel_exp) :
         closure (R1 \+p K) <~> closure (R2 \+p K).
 Proof. by rewrite 2!(orrC _ K); apply: closKR. Qed.
 
-Lemma closI (R : rel_exp) : R ~> closure R.
+Lemma closI (R : rel_exp) : R <=p closure R.
 Proof. by move=>[x y] H1 T H2 H3; apply: H2. Qed.
 
 (* absorption and closure *)
 Lemma closKA (K R : rel_exp) :
-        closure R <~> closure (K \+p R) <-> K ~> closure R.
+        closure R <~> closure (K \+p R) <-> 
+        K <=p closure R.
 Proof.
 rewrite -orrAb; split=>[->|].
 - by rewrite orrAb; move=>[x y] H; apply: closI; left.
@@ -272,20 +273,22 @@ by rewrite (orrC _ R) -clos_clos orrC=><-; rewrite clos_idemp.
 Qed.
 
 Lemma closAK (K R : rel_exp) :
-        closure R <~> closure (R \+p K) <-> K ~> closure R.
+        closure R <~> closure (R \+p K) <-> 
+        K <=p closure R. 
 Proof. by rewrite orrC closKA. Qed.
 
 Lemma clos_or (R1 R2 R : rel_exp) :
-        closure R1 ~> closure R -> closure R2 ~> closure R ->
-        closure (R1 \+p R2) ~> closure R.
+        closure R1 <=p closure R -> 
+        closure R2 <=p closure R ->
+        closure (R1 \+p R2) <=p closure R.
 Proof.
 rewrite -!closAK !(orrC R) !clos_clos -!(orrC R) => H1 H2.
 by rewrite H1 -clos_clos H2 clos_clos orrAC orrA.
 Qed.
 
 Lemma sub_closKR (R1 R2 K : rel_exp) :
-        (closure R1 ~> closure R2) -> 
-        closure (K \+p R1) ~> closure (K \+p R2).
+        (closure R1 <=p closure R2) -> 
+        closure (K \+p R1) <=p closure (K \+p R2).
 Proof.
 rewrite -!closAK=>H.
 rewrite -(orrC (closure _)) clos_clos orrAC -orrA orrI.
@@ -295,12 +298,13 @@ by rewrite orrC.
 Qed.
 
 Lemma sub_closRK (R1 R2 K : rel_exp) :
-        (closure R1 ~> closure R2) -> 
-        closure (R1 \+p K) ~> closure (R2 \+p K).
+        (closure R1 <=p closure R2) -> 
+        closure (R1 \+p K) <=p closure (R2 \+p K).
 Proof. by move=>H; rewrite -!(orrC K); apply: sub_closKR. Qed.
 
 Lemma sub_closI (R1 R2 : rel_exp) :
-        R1 ~> R2 -> closure R1 ~> closure R2.
+        R1 <=p R2 -> 
+        closure R1 <=p closure R2.
 Proof.
 rewrite -orrAb -closAK -(orrC (closure _)) clos_clos => ->.
 by rewrite (orrC R2) -orrA orrI.
@@ -309,7 +313,7 @@ Qed.
 (* relation that only relates the constant symbols *)
 (* with their image under a function *)
 Definition graph (f : symb -> exp) : rel_exp :=
-  [Pred e1 e2 | (e1, e2) \in image (fun s => (const s, f s)) predT].
+  [Pred e | e \in image (fun s => (const s, f s)) predT].
 
 (* Equations in canonical form, as required by the congruence closure     *)
 (* algorithm. An equation is in canonical form if it is an equation       *)
@@ -338,10 +342,9 @@ HB.instance Definition _ := hasDecEq.Build Eq eqEqP.
 (* interpreting equations as relations *)
 Definition eq2rel (eq : Eq) : rel_exp :=
   match eq with
-  | simp_eq c1 c2 => 
-      [Pred x y | x = const c1 /\ y = const c2]
+  | simp_eq c1 c2 => Pred1 (const c1, const c2)
   | comp_eq c c1 c2 => 
-      [Pred x y | x = const c /\ y = app (const c1) (const c2)]
+      Pred1 (const c, app (const c1) (const c2))
   end.
 
 Fixpoint eqs2rel (eqs : seq Eq) : rel_exp :=
@@ -448,19 +451,18 @@ Definition rep2rel D := graph (fun x => const (rep D x)).
 
 Lemma clos_rep D R a : (const a, const (rep D a)) \In closure (rep2rel D \+p R).
 Proof.
-apply: (@closI _ (const a, const (rep D a))); apply: sub_orl; rewrite /= /rep2rel /graph /=.
-by rewrite mem_map /= ?mem_enum // => x1 x2 [->].
+by apply: closI; apply: sub_orl; rewrite InE mem_map ?mem_enum // =>x1 x2 [].
 Qed.
 
 Hint Resolve clos_rep : core.
 
 (* relation defined by the lookup table *)
 Definition lookup_rel D : rel_exp :=
-  [Pred e1 e2 |
+  [Pred e |
     exists a b c c1 c2,
-    [/\ e1 = app (const a) (const b),
+    [/\ e.1 = app (const a) (const b),
        a \in reps D, b \in reps D,
-       fnd (a, b) (lookup D) = Some (c, c1, c2) & e2 = const (rep D c)]].
+       fnd (a, b) (lookup D) = Some (c, c1, c2) & e.2 = const (rep D c)]].
 
 (* inverting relations equations represented as triples *)
 Lemma invert_look D (x y : exp) :
@@ -716,7 +718,7 @@ Definition similar D a b :=
 
 Definition similar1 D a' b' a b :=
   (const a, const b) \In 
-     closure (rep2rel D \+p [Pred x y | x = const a' /\ y = const b'] \+p
+     closure (rep2rel D \+p Pred1 (const a', const b') \+p
              eqs2rel (map pend2eq (pending D))).
 
 (* invariants tying use lists with the lookup table *)
@@ -891,12 +893,14 @@ Qed.
 (* Lemmas about join_class *)
 
 Lemma join_class_repE (D : data) (a' b' : symb) :
-        a' \in reps D -> b' \in reps D -> rep_idemp D ->
+        a' \in reps D -> 
+        b' \in reps D -> 
+        rep_idemp D ->
         closure (rep2rel (join_class D a' b')) <~>
-        closure (rep2rel D \+p [Pred x y | x = const a' /\ y = const b']).
+        closure (rep2rel D \+p Pred1 (const a', const b')).
 Proof.
 move=>H2 H3 H1 [x y]; split=>/= T.
-- pose ty z := PredU (rep2rel D) [Pred x0 y0 | x0 = const z /\ y0 = const b'].
+- pose ty z := PredU (rep2rel D) (Pred1 (const z, const b')).
   move: (clos_idemp (ty a') (x,y))=>/=<-.
   apply: sub_closI T=>{x y} [[x y]].
   case/imageP=>z _ /= [->->] {x y}; rewrite ffunE /=.
@@ -920,8 +924,11 @@ by exists (rep D z); rewrite // ffunE /= H1 // E.
 Qed.
 
 Lemma join_class_useP (D : data) (a' b' : symb) :
-        a' \in reps D -> b' \in reps D -> a' != b' ->
-        use_inv D -> use_inv1 (join_class D a' b') a' b'.
+        a' \in reps D -> 
+        b' \in reps D -> 
+        a' != b' ->
+        use_inv D -> 
+        use_inv1 (join_class D a' b') a' b'.
 Proof.
 move=>H1 H2 H3 H4 c c1 c2; split=>/= [a|H5]; rewrite !ffunE /=; last first.
 - by case: (H4 _ _ _ _ H1 H5)=>->; [left | right]; rewrite /= eq_refl.
@@ -931,8 +938,11 @@ by case: (H4 _ _ _ _ H6 H7)=>->; [left | right]; rewrite (negbTE H5).
 Qed.
 
 Lemma join_class_lookupP (D : data) (a' b' : symb) :
-        a' \in reps D -> b' \in reps D -> a' != b' ->
-        lookup_inv D -> lookup_inv (join_class D a' b').
+        a' \in reps D -> 
+        b' \in reps D -> 
+        a' != b' ->
+        lookup_inv D -> 
+        lookup_inv (join_class D a' b').
 Proof.
 move=>H1 H2 H3 H a b c c1 c2.
 rewrite !join_class_eq // !mem_filter /= !ffunE /=.
@@ -942,8 +952,11 @@ by rewrite (negbTE T1) (negbTE Q1).
 Qed.
 
 Lemma join_class_simE (D : data) (a' b' : symb) :
-        a' \in reps D -> b' \in reps D -> rep_idemp D ->
-        forall a b, similar1 D a' b' a b <-> similar (join_class D a' b') a b.
+        a' \in reps D -> 
+        b' \in reps D -> 
+        rep_idemp D ->
+        forall a b, similar1 D a' b' a b <-> 
+                    similar (join_class D a' b') a b.
 Proof.
 move=>H1 H2 H a b.
 by rewrite /similar /similar1 -orrA -clos_clos -join_class_repE // clos_clos.
@@ -1043,12 +1056,12 @@ Lemma join_classE (D : data) (a' b' : symb) :
         lookup_use_inv1 D a' b' ->
         closure (CRel (join_class D a' b') \+p 
                        eqs2rel (map symb2eq (use D a'))) <~>
-        closure (CRel D \+p [Pred x y | x = const a' /\ y = const b']).
+        closure (CRel D \+p Pred1 (const a', const b')).
 Proof.
-pose ty := [Pred x0 y0 | x0 = const a' /\ y0 = const b'].
-move=>L1 L2 L3 H1 H4 H5 [x y]; split.
+pose ty := Pred1 (const a', const b').
+move=>L1 L2 L3 H1 H4 H5 [x y]; rewrite !toPredE; split.
 - apply: clos_or; move=>{x y}[x y]; last first.
-  - move: (clos_idemp (CRel D \+p ty) (x,y))=><-.
+  - rewrite -(clos_idemp (CRel D \+p ty)).
     apply: sub_closI=>{x y}[[x y]] /=.
     move/invert=>[c][c1][c2][->->H6].
     move: (H4 a' c c1 c2 L1 H6)=>[d][d1][d2][Q1][Q2][Q3] Q4.
@@ -1056,66 +1069,65 @@ move=>L1 L2 L3 H1 H4 H5 [x y]; split.
     apply: (transC (y := const d)).
     - rewrite /CRel clos_clos !orrA.
       rewrite -!(rpull (eqs2rel _)) -3!(rpull ty) -!(rpull (rep2rel _)) -!orrA.
-      move: Q4; apply: sub_closI=>{x y} [[x y]] Q4; apply: sub_orl.
-      by rewrite !toPredE in Q4 *; rewrite orrA.
+      move: Q4; apply: sub_closI=>{x y} [[x y]] Q4; apply: sub_orl.  
+      by rewrite orrA.
     rewrite const_rel /CRel clos_clos !orrA symR.
     apply: (@closI _ (app (const (rep D c1))  
                      (const (rep D c2)), const (rep D d))).
     apply: sub_orr; apply: sub_orl.
-    rewrite toPredE invert_look.
+    rewrite invert_look.
     exists (rep D d1), (rep D d2), d, d1, d2.
     by rewrite -Q2 -Q3 !rep_in_reps.
-  rewrite /CRel !toPredE clos_idemp clos_clos !orrA /=.
+  rewrite /CRel clos_idemp clos_clos !orrA /=.
   rewrite -clos_clos join_class_repE // clos_clos orrA.
   rewrite -!(rpull (eqs2rel (map pend2eq _))).
   apply: sub_closKR=>{x y}; apply: sub_closKR=>[[x y]] T1.
-  rewrite toPredE -clos_idemp.
+  rewrite -clos_idemp.
   apply: sub_closI T1=>{x y} [[x y]].
-  rewrite toPredE.
   case=>[T|]; first by apply: closI; right.
-  case=>a[b][c][c1][c2][-> +++ ->].
+  case=>a [b][c][c1][c2][/= -> +++ ->].
   rewrite !join_class_eq //= !mem_filter /=.
   case/andP=>T1 T1'; case/andP=>T2 T2' T3; rewrite ffunE /=.
   case: eqP=>[H6|_];
   [apply: (transC (y:= const a')); last by [apply closI; right] |];
-  apply closI; apply: sub_orl; rewrite toPredE invert_look;
+  apply closI; apply: sub_orl; rewrite invert_look;
   exists a, b, c, c1, c2=>//.
   by rewrite H6.
-rewrite /CRel !toPredE !clos_clos !orrA /= => {H4} T.
+rewrite /CRel !clos_clos !orrA /= => {H4} T.
 rewrite -clos_clos join_class_repE // clos_clos !orrA -(rpull ty).
 rewrite -3!(rpull ty) -!(rpull (rep2rel _)) -!(rpull (lookup_rel _)) in T *.
 rewrite -clos_idemp; apply: sub_closI T=>{x y} [[x y]].
 case=>[|T]; last by apply closI; apply: sub_orr;
-  rewrite toPredE -!orrA; apply: sub_orl; rewrite toPredE !orrA.
-case=>a[b][c][c1][c2][-> T1 T2 T3 ->].
+  rewrite -!orrA; apply: sub_orl; rewrite !orrA.
+case=>a [b][c][c1][c2][/= -> T1 T2 T3 ->].
 case: (H5 a b c c1 c2 T1 T2 T3).
 move=>[d][d1][d2][Q1][Q2][Q3] Q4 [f][f1][f2][F1][F2][F3] F4.
-case E1: (a == a').
-- rewrite toPredE !(rpull (lookup_rel _)) !orrA -Q2 -Q3 symR 
+case E1: (a == a'). 
+- rewrite !(rpull (lookup_rel _)) !orrA -Q2 -Q3 symR 
     -app_rep -const_rep symR.
   apply: (transC (y:= const d)); last first.
   - move: Q4; apply: sub_closI=>{x y} [[x y]].
-    by rewrite !toPredE -!orrA=>Q4; do 2!apply: sub_orl.
+    by rewrite -!orrA=>Q4; do 2!apply: sub_orl.
   apply: symC; apply closI; do 3!apply: sub_orr; apply: sub_orl.
-  rewrite toPredE invert -(eqP E1).
+  rewrite invert -(eqP E1).
   by exists d, d1, d2.
 case E2: (b == a').
-- rewrite toPredE !(rpull (lookup_rel _)) !orrA.
+- rewrite !(rpull (lookup_rel _)) !orrA.
   rewrite -F2 -F3 symR -app_rep -const_rep symR.
   apply: (transC (y:= const f)); last first.
   - move: F4; apply: sub_closI=>{x y} [[x y]].
-    by rewrite !toPredE -!orrA=>F4; do 2!apply: sub_orl.
+    by rewrite -!orrA=>F4; do 2!apply: sub_orl.
   apply: symC; apply closI; do 3!apply: sub_orr; apply: sub_orl.
-  rewrite toPredE invert -(eqP E2).
+  rewrite invert -(eqP E2).
   by exists f, f1, f2.
 case E3: (rep D c == a'); last first.
-- apply: closI; apply: sub_orl; rewrite toPredE invert_look.
+- apply: closI; apply: sub_orl; rewrite invert_look.
   exists a, b, c, c1, c2.
   by rewrite !join_class_eq // !mem_filter /= E1 E2 !ffunE /= E3.
 rewrite (eqP E3).
 apply: (transC (y := const b')); last first.
 - by apply: symC; apply closI; do 2!apply: sub_orr; apply: sub_orl.
-apply closI; apply: sub_orl; rewrite toPredE invert_look.
+apply closI; apply: sub_orl; rewrite invert_look.
 exists a, b, c, c1, c2.
 by rewrite !join_class_eq // !mem_filter /= E1 E2 !ffunE /= E3.
 Qed.
@@ -1138,7 +1150,8 @@ Lemma join_useT t (D : data) (a' b' : symb) (l1 l2 : seq (symb*symb*symb)) :
         join_use' (join_use' D a' b' l1) a' b' l2.
 Proof.
 elim: l1 D a' b'=>[|[[c1 c2] c] l1 IH] D a' b' //= H.
-by case F: (fnd _ _)=>[[[d d1] d2]|] /=; rewrite IH //= ffunE eq_refl H /=; eauto.
+case F: (fnd _ _)=>[[[d d1] d2]|] /=;
+by rewrite IH //= ffunE eq_refl H /=; eauto.
 Qed.
 
 Lemma join_use_useE (D : data) (a' b' : symb) (l1 l2 : seq (symb*symb*symb)) :
@@ -1207,15 +1220,15 @@ elim: x D E=>[|[[c c1] c2] ss IH] D E L1 L2 H1 H2 H3 H4 H5 /=.
 - by rewrite orr0 /CRel clos_idemp.
 case F: (fnd _ _)=>[[[d d1] d2]|]; set D' := Data _ _ _ _ _.
 - have S1: closure (rep2rel D' \+p eqs2rel (map pend2eq (pending D'))) <~>
-           closure (rep2rel D \+p [Pred x y | x = const c /\ y = const d] \+p
+           closure (rep2rel D \+p Pred1 (const c, const d) \+p
                     eqs2rel (map pend2eq (pending D))) by [].
   have S2: forall e1 e2, similar D e1 e2 -> similar D' e1 e2.
   - rewrite /similar=>e1 e2; move: (const e1) (const e2)=>{e1 e2} x y.
     by rewrite S1; apply: sub_closI=>{x y} [[x y]]; 
        case; [left | right; right].
   have T2 : closure (CRel D' \+p eqs2rel (map symb2eq ss)) <~>
-            closure (CRel D \+p [Pred x y | x = const c /\ 
-     y = app (const c1) (const c2)] \+p eqs2rel (map symb2eq ss)).
+            closure (CRel D \+p Pred1 (const c, app (const c1) (const c2)) 
+                            \+p eqs2rel (map symb2eq ss)).
   - rewrite /CRel {2 3}/D' /= !clos_clos !orrA.
     rewrite -!(rpull (eqs2rel (map pend2eq _))).
     rewrite -!(rpull (eqs2rel (map symb2eq ss))).
@@ -1223,19 +1236,19 @@ case F: (fnd _ _)=>[[[d d1] d2]|]; set D' := Data _ _ _ _ _.
     rewrite -!orrA=>[[x y]]; split=>T;
     rewrite toPredE -clos_idemp; apply: sub_closI T=>{x y} [[x y]].
     - case; first by move=>H7; apply: closI; apply: sub_orl.
-      case=>->->; rewrite toPredE !orrA symR const_rep symR.
+      case=>->->; rewrite !orrA symR const_rep symR.
       apply: (transC (y:= app (const (rep D c1)) (const (rep D c2)))); 
       last first.
       - apply closI; apply: sub_orr; apply: sub_orl.
-        rewrite toPredE invert_look.
+        rewrite invert_look.
         by exists (rep D c1), (rep D c2), d, d1, d2.
       by rewrite -app_rep; apply closI; do 2!right.
     case; first by move=>H7; apply closI; apply: sub_orl.
-    case=>->->; rewrite toPredE !orrA app_rep.
+    case=>->->; rewrite !orrA app_rep.
     apply: (transC (y := const d)); first by apply closI; right; right.
     apply: (transC (y := const (rep D d))); first by apply: clos_rep.
     apply: symC; apply closI; apply: sub_orr; apply: sub_orl.
-    rewrite toPredE invert_look.
+    rewrite invert_look.
     exists (rep D c1), (rep D c2), d, d1, d2.
     by rewrite !rep_in_reps.
   rewrite -T2.
@@ -1286,10 +1299,9 @@ case F: (fnd _ _)=>[[[d d1] d2]|]; set D' := Data _ _ _ _ _.
   exists h, h1, h2; rewrite {1}/D' /= !ffunE.
   by case: eqP H7 L1=>[->-> //| _] H7 L1; do !split=>//; apply: S2.
 have T1: lookup_rel D' <~> lookup_rel D \+p
-  [Pred x y | x = app (const (rep D c1)) (const (rep D c2)) /\
-              y = const (rep D c)].
+  Pred1 (app (const (rep D c1)) (const (rep D c2)), const (rep D c)).
 - rewrite /lookup_rel /D' /= /reps /= =>[[x y]]; split.
-  - move=>[a][b][d][d1][d2][-> T2 T3].
+  - move=>[a][b][d][d1][d2][/= -> T2 T3].
     rewrite fnd_ins.
     case: eqP=>[[->->] [<- _ _] ->|_ T4 T5]; [by right | left].
     by exists a, b, d, d1, d2.
@@ -1304,20 +1316,19 @@ have T1: lookup_rel D' <~> lookup_rel D \+p
   rewrite fnd_ins !rep_in_reps.
   by case: eqP.
 have T2: closure (CRel D' \+p eqs2rel (map symb2eq ss)) <~>
-  closure (CRel D \+p [Pred x y | x = const c /\ 
-    y = app (const c1) (const c2)] \+p eqs2rel (map symb2eq ss)).
-- pose ty1 := [Pred x y | x = app (const (rep D c1)) 
-    (const (rep D c2)) /\ y = const (rep D c)].
-  pose ty2 := [Pred x y | x = const c /\ y = app (const c1) (const c2)].
+  closure (CRel D \+p Pred1 (const c, app (const c1) (const c2)) 
+                  \+p eqs2rel (map symb2eq ss)).
+- pose ty1 := Pred1 (app (const (rep D c1)) (const (rep D c2)), const (rep D c)).
+  pose ty2 := Pred1 (const c, app (const c1) (const c2)).
   rewrite /CRel {3}/D' /= T1 !clos_clos !orrA -2!(rpull ty1) 
     -3!(rpull ty2) -!orrA -!(rpull (rep2rel _)).
   do 3!apply: closRK; move=>[x y]; split=>T;
   rewrite toPredE -clos_idemp; apply: sub_closI T=>{x y} [[x y]].
   - case; first by move=>T; apply: closI; left.
-    case=>->->; rewrite toPredE symR -const_rep -app_rep.
+    case=>->->; rewrite symR -const_rep -app_rep.
     by apply closI; right.
   case=>[T|[->->]]; first by apply: closI; left.
-  by rewrite toPredE const_rep app_rep symR; apply closI; right.
+  by rewrite const_rep app_rep symR; apply closI; right.
 rewrite -T2.
 apply: IH=>//=; first by rewrite ffunE eq_refl E.
 - move=>e e1 e2; split=>/= [a H6|]; rewrite !ffunE; last first.
@@ -1450,15 +1461,15 @@ Lemma propagatePE (D : data) :
         CRel D <~> CRel (propagate D).
 Proof.
 move: D.
-pose ty x0 y0 := [Pred x y | x = @const s x0 /\ y = @const s y0].
+pose ty x0 y0 := Pred1 (@const s x0, @const s y0).
 have L: forall D a b,
   closure (rep2rel D \+p ty a b) <~>
   closure (rep2rel D \+p ty (rep D a) (rep D b)).
 - move=>D a b [x y]; split=>T; rewrite toPredE -clos_idemp;
   apply: sub_closI T=>{x y} [[x y]];
   (case; first by move=>H; apply: closI; left); case=>->->;
-  [rewrite toPredE const_rep symR const_rep symR | 
-   rewrite toPredE -const_rep symR -const_rep symR];
+  [rewrite const_rep symR const_rep symR | 
+   rewrite -const_rep symR -const_rep symR];
   by apply closI; right.
 pose inv D := propagate_inv D.
 have L1: forall D pend_eq p' a b a' b' D',
@@ -1475,7 +1486,7 @@ have L1: forall D pend_eq p' a b a' b' D',
   - move=>a1 b1; rewrite /similar -{2}H4 H1 /= H /= -(rpull (ty a b)) => T.
     rewrite -clos_idemp; move: T; apply: sub_closI=>{a1 b1} [[x y]]; 
     rewrite -H4; case=>[[->->]|T]; last by apply: closI.
-    rewrite toPredE const_rep symR const_rep symR /=.
+    rewrite const_rep symR const_rep symR /=.
     by rewrite H2 H3 (eqP H5); apply: reflC.
   suff T: CRel D <~> CRel D'.
   - rewrite T; apply: IH; rewrite -H4; do 4!split=>//.
@@ -1506,7 +1517,7 @@ have L2: forall D pend_eq p' a b a' b' D' D'',
 - move=>D pend_eq p' a b a' b' D' D'' H1 H H2 H3 H4 H5 H6 IH 
   [H7][H8][H9][H10] H11.
   have T: CRel D <~> closure (CRel D' \+p 
-    [Pred x y | x = const a' /\ y = const b']).
+    Pred1 (const a', const b')).
   - rewrite /CRel H1 -{2 3}H4 /= clos_clos !orrA H /=.
     rewrite -!(rpull (lookup_rel _)) -!(rpull (eqs2rel (map pend2eq _))).
     by do 2![apply: closKR]; rewrite L H2 H3 -H4 /= /rep2rel.
@@ -1517,7 +1528,7 @@ have L2: forall D pend_eq p' a b a' b' D' D'',
     rewrite -clos_idemp.
     move: Q4; apply: sub_closI=>[[x y]].
     case; first by move=>Q4; apply: closI; left.
-    case=>->->; rewrite toPredE !orrA const_rep symR const_rep symR /= H2 H3.
+    case=>->->; rewrite !orrA const_rep symR const_rep symR /= H2 H3.
     by apply closI; do 2!right.
   have [L2' L3']: a' \in reps D' /\ b' \in reps D'
     by rewrite -H2 -H3 -H4 !rep_in_reps.
@@ -1603,7 +1614,7 @@ Lemma propagate_clos_pendP d c c1 c2 e e1 e2 :
           CRel (Data (rep d) (class d) (use d) (lookup d)
                      (comp_pend (c, c1, c2) (e, e1, e2) :: pending d))
          <~> closure (CRel d \+p
-                     [Pred x y | x = const c /\ y = app (const c1) (const c2)]).
+                     Pred1 (const c, app (const c1) (const c2))).
 Proof.
 move=>PI H.
 have [R1 R2]: rep d e1 = rep d c1 /\ rep d e2 = rep d c2.
@@ -1614,7 +1625,7 @@ move=>[z y]; split=>O; rewrite toPredE -clos_idemp; move: O; apply: sub_closI;
   move=>{z y} [z y].
 - case=>[O|]; first by apply: closI; left.
   case=>[O|]; first by apply: closI; right; left.
-  case=>->->; rewrite toPredE symR const_rep symR.
+  case=>->->; rewrite symR const_rep symR.
   apply: (transC (y := app (const (rep d e1)) (const (rep d e2)))).
   - by rewrite R1 R2 -app_rep; apply closI; right; right.
   apply closI; right; left; rewrite R1 R2.
@@ -1693,23 +1704,23 @@ Lemma propagate_clos_nopendP :
              (ins (rep d c1, rep d c2) (c, c1, c2) (lookup d)) 
              (pending d)) <~>
         closure (CRel d \+p 
-          [Pred x y | x = const c /\ y = app (const c1) (const c2)]).
+          Pred1 (const c, app (const c1) (const c2))).
 Proof.
 rewrite /CRel clos_clos orrA orrAC -!orrA; apply: closRK; rewrite !orrA.
 move=>[xx yy]; split=>O; rewrite toPredE -clos_idemp; move: O; apply: sub_closI;
 move=>{xx yy} [xx yy].
 - case=>[O|]; first by apply: closI; left.
-  rewrite /lookup_rel =>[[a]][b][e][e1][e2][-> R1 R2 T1 ->].
+  rewrite /lookup_rel =>[[a]][b][e][e1][e2][/= -> R1 R2 T1 ->].
   rewrite fnd_ins in T1; case: ifP T1=>[|O T1].
-  - case/eqP=>->->[->->->]; rewrite toPredE symR -app_rep -const_rep.
+  - case/eqP=>->->[->->->]; rewrite symR -app_rep -const_rep.
     by apply closI; right; right.
   by apply: closI; right; left; exists a, b, e, e1, e2.
 case=>[O|]; first by apply: closI; left.
 case=>[O|[->->]].
-- apply: closI; right; move: O=>[a][b][e][e1][e2][-> R1 R2 O ->].
+- apply: closI; right; move: O=>[a][b][e][e1][e2][/= -> R1 R2 O ->].
   exists a, b, e, e1, e2; do !split=>//.
   by rewrite fnd_ins; case: eqP O=>//; case=>->->; rewrite Ev.
-rewrite toPredE app_rep const_rep symR; apply closI; right.
+rewrite app_rep const_rep symR; apply closI; right.
 exists (rep d c1), (rep d c2), c, c1, c2.
 by rewrite !rep_in_reps fnd_ins eq_refl.
 Qed.
@@ -1761,13 +1772,13 @@ move=> H1 H2; case: eqP=>H; constructor.
   apply: (transC (y := norm D y)); last by apply: symC; apply: norm_rel.
   by rewrite H; apply: reflC.
 rewrite /CRel H2 /= orr0 => H3; case: H.
-suff: (x, y) \In [Pred e1 e2 | norm D e1 = norm D e2] by [].
+suff: (x, y) \In [Pred e | norm D e.1 = norm D e.2] by [].
 apply: {x y} H3; last first.
 - split; last by move=>????; rewrite !InE /= => -> ->.
   by do !split=>//; move=> x y z; rewrite !InE /= => ->.
 move=>[x y]; case.
 - by case/imageP=>a _ [->] ->; rewrite /= H1.
-move=>[a][b][c][c1][c2][-> Q1 Q2 Q3 ->] /=; do 2!rewrite reps_rep //.
+move=>[a][b][c][c1][c2][/= -> Q1 Q2 Q3 ->] /=; do 2!rewrite reps_rep //.
 by rewrite Q3 H1.
 Qed.
 

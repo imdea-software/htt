@@ -2262,17 +2262,7 @@ Implicit Type f : U.
 
 Definition Mem_UmMap f :=
   fun x : K * V => valid f /\ [pcm pts x.1 x.2 <= f].
-
-(* DEVCOMMENT *)
-(* is this needed? *)
-(* Coercion Pred_of_Mem_UmMap (f : U) : Pred_Class := [eta Mem_UmMap f]. *)
-(* /DEVCOMMENT *)
-Canonical Structure um_PredType :=
-  Eval hnf in @mkPredType (K*V) U Mem_UmMap.
-
-(* This makes Mem_UmMap a canonical instance of topred. *)
-Canonical Structure Mem_UmMap_PredType :=
-  Eval hnf in mkPredType Mem_UmMap.
+Canonical um_PredType := PropPredType Mem_UmMap.
 
 Lemma In_undef x : x \In (undef : U) -> False.
 Proof. by case; rewrite valid_undef. Qed.
@@ -2510,12 +2500,12 @@ Prenex Implicits InPt In_eta InPtUn In_dom InPtUnEL In_findE.
 (* Their membership structures aren't directly inheritted from that *)
 (* of union_map, but must be declared separately *)
 Canonical umap_PredType (K : ordType) V : PredType (K * V) :=
-  Mem_UmMap_PredType (umap K V).
-Coercion Pred_of_umap K V (x : umap K V) : Pred_Class := 
+  um_PredType (umap K V).
+Coercion Pred_of_umap K V (x : umap K V) : {Pred _} := 
   [eta Mem_UmMap x].
 Canonical fset_PredType (K : ordType) : PredType (K * unit) :=
-  Mem_UmMap_PredType (fset K).
-Coercion Pred_of_fset K (x : fset K) : Pred_Class := 
+  um_PredType (fset K).
+Coercion Pred_of_fset K (x : fset K) : {Pred _} := 
   [eta Mem_UmMap x].
 
 Section MorphMembership.

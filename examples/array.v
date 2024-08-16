@@ -17,8 +17,6 @@ From pcm Require Import options axioms prelude pred.
 From pcm Require Import pcm unionmap heap.
 From htt Require Import options model heapauto.
 
-Definition indx {I : finType} (x : I) := index x (enum I).
-
 (*********************************)
 (* Arrays indexed by finite type *)
 (*********************************)
@@ -34,13 +32,41 @@ Identity Coercion array_for_array : array_for >-> array.
 Notation "{ 'array' aT }" := (array_for (Phant aT))
   (at level 0, format "{ 'array'  '[hv' aT ']' }") : type_scope.
 
-Module Array.
+Module Type ArraySig.
+Parameter shape : forall {I : finType} {T : Type}, 
+  {array I -> T} -> {ffun I -> T} -> Pred heap.
+
+(* build new array with all cells initialized to x *)
+Parameter new : forall {I : finType} {T : Type} (x : T),
+  STsep (emp, [vfun (a : {array I -> T}) h => h \In shape a [ffun => x]]).
+
+(* build new array with cells initialized by finite function f *)
+Parameter newf : forall {I : finType} {T : Type} (f : {ffun I -> T}),
+  STsep (emp, [vfun a h => h \In shape a f]).
+
+(* free the array *)
+Parameter free : forall {I : finType} {T : Type} (a : {array I -> T}),
+  STsep (fun i => exists f, i \In shape a f, [vfun _ : unit => emp]).
+
+(* read k-th cell *)
+Parameter read : forall {I : finType} {T : Type} (a : {array I -> T}) (k : I),
+   STsep {f h} (fun i => i = h /\ i \In shape a f,
+               [vfun (y : T) m => m = h /\ y = f k]).
+
+(* write k-th cell *)
+Parameter write : forall {I : finType} {T : Type} (a : {array I -> T}) k x,
+  STsep {f} (shape a f,
+            [vfun (_ : unit) h => h \In shape a (finfun [eta f with k |-> x])]).
+End ArraySig.
+
+
+Module Array : ArraySig.
 Section Array.
-Variable (I : finType) (T : Type).
+Context {I : finType} {T : Type}.
 Notation array := {array I -> T}.
 
 (* array is specified by finite function *)
-Definition shape (a : array) (f : {ffun I -> T}) :=
+Definition shape (a : array) (f : {ffun I -> T}) : Pred heap :=
   [Pred h | h = updi a (fgraph f)].
 
 (* main methods *)
@@ -55,7 +81,7 @@ Next Obligation.
 (* pull out ghost vars, run the program *)
 move=>x [] _ /= ->; step=>y; step.
 (* simplify *)
-rewrite unitR=>H; congr updi; rewrite codomE cardE.
+rewrite unitR=>_; congr updi; rewrite /= codomE cardE.
 by elim: (enum I)=>[|t ts] //= ->; rewrite (ffunE _ _).
 Qed.
 
@@ -113,7 +139,7 @@ move=>f [] _ ->; case: fintype.pickP=>[v|] H /=.
   (* invoke the loop, construct g from the first value of f *)
   by apply: [gE]=>//=; exists [ffun => f v], nil.
 (* I is empty, so should be the resulting heap *)
-step=>_; rewrite codom_ffun.
+step; rewrite /shape /= codom_ffun.
 suff L: #|I| = 0 by case: (fgraph f)=>/=; rewrite L; case.
 by rewrite cardE; case: (enum I)=>[|x s] //; move: (H x).
 Qed.
@@ -170,7 +196,6 @@ by rewrite (updi_split a k); step.
 Qed.
 
 (* writing to an array, updates the spec function with a new value *)
-
 Program Definition write (a : array) (k : I) (x : T) :
   STsep {f} (shape a f,
             [vfun _ : unit => shape a (finfun [eta f with k |-> x])]) :=
@@ -191,7 +216,6 @@ End Array.
 (* array elements, such as hashtables *)
 
 Section Table.
-
 Variables (I : finType) (T S : Type) (x : ptr)
           (Ps : T -> S -> Pred heap).
 

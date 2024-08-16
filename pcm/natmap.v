@@ -40,8 +40,8 @@ HB.structure Definition NatMap V := {
 
 (* pred structure (to write x \In h) is copied from union_map *)
 Canonical natmap_PredType A (U : natmap A) : PredType (nat * A) := 
-  Mem_UmMap_PredType U.
-Coercion Pred_of_natmap A (U : natmap A) (x : U) : Pred_Class := 
+  um_PredType U.
+Coercion Pred_of_natmap A (U : natmap A) (x : U) : {Pred _} := 
   [eta Mem_UmMap x].
 
 (* canonical natmap is histories *)
@@ -81,8 +81,8 @@ HB.instance Definition _ A := isNatMap.Build A (history A).
 HB.instance Definition _ (A : eqType) := 
   hasDecEq.Build (history A) (@union_map_eqP nat _ A (history A)).
 Canonical history_PredType A : PredType (nat * A) := 
-  Mem_UmMap_PredType (history A).
-Coercion Pred_of_history A (x : history A) : Pred_Class := 
+  um_PredType (history A).
+Coercion Pred_of_history A (x : history A) : {Pred _} := 
   [eta Mem_UmMap x].
 
 Notation "x \-> v" := (ptsT (history _) x v) (at level 30).
@@ -145,8 +145,8 @@ HB.instance Definition _ A := isNatMap.Build A (nmap A).
 HB.instance Definition _ (A : eqType) := 
   hasDecEq.Build (nmap A) (@union_map_eqP nat _ A (nmap A)).
 Canonical nmap_PredType A : PredType (nat * A) := 
-  Mem_UmMap_PredType (nmap A).
-Coercion Pred_of_nmap A (x : nmap A) : Pred_Class := 
+  um_PredType (nmap A).
+Coercion Pred_of_nmap A (x : nmap A) : {Pred _} := 
   [eta Mem_UmMap x].
 
 (* no points-to notation for nmaps *)

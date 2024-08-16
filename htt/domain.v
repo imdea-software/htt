@@ -522,8 +522,7 @@ Arguments chain T%_type.
 
 (* \In notation *)
 Definition chain_pred (T : poset) (x : chain T) : Pred T := x.
-Canonical chainPredType (T : poset) := 
-  Eval hnf in @mkPredType T (@chain T) (@chain_pred T).
+Canonical chainPredType (T : poset) := PropPredType (@chain_pred T).
 
 Lemma chainE (T : poset) (s1 s2 : chain T) : 
         s1 = s2 <-> chain_pred s1 =p chain_pred s2.
@@ -557,9 +556,9 @@ Qed.
 Section ChainConst.
 Variables (T1 T2 : poset) (y : T2).
 
-Definition const_chain : Pred _ := Pred1 y.
+Definition const_chain : Pred _ := xPred1 y.
 Lemma const_is_chain : chain_axiom const_chain.
-Proof. by split; [exists y | move=>x1 x2 <-<-; left]. Qed.
+Proof. by split; [exists y | move=>x1 x2 ->->; left]. Qed.
 HB.instance Definition _ := isChain.Build T2 const_chain const_is_chain.
 
 Lemma const_chainE (s : chain T1) : Image (const_fun y) s =p const_chain.

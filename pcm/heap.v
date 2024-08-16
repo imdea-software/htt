@@ -19,8 +19,8 @@ limitations under the License.
 
 From HB Require Import structures.
 From Coq Require Import ssreflect ssrbool ssrfun Eqdep.
-From mathcomp Require Import ssrnat eqtype fintype seq path bigop.
-From pcm Require Import options axioms finmap.
+From mathcomp Require Import ssrnat eqtype fintype tuple finfun seq path bigop.
+From pcm Require Import options axioms prelude finmap.
 From pcm Require Import pcm unionmap natmap.
 
 (************)
@@ -366,6 +366,16 @@ Qed.
 
 End BlockUpdate.
 
+Lemma updi_split {I : finType} T p k (f : {ffun I -> T}) :
+        updi p (fgraph f) = updi p (take (indx k) (fgraph f)) \+
+                            p.+(indx k) :-> f k \+
+                            updi (p.+(indx k).+1) (drop (indx k).+1 (fgraph f)).
+Proof.
+rewrite fgraph_codom /= codomE {1}(enum_split k) map_cat updi_cat /=.
+rewrite map_take map_drop size_takel ?joinA; first by rewrite -ptr1 ptrA addn1. 
+by rewrite size_map index_size.
+Qed.
+
 Lemma domeqUP A1 A2 x (xs1 : seq A1) (xs2 : seq A2) :
         size xs1 = size xs2 -> 
         dom_eq (updi x xs1) (updi x xs2).
@@ -536,76 +546,4 @@ case: xs=>[|x xs] /= V H; first by case: H.
 by case: H V=>p [h'][-> _] /validPtUn_cond.
 Qed.
 
-(******************************)
-(******************************)
-(* Custom lemmas about arrays *)
-(******************************)
-(******************************)
 
-From mathcomp Require Import fintype tuple finfun.
-
-Definition indx {I : finType} (x : I) := index x (enum I).
-
-Prenex Implicits indx.
-
-(***********************************)
-(* Arrays indexed by a finite type *)
-(***********************************)
-
-Section Array.
-Variables (p : ptr) (I : finType).
-
-(* helper lemmas *)
-
-Lemma enum_split k :
-        enum I = take (indx k) (enum I) ++ k :: drop (indx k).+1 (enum I).
-Proof.
-rewrite -{2}(@nth_index I k k (enum I)) ?mem_enum //.
-by rewrite -drop_nth ?index_mem ?mem_enum // cat_take_drop.
-Qed.
-
-Lemma updi_split T k (f : {ffun I -> T}) :
-        updi p (fgraph f) = updi p (take (indx k) (fgraph f)) \+
-                            p.+(indx k) :-> f k \+
-                            updi (p.+(indx k).+1) (drop (indx k).+1 (fgraph f)).
-Proof.
-rewrite fgraph_codom /= codomE {1}(enum_split k) map_cat updi_cat /=.
-rewrite map_take map_drop size_takel ?joinA; first by rewrite -ptr1 ptrA addn1. 
-by rewrite size_map index_size.
-Qed.
-
-Lemma takeord T k x (f : {ffun I -> T}) :
-        take (indx k) (fgraph [ffun y => [eta f with k |-> x] y]) =
-        take (indx k) (fgraph f).
-Proof.
-set f' := (finfun _).
-suff E: {in take (indx k) (enum I), f =1 f'}.
-- by rewrite !fgraph_codom /= !codomE -2!map_take; move/eq_in_map: E.
-move: (enum_uniq I); rewrite {1}(enum_split k) cat_uniq /= =>H4.
-move=>y H5; rewrite /f' /= !ffunE /=; case: eqP H5 H4=>// -> ->.
-by rewrite andbF.
-Qed.
-
-Lemma dropord T k x (f : {ffun I -> T}) :
-        drop (indx k).+1 (fgraph [ffun y => [eta f with k |->x] y]) =
-        drop (indx k).+1 (fgraph f).
-Proof.
-set f' := (finfun _).
-suff E: {in drop (indx k).+1 (enum I), f =1 f'}.
-- by rewrite !fgraph_codom /= !codomE -2!map_drop; move/eq_in_map: E.
-move: (enum_uniq I); rewrite {1}(enum_split k) cat_uniq /= => H4.
-move=>y H5; rewrite /f' /= !ffunE /=; case: eqP H5 H4=>// -> ->.
-by rewrite !andbF.
-Qed.
-
-Lemma size_fgraph T1 T2 (r1 : {ffun I -> T1}) (r2 : {ffun I -> T2}) :
-        size (fgraph r1) = size (fgraph r2).
-Proof. by rewrite !fgraph_codom /= !codomE !size_map. Qed.
-
-Lemma fgraphE T (r1 r2 : {ffun I -> T}) :
-        fgraph r1 = fgraph r2 -> r1 = r2.
-Proof.
-by move=> eq_r12; apply/ffunP=> x; rewrite -[x]enum_rankK -!tnth_fgraph eq_r12.
-Qed.
-
-End Array.

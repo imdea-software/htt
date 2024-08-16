@@ -19,7 +19,6 @@ From pcm Require Import seqext pcm unionmap heap.
 From htt Require Import options model heapauto.
 From htt Require Import array.
 
-(* hack to avoid "_ *p _" notation clash *)
 From mathcomp Require order.
 Import order.Order.NatOrder order.Order.TTheory.
 
@@ -102,7 +101,7 @@ Lemma codom1_split (f : {ffun 'I_n.+1 -> A}) (i : 'I_n) :
                   &:(fgraph f) `]i.+1, +oo[.
 Proof.
 set i0 := Wo i; set i1 := So i.
-rewrite {1}codomE (enum_split i0) /= {2}(enum_split i1) /= /heap.indx
+rewrite {1}codomE (enum_split i0) /= {2}(enum_split i1) /= /indx
   (index_enum_ord i0) (index_enum_ord i1) drop_cat size_take size_enum_ord 
   ltn_ord So_eq ltnn subnn /= map_cat /= map_take map_drop -codomE.
 by rewrite /slice.slice/= addn0 addn1 /= drop0 take_size.
@@ -350,12 +349,12 @@ Next Obligation.
 move=>a i /= [f][] h /= E; set i0 := Wo i; set i1 := So i.
 do 2!apply: [stepE f, h]=>//= _ _ [->->].
 case: oleqP=>H; first by step=>_; exists 1%g; split=>//; rewrite pffunE1.
-apply: [stepE f ]=>//= _ _ ->.
+apply: [stepE f]=>//= _ {E}h E. 
 set fs  := finfun [eta f  with i0 |-> f i1].
-apply: [stepE fs]=>//= _ _ ->.
-set fsw := finfun [eta fs with i1 |-> f i0].
+apply: [stepE fs]=>//= _ {E}h E. 
+set fsw := (finfun _) in E.
 step=>_; exists (swnx i); do!split=>//=.
-suff: fsw = pffun (swnx i) f by move=>->.
+suff: fsw = pffun (swnx i) f by move=><-. 
 rewrite /fsw /fs /swnx; apply/ffunP=>/= x; rewrite !ffunE /= ffunE /=.
 case: tpermP=>[->|->|/eqP/negbTE->/eqP/negbTE->] //; rewrite eqxx //.
 by rewrite /i1 eq_sym (negbTE (So_WoN i)).

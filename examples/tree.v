@@ -122,12 +122,10 @@ Fixpoint mem_tree (t : tree A) : pred A :=
 Definition tree_eqclass := tree A.
 Identity Coercion tree_of_eqclass : tree_eqclass >-> tree.
 Coercion pred_of_tree (t : tree_eqclass) : {pred A} := mem_tree t.
-
 Canonical tree_predType := ssrbool.PredType (pred_of_tree : tree A -> pred A).
-(* The line below makes mem_tree a canonical instance of topred. *)
-Canonical mem_tree_predType := ssrbool.PredType mem_tree.
 
-Lemma in_tnode a t ts : (t \in TNode a ts) = (t == a) || has (fun q => t \in q) ts.
+Lemma in_tnode a t ts : 
+        (t \in TNode a ts) = (t == a) || has (fun q => t \in q) ts.
 Proof. by []. Qed.
 
 (* frequently used facts about membership in a tree *)

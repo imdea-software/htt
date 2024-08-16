@@ -15,15 +15,12 @@ limitations under the License.
 (* Key-Value maps *)
 (******************)
 
+From HB Require Import structures.
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype seq path ssrnat.
 From pcm Require Import options axioms pred ordtype finmap seqext.
 From pcm Require Import pcm unionmap heap autopcm automap.
 From htt Require Import options model heapauto.
-
-(***********************)
-(* stateful KV map ADT *)
-(***********************)
 
 (* Dynamic KV map is determined by its root pointer(s). *)
 (* Functions such insert and remove may modify *)
@@ -33,24 +30,24 @@ From htt Require Import options model heapauto.
 (* passing K and V to methods thus reducing annotations *)
 (* There's no deep reason to make tp : Set, except that *)
 (* it should be thought of a collection of pointers, hence small. *)
-Module DynKVmap.
-Record Sig (K : ordType) (V : Type) : Type :=
-  make {tp :> Set;
-        default : tp;
-        shape : tp -> {finMap K -> V} -> Pred heap;
-        new : STsep (emp, [vfun x => shape x (nil K V)]);
-        free : forall x, STsep {s} (shape x s,
-                                   [vfun _ : unit => emp]);
-        insert : forall x k v,
-                   STsep {s} (shape x s,
-                             [vfun y => shape y (ins k v s)]);
-        remove : forall x k,
-                   STsep {s} (shape x s,
-                             [vfun y => shape y (rem k s)]);
-        lookup : forall x k,
-                   STsep {s} (shape x s,
-                             [vfun y m => m \In shape x s /\ y = fnd k s])}.
-End DynKVmap.
+
+HB.mixin Record isDKVM (K : ordType) (V : Type) (root : Set) := {
+  dkvm_null : root;
+  dkvm_shape : root -> {finMap K -> V} -> Pred heap;
+  dkvm_new : STsep (emp, [vfun x => dkvm_shape x (nil K V)]);
+  dkvm_free : forall x, 
+    STsep {s} (dkvm_shape x s, [vfun _ : unit => emp]);
+  dkvm_insert : forall x k v, 
+    STsep {s} (dkvm_shape x s,[vfun y => dkvm_shape y (ins k v s)]);
+  dkvm_remove : forall x k, 
+    STsep {s} (dkvm_shape x s,[vfun y => dkvm_shape y (rem k s)]);
+  dkvm_lookup : forall x k, 
+    STsep {s} (dkvm_shape x s, [vfun y m => m \In dkvm_shape x s /\ y = fnd k s])}.
+
+#[short(type="dkvm")]
+HB.structure Definition DKVM K V := {root of @isDKVM K V root}.
+
+Arguments dkvm_new {K V}.
 
 (* Static KV map (or just KV map) are those that *)
 (* don't need to modify the root pointer. *)
@@ -59,36 +56,50 @@ End DynKVmap.
 (* the root pointer along with the dynamic KV map that the *)
 (*  root points to. *)
 
-Module KVmap.
-Record Sig (K : ordType) (V : Type) : Type :=
-  make {tp :> Set;
-        default : tp;
-        shape : tp -> {finMap K -> V} -> Pred heap;
-        (* allocate root pointer and empty structure *)
-        new : STsep (emp, [vfun x => shape x (nil K V)]);
-        (* remove the struture, and the root pointer *)
-        free : forall x, STsep {s} (shape x s,
-                                   [vfun _ : unit => emp]);
-        (* insert, keeping the root pointer unchanged *)
-        insert : forall x k v,
-                   STsep {s} (shape x s,
-                             [vfun _ : unit => shape x (ins k v s)]);
-        (* remove, keeping the root pointer unchanged *)
-        remove : forall x k,
-                   STsep {s} (shape x s,
-                             [vfun _ : unit => shape x (rem k s)]);
-        lookup : forall x k,
-                   STsep {s} (shape x s,
-                             [vfun y m => m \In shape x s /\ y = fnd k s])}.
-End KVmap.
+HB.mixin Record isKVM (K : ordType) (V : Type) (root : Set) := {
+  kvm_null : root;
+  kvm_shape : root -> {finMap K -> V} -> Pred heap;
+  kvm_new : STsep (emp, [vfun x => kvm_shape x (nil K V)]);
+  kvm_free : forall x, 
+    STsep {s} (kvm_shape x s, [vfun _ : unit => emp]);
+  kvm_insert : forall x k v, 
+    STsep {s} (kvm_shape x s,[vfun _ : unit => kvm_shape x (ins k v s)]);
+  kvm_remove : forall x k, 
+    STsep {s} (kvm_shape x s,[vfun _ : unit => kvm_shape x (rem k s)]);
+  kvm_lookup : forall x k, 
+    STsep {s} (kvm_shape x s, [vfun y m => m \In kvm_shape x s /\ y = fnd k s])}.
 
-(**********************************************************)
-(* KV map implemented as a sorted association linked list *)
-(**********************************************************)
+#[short(type="kvm")]
+HB.structure Definition KVM K V := {root of @isKVM K V root}.
 
-Module DynAssocList.
+Arguments kvm_new {K V}.
+
+(*****************************************)
+(* Association lists with DKVM interface *)
+(*****************************************)
+
+Module Type DAList_sig.
+Parameter root : ordType -> Type -> Set.
+Parameter null_root : forall {K : ordType} {V : Type}, root K V.
+Parameter shape : forall {K : ordType} {V : Type},
+  root K V -> {finMap K -> V} -> Pred heap.
+Parameter new : forall {K : ordType} {V : Type},
+  STsep (emp, [vfun (x : root K V) h => h \In shape x (nil K V)]). 
+Parameter free : forall {K : ordType} {V : Type} (x : root K V),
+  STsep {s} (shape x s, [vfun _ : unit => emp]).
+Parameter insert : forall {K : ordType} {V : Type} (x : root K V) k v,
+  STsep {s} (shape x s, [vfun (y : root K V) h => h \In shape y (ins k v s)]).
+Parameter remove : forall {K : ordType} {V : Type} (x : root K V) k,
+   STsep {s} (shape x s, [vfun (y : root K V) h => h \In shape y (rem k s)]).
+Parameter lookup : forall {K : ordType} {V : Type} (x : root K V) k,
+  STsep {s} (shape x s, [vfun y m => m \In shape x s /\ y = fnd k s]).
+End DAList_sig.
+
+Module DAList : DAList_sig.
+Definition root (K : ordType) (V : Type) := ptr.
+Definition null_root K V : @root K V := null.
 Section AssocList.
-Variables (K : ordType) (V : Set).
+Variables (K : ordType) (V : Type).
 Notation fmap := (finMap K V).
 Notation nil := (nil K V).
 
@@ -110,6 +121,8 @@ Fixpoint shape_seg' (x y : ptr) (xs : seq (K * V)) : Pred heap :=
 Definition shape_seg (x y : ptr) (s : fmap) : Pred heap :=
   shape_seg' x y (seq_of s).
 
+(* definition that adds dymmy dependence on D *)
+(* to make the module system pass *)
 Definition shape (x : ptr) (s : fmap) : Pred heap :=
   shape_seg x null s.
 
@@ -119,10 +132,10 @@ Lemma shape_null (s : fmap) h :
         h \In shape null s ->
         s = nil /\ h = Unit.
 Proof.
-move=>D; case: s; case=>/=.
+move=>W; case: s; case=>/=.
 - by move=>? [_ ->] //; rewrite fmapE.
 move=>[??]??[?][?][H].
-by rewrite H -!joinA validPtUn in D.
+by rewrite H -!joinA validPtUn in W.
 Qed.
 
 (* non-empty well-formed region represents a non-empty map such that *)
@@ -197,7 +210,8 @@ Qed.
 (* main procedures *)
 
 (* new map is just a null pointer *)
-Program Definition new : STsep (emp, [vfun x => shape x nil]) :=
+Program Definition new : 
+    STsep (emp, [vfun x => shape x nil]) :=
   Do (ret null).
 Next Obligation. by case=>_ /= ->; step. Qed.
 
@@ -218,7 +232,7 @@ Next Obligation.
 (* pull out ghost var, precondition, branch *)
 move=>loop p [fm][] i /= H; case: eqP=>[|/eqP] E.
 (* reached the end, heap must be empty *)
-- by apply: vrfV=>D; step=>_; rewrite E in H; case: (shape_null D H).
+- by apply: vrfV=>W; step=>_; rewrite E in H; case: (shape_null W H).
 (* pull out the head entry *)
 case: (shape_cont E H)=>k[v][q][h][_ _ {i H}-> H].
 (* deallocate it *)
@@ -228,7 +242,6 @@ by apply: [gE (behd fm)].
 Qed.
 
 (* looking up an element in the map *)
-
 
 Definition lookupT k : Type :=
   forall p, STsep {fm} (shape p fm,
@@ -604,30 +617,56 @@ apply/path_supp_ins=>//.
 by apply/path_le/all_path_supp/Of.
 Qed.
 
-(* ordered association list is a dynamic KV map *)
-
-Definition AssocList := DynKVmap.make null new free insert remove lookup.
 End AssocList.
-End DynAssocList.
+End DAList.
+
+(* association list is dynamic KV map *)
+Notation dalist := DAList.root.
+HB.instance Definition _ K V := 
+  isDKVM.Build K V (dalist K V) DAList.null_root 
+     DAList.new DAList.free DAList.insert DAList.remove DAList.lookup.
+
+(***************************************)
+(* Association maps with KVM interface *)
+(***************************************)
 
 (* static variant packages the root pointer *)
 (* with the dynamic part of the structure *)
 
-Module AssocList.
+Module Type AList_sig.
+Parameter root : ordType -> Type -> Set.
+Parameter null_root : forall {K : ordType} {V : Type}, root K V.
+Parameter shape : forall {K : ordType} {V : Type},
+  root K V -> {finMap K -> V} -> Pred heap.
+Parameter new : forall {K : ordType} {V : Type},
+  STsep (emp, [vfun (x : root K V) h => h \In shape x (nil K V)]).
+Parameter free : forall {K : ordType} {V : Type} (x : root K V),
+  STsep {s} (shape x s, [vfun _ : unit => emp]).
+Parameter insert : forall {K : ordType} {V : Type} (x : root K V) k v,
+  STsep {s} (shape x s, [vfun (_ : unit) h => h \In shape x (ins k v s)]).
+Parameter remove : forall {K : ordType} {V : Type} (x : root K V) k,
+   STsep {s} (shape x s, [vfun (_ : unit) h => h \In shape x (rem k s)]).
+Parameter lookup : forall {K : ordType} {V : Type} (x : root K V) k,
+  STsep {s} (shape x s, [vfun y m => m \In shape x s /\ y = fnd k s]).
+End AList_sig.
+
+Module AList : AList_sig.
 Section AssocList.
-Variables (K : ordType) (V : Set).
+Definition root : ordType -> Type -> Set := fun _ _ => ptr.
+Variables (K : ordType) (V : Type).
 Notation fmap := (finMap K V).
 Notation nil := (nil K V).
+Definition null_root : root K V := null.
 
 Definition shape (x : ptr) (f : fmap) : Pred heap := 
-  [Pred h | exists (a : ptr) h', 
-     h = x :-> a \+ h' /\ @DynAssocList.shape K V a f h'].
+  [Pred h | exists (a : dalist K V) h', 
+     h = x :-> a \+ h' /\ dkvm_shape a f h'].
 
 (* new structure, but the root pointer is given *)
 Program Definition new0 (x : ptr) : 
-    STsep {a : ptr} (fun h => h = x :-> a, 
+    STsep {v : dalist K V} (fun h => h = x :-> v, 
                     [vfun _ : unit => shape x nil]) := 
-  Do (a <-- @DynAssocList.new K V;
+  Do (a <-- dkvm_new (dalist K V);
       x ::= a).
 Next Obligation.
 move=>x [a][/= _ ->]; apply: [stepU]=>//= b h H.
@@ -636,7 +675,7 @@ Qed.
 
 Program Definition new : 
     STsep (emp, [vfun x => shape x nil]) := 
-  Do (a <-- @DynAssocList.new K V;
+  Do (a <-- dkvm_new (dalist K V);
       alloc a).
 Next Obligation.
 case=>_ /= ->; apply: [stepU]=>//= a h H.
@@ -645,12 +684,12 @@ Qed.
 
 (* free structure, keep the root pointer *)
 Program Definition free0 x : 
-    STsep {s} (shape x s,
-              [vfun (_ : unit) h => exists a : ptr, h = x :-> a]) := 
+    STsep {s} (shape x s, [vfun (_ : unit) h => 
+               exists a : dalist K V, h = x :-> a]) := 
   Do (a <-- !x;
-      DynAssocList.free K V a).
+      dkvm_free (a : dalist K V)).
 Next Obligation.
-move=>x [fm][/= _ [a][h][-> H]]; step.
+move=>x [fm][/= _ [a][h][-> H]]; step. 
 by apply: [gX fm]@h=>//= _ _ -> _; rewrite unitR; eauto.
 Qed.
 
@@ -659,16 +698,16 @@ Program Definition free x :
               [vfun _ : unit => emp]) := 
   Do (a <-- !x;
       dealloc x;;
-      DynAssocList.free K V a).
+      dkvm_free (a : dalist K V)).
 Next Obligation.
 by move=>x [fm][/= _ [a][h][-> H]]; step; step; apply: [gX fm]@h.
 Qed.
 
 Program Definition insert x k v :
     STsep {s} (shape x s,
-              [vfun _ : unit => shape x (ins k v s)]) := 
+              [vfun (_ : unit) h => h \In shape x (ins k v s)]) := 
   Do (a <-- !x; 
-      y <-- DynAssocList.insert a k v;
+      y <-- dkvm_insert (a : dalist K V) k v;
       x ::= y).
 Next Obligation.
 move=>x k v [fm][/= _ [a][h][-> H]]; step.
@@ -679,7 +718,7 @@ Program Definition remove x k :
     STsep {s} (shape x s,
               [vfun _ : unit => shape x (rem k s)]) := 
   Do (a <-- !x;
-      y <-- DynAssocList.remove V a k;
+      y <-- dkvm_remove (a : dalist K V) k;
       x ::= y).
 Next Obligation.
 move=>x k [fm][/= _ [a][h][-> H]]; step.
@@ -690,13 +729,17 @@ Program Definition lookup x k :
     STsep {s} (shape x s,
               [vfun y m => m \In shape x s /\ y = fnd k s]) := 
   Do (a <-- !x;
-      DynAssocList.lookup V a k).
+      dkvm_lookup (a : dalist K V) k).
 Next Obligation.
 move=>x k [fm][/= _ [a][h][-> H]]; step.
 by apply: [gX fm]@h=>//= y {}h {H}[]; hhauto.
 Qed.
+End AssocList.
+End AList.
 
-(* ordered association list is a KV map *)
-Definition AssocList := KVmap.make null new free insert remove lookup.
-End AssocList.
-End AssocList.
+(* association list is (static) KV map *)
+Notation alist := AList.root.
+HB.instance Definition _ K V := 
+  isKVM.Build K V (alist K V) AList.null_root 
+     AList.new AList.free AList.insert AList.remove AList.lookup.
+
