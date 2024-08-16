@@ -25,10 +25,10 @@ From htt Require Import options model heapauto.
 (* Dynamic KV map is determined by its root pointer(s). *)
 (* Functions such insert and remove may modify *)
 (* the root, and will correspondingly return the new one. *)
-(* Tp is abstracted to facilitate structures that may *)
+(* root is abstracted to facilitate structures that may *)
 (* have more than one root pointers. Also, it enables *)
 (* passing K and V to methods thus reducing annotations *)
-(* There's no deep reason to make tp : Set, except that *)
+(* There's no deep reason to make root : Set, except that *)
 (* it should be thought of a collection of pointers, hence small. *)
 
 HB.mixin Record isDKVM (K : ordType) (V : Type) (root : Set) := {
@@ -38,9 +38,9 @@ HB.mixin Record isDKVM (K : ordType) (V : Type) (root : Set) := {
   dkvm_free : forall x, 
     STsep {s} (dkvm_shape x s, [vfun _ : unit => emp]);
   dkvm_insert : forall x k v, 
-    STsep {s} (dkvm_shape x s,[vfun y => dkvm_shape y (ins k v s)]);
+    STsep {s} (dkvm_shape x s, [vfun y => dkvm_shape y (ins k v s)]);
   dkvm_remove : forall x k, 
-    STsep {s} (dkvm_shape x s,[vfun y => dkvm_shape y (rem k s)]);
+    STsep {s} (dkvm_shape x s, [vfun y => dkvm_shape y (rem k s)]);
   dkvm_lookup : forall x k, 
     STsep {s} (dkvm_shape x s, 
               [vfun y m => m \In dkvm_shape x s /\ y = fnd k s])}.
@@ -53,9 +53,9 @@ Arguments dkvm_new {K V}.
 (* Static KV map (or just KV map) are those that *)
 (* don't need to modify the root pointer. *)
 (* Typical example will be hash tables *)
-(* Another example is a structure obtained by packaing *)
+(* Another example is a structure obtained by packaging *)
 (* the root pointer along with the dynamic KV map that the *)
-(*  root points to. *)
+(* root points to. *)
 
 HB.mixin Record isKVM (K : ordType) (V : Type) (root : Set) := {
   kvm_null : root;
@@ -64,9 +64,9 @@ HB.mixin Record isKVM (K : ordType) (V : Type) (root : Set) := {
   kvm_free : forall x, 
     STsep {s} (kvm_shape x s, [vfun _ : unit => emp]);
   kvm_insert : forall x k v, 
-    STsep {s} (kvm_shape x s,[vfun _ : unit => kvm_shape x (ins k v s)]);
+    STsep {s} (kvm_shape x s, [vfun _ : unit => kvm_shape x (ins k v s)]);
   kvm_remove : forall x k, 
-    STsep {s} (kvm_shape x s,[vfun _ : unit => kvm_shape x (rem k s)]);
+    STsep {s} (kvm_shape x s, [vfun _ : unit => kvm_shape x (rem k s)]);
   kvm_lookup : forall x k, 
     STsep {s} (kvm_shape x s, 
               [vfun y m => m \In kvm_shape x s /\ y = fnd k s])}.
@@ -80,6 +80,7 @@ Arguments kvm_new {K V}.
 (* Association lists with DKVM interface *)
 (*****************************************)
 
+(* module type for making the defs opaque *)
 Module Type DAList_sig.
 Parameter root : ordType -> Type -> Set.
 Section DAlist.
@@ -635,6 +636,7 @@ HB.instance Definition _ K V :=
 (* static variant packages the root pointer *)
 (* with the dynamic part of the structure *)
 
+(* module type for making the defs opaque *)
 Module Type AList_sig.
 Parameter root : ordType -> Type -> Set.
 Section AList.
