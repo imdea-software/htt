@@ -872,7 +872,7 @@ End Invariants.
 (* Verification of the math model *)
 (**********************************)
 
-(* proving properties of the mathematal model *)
+(* proving properties of the mathematical model *)
 
 Section MathModelProofs.
 Variable s : seq constant.
