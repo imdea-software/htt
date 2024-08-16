@@ -50,7 +50,7 @@ examples/hashtab.v
 examples/bubblesort.v
 examples/quicksort.v
 examples/congmath.v
-examples/congprog.v
+#examples/congprog.v
 examples/tree.v
 examples/union_find.v
 examples/graph.v
