@@ -1,5 +1,5 @@
 (*
-Copyright 2010 IMDEA Software Institute
+Copyright 2009 IMDEA Software Institute
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -874,7 +874,7 @@ Proof. by rewrite /CRel !clos_clos !orrA; apply: const_rep. Qed.
 (* table and the pending list all start empty.                          *)
 
 Definition init : data :=
-  Data [ffun x => x] [ffun c => [:: c]] [ffun c => [::]] (nil _ _) [::].
+  Data [ffun x => x] [ffun c => [:: c]] [ffun c => [::]] nil [::].
 
 Lemma initP : propagate_inv init /\ CRel init <~> closure (graph (@const s)).
 Proof.
@@ -1792,3 +1792,6 @@ Add Parametric Morphism s : (@closure s) with
    (fun e1 e2 => e1 <~> e2) as closure_morph'.
 Proof. by apply: closE. Qed.
 
+(* empty congruence only relates constant symbols to themselves *)
+Definition empty_cong s := closure (graph (@const s)).
+Arguments empty_cong : clear implicits.

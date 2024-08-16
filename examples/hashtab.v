@@ -29,26 +29,22 @@ From htt Require Import array kvmaps.
 Module Type Hashtab_sig.
 Parameter root : forall {K : ordType} {V : Type} (buckets : dkvm K V)
   {n : nat} (hash : K -> 'I_n), Set.
-Parameter null_root : forall {K : ordType} {V : Type} {buckets : dkvm K V}
-  {n : nat} {hash : K -> 'I_n}, root buckets hash.
-Parameter shape : forall {K : ordType} {V : Type} {buckets : dkvm K V}
-  {n : nat} {hash : K -> 'I_n}, root buckets hash -> {finMap K -> V} -> 
-  Pred heap.
-Parameter new : forall {K : ordType} {V : Type} {buckets : dkvm K V}
-  {n : nat} {hash : K -> 'I_n}, 
-  STsep (emp, [vfun (x : root buckets hash) h => h \In shape x (nil K V)]).
-Parameter free : forall {K : ordType} {V : Type} {buckets : dkvm K V}
-  {n : nat} {hash : K -> 'I_n} (x : root buckets hash),
+Section HashTab.
+Context {K : ordType} {V : Type} {buckets : dkvm K V}.
+Context {n : nat} {hash : K -> 'I_n}.
+Parameter null_root : root buckets hash.
+Parameter shape : root buckets hash -> {finMap K -> V} -> Pred heap.
+Parameter new : 
+  STsep (emp, [vfun (x : root buckets hash) h => h \In shape x nil]).
+Parameter free : forall x : root buckets hash,
   STsep {s} (shape x s, [vfun _ : unit => emp]).
-Parameter insert : forall {K : ordType} {V : Type} {buckets : dkvm K V}
-  {n : nat} {hash : K -> 'I_n} (x : root buckets hash) k v,
+Parameter insert : forall (x : root buckets hash) k v,
   STsep {s} (shape x s, [vfun (_ : unit) h => h \In shape x (ins k v s)]).
-Parameter remove : forall {K : ordType} {V : Type} {buckets : dkvm K V}
-  {n : nat} {hash : K -> 'I_n} (x : root buckets hash) k,
+Parameter remove : forall (x : root buckets hash) k,
   STsep {s} (shape x s, [vfun (_ : unit) h => h \In shape x (rem k s)]).
-Parameter lookup : forall {K : ordType} {V : Type} {buckets : dkvm K V}
-  {n : nat} {hash : K -> 'I_n} (x : root buckets hash) k,
+Parameter lookup : forall (x : root buckets hash) k,
   STsep {s} (shape x s, [vfun y h => h \In shape x s /\ y = fnd k s]).
+End HashTab.
 End Hashtab_sig.
 
 Module HashTab : Hashtab_sig.
@@ -61,7 +57,6 @@ Context (K : ordType) (V : Type) {buckets : dkvm K V}
         {n : nat} {hash : K -> 'I_n}.
 Notation KVshape := (@dkvm_shape _ _ buckets). 
 Notation table := (table KVshape).
-Notation nil := (nil K V).
 Notation root := (root buckets hash).
 
 (* hash table is specified by a single finMap *)
@@ -80,7 +75,7 @@ Definition shape (x : root) (s : finMap K V) : Pred heap :=
 Definition new_loopinv x := forall k,
   STsep (fun h => k <= n /\ exists tab,
            h \In Array.shape x tab #
-                   sepit [set x:'I_n | x < k] (table tab (fun=> nil)),
+                   sepit [set x:'I_n | x < k] (table tab (fun=>nil)),
         [vfun y => shape y nil]).
 
 Program Definition new : STsep (emp, [vfun y => shape y nil]) :=
@@ -306,7 +301,7 @@ HB.instance Definition _ K V (buckets : dkvm K V) n (hash : K -> 'I_n) :=
      HashTab.new HashTab.free HashTab.insert HashTab.remove HashTab.lookup.
 
 (* htab is specific simple hash tab where buckets are association lists *)
-Definition htab K V n hash := @hashtab K V (dalist K V) n hash.
+Definition htab {K} V {n} hash := @hashtab K V (dalist K V) n hash.
 HB.instance Definition _ K V n hash := KVM.on (@htab K V n hash).
 
 

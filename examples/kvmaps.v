@@ -34,7 +34,7 @@ From htt Require Import options model heapauto.
 HB.mixin Record isDKVM (K : ordType) (V : Type) (root : Set) := {
   dkvm_null : root;
   dkvm_shape : root -> {finMap K -> V} -> Pred heap;
-  dkvm_new : STsep (emp, [vfun x => dkvm_shape x (nil K V)]);
+  dkvm_new : STsep (emp, [vfun x => dkvm_shape x nil]);
   dkvm_free : forall x, 
     STsep {s} (dkvm_shape x s, [vfun _ : unit => emp]);
   dkvm_insert : forall x k v, 
@@ -42,7 +42,8 @@ HB.mixin Record isDKVM (K : ordType) (V : Type) (root : Set) := {
   dkvm_remove : forall x k, 
     STsep {s} (dkvm_shape x s,[vfun y => dkvm_shape y (rem k s)]);
   dkvm_lookup : forall x k, 
-    STsep {s} (dkvm_shape x s, [vfun y m => m \In dkvm_shape x s /\ y = fnd k s])}.
+    STsep {s} (dkvm_shape x s, 
+              [vfun y m => m \In dkvm_shape x s /\ y = fnd k s])}.
 
 #[short(type="dkvm")]
 HB.structure Definition DKVM K V := {root of @isDKVM K V root}.
@@ -59,7 +60,7 @@ Arguments dkvm_new {K V}.
 HB.mixin Record isKVM (K : ordType) (V : Type) (root : Set) := {
   kvm_null : root;
   kvm_shape : root -> {finMap K -> V} -> Pred heap;
-  kvm_new : STsep (emp, [vfun x => kvm_shape x (nil K V)]);
+  kvm_new : STsep (emp, [vfun x => kvm_shape x nil]);
   kvm_free : forall x, 
     STsep {s} (kvm_shape x s, [vfun _ : unit => emp]);
   kvm_insert : forall x k v, 
@@ -67,7 +68,8 @@ HB.mixin Record isKVM (K : ordType) (V : Type) (root : Set) := {
   kvm_remove : forall x k, 
     STsep {s} (kvm_shape x s,[vfun _ : unit => kvm_shape x (rem k s)]);
   kvm_lookup : forall x k, 
-    STsep {s} (kvm_shape x s, [vfun y m => m \In kvm_shape x s /\ y = fnd k s])}.
+    STsep {s} (kvm_shape x s, 
+              [vfun y m => m \In kvm_shape x s /\ y = fnd k s])}.
 
 #[short(type="kvm")]
 HB.structure Definition KVM K V := {root of @isKVM K V root}.
@@ -80,19 +82,20 @@ Arguments kvm_new {K V}.
 
 Module Type DAList_sig.
 Parameter root : ordType -> Type -> Set.
-Parameter null_root : forall {K : ordType} {V : Type}, root K V.
-Parameter shape : forall {K : ordType} {V : Type},
-  root K V -> {finMap K -> V} -> Pred heap.
-Parameter new : forall {K : ordType} {V : Type},
-  STsep (emp, [vfun (x : root K V) h => h \In shape x (nil K V)]). 
-Parameter free : forall {K : ordType} {V : Type} (x : root K V),
+Section DAlist.
+Context {K : ordType} {V : Type}.
+Parameter null_root : root K V.
+Parameter shape : root K V -> {finMap K -> V} -> Pred heap.
+Parameter new : STsep (emp, [vfun (x : root K V) h => h \In shape x nil]). 
+Parameter free : forall x : root K V,
   STsep {s} (shape x s, [vfun _ : unit => emp]).
-Parameter insert : forall {K : ordType} {V : Type} (x : root K V) k v,
+Parameter insert : forall (x : root K V) k v,
   STsep {s} (shape x s, [vfun (y : root K V) h => h \In shape y (ins k v s)]).
-Parameter remove : forall {K : ordType} {V : Type} (x : root K V) k,
+Parameter remove : forall (x : root K V) k,
    STsep {s} (shape x s, [vfun (y : root K V) h => h \In shape y (rem k s)]).
-Parameter lookup : forall {K : ordType} {V : Type} (x : root K V) k,
+Parameter lookup : forall (x : root K V) k,
   STsep {s} (shape x s, [vfun y m => m \In shape x s /\ y = fnd k s]).
+End DAlist.
 End DAList_sig.
 
 Module DAList : DAList_sig.
@@ -101,7 +104,6 @@ Definition null_root K V : @root K V := null.
 Section AssocList.
 Variables (K : ordType) (V : Type).
 Notation fmap := (finMap K V).
-Notation nil := (nil K V).
 
 (* single entry of the map as a triple of heap cells *)
 Definition entry (p q : ptr) (k : K) (v : V) : heap :=
@@ -635,19 +637,20 @@ HB.instance Definition _ K V :=
 
 Module Type AList_sig.
 Parameter root : ordType -> Type -> Set.
-Parameter null_root : forall {K : ordType} {V : Type}, root K V.
-Parameter shape : forall {K : ordType} {V : Type},
-  root K V -> {finMap K -> V} -> Pred heap.
-Parameter new : forall {K : ordType} {V : Type},
-  STsep (emp, [vfun (x : root K V) h => h \In shape x (nil K V)]).
-Parameter free : forall {K : ordType} {V : Type} (x : root K V),
+Section AList.
+Context {K : ordType} {V : Type}.
+Parameter null_root : root K V.
+Parameter shape : root K V -> {finMap K -> V} -> Pred heap.
+Parameter new : STsep (emp, [vfun (x : root K V) h => h \In shape x nil]).
+Parameter free : forall (x : root K V),
   STsep {s} (shape x s, [vfun _ : unit => emp]).
-Parameter insert : forall {K : ordType} {V : Type} (x : root K V) k v,
+Parameter insert : forall (x : root K V) k v,
   STsep {s} (shape x s, [vfun (_ : unit) h => h \In shape x (ins k v s)]).
-Parameter remove : forall {K : ordType} {V : Type} (x : root K V) k,
+Parameter remove : forall (x : root K V) k,
    STsep {s} (shape x s, [vfun (_ : unit) h => h \In shape x (rem k s)]).
-Parameter lookup : forall {K : ordType} {V : Type} (x : root K V) k,
+Parameter lookup : forall (x : root K V) k,
   STsep {s} (shape x s, [vfun y m => m \In shape x s /\ y = fnd k s]).
+End AList.
 End AList_sig.
 
 Module AList : AList_sig.
@@ -655,7 +658,6 @@ Section AssocList.
 Definition root : ordType -> Type -> Set := fun _ _ => ptr.
 Variables (K : ordType) (V : Type).
 Notation fmap := (finMap K V).
-Notation nil := (nil K V).
 Definition null_root : root K V := null.
 
 Definition shape (x : ptr) (f : fmap) : Pred heap := 
@@ -742,4 +744,3 @@ Notation alist := AList.root.
 HB.instance Definition _ K V := 
   isKVM.Build K V (alist K V) AList.null_root 
      AList.new AList.free AList.insert AList.remove AList.lookup.
-

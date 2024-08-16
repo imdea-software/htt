@@ -1190,8 +1190,8 @@ Notation "[ 'ffun' x : aT => E ]" := (finfun (fun x : aT => E))
 Notation "[ 'ffun' x => E ]" := (@finfun _ (fun=> _) (fun x => E))
   (at level 0, x name, format "[ 'ffun'  x  =>  E ]") : fun_scope.
 
-Notation "['ffun' => E ]" := [ffun _ => E]
-  (at level 0, format "['ffun' =>  E ]") : fun_scope.
+Notation "[ 'ffun' => E ]" := [ffun _ => E]
+  (at level 0, format "[ 'ffun'  =>  E ]") : fun_scope.
 
 Section IteratedNotation.
 Variables (T : finType) (Us : T -> Type).

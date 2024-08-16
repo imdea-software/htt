@@ -115,12 +115,13 @@ Definition cosupp s := map value (seq_of s).
 
 End Ops.
 
-Prenex Implicits fnd ins rem supp.
+Arguments nil {K V}.
+Prenex Implicits fnd ins rem supp nil.
 
 Section Laws.
 Variables (K : ordType) (V : Type).
 Notation fmap := (finMap K V).
-Notation nil := (nil K V).
+Notation nil := (@nil K V).
 
 (* `path_le` specialized to `transitive ord` *)
 Lemma ord_path (x y : K) s : 
@@ -472,7 +473,7 @@ End Laws.
 Section Append.
 Variable (K : ordType) (V : Type).
 Notation fmap := (finMap K V).
-Notation nil := (nil K V).
+Notation nil := (@nil K V).
 
 Lemma seqof_ins k v (s : fmap) :
         path ord k (supp s) -> seq_of (ins k v s) = (k, v) :: seq_of s.
@@ -515,7 +516,8 @@ Qed.
 
 (* forward induction principle *)
 Lemma fmap_ind' (P : fmap -> Prop) :
-        P nil -> (forall k v s, path ord k (supp s) -> P s -> P (ins k v s)) ->
+        P nil -> 
+        (forall k v s, path ord k (supp s) -> P s -> P (ins k v s)) ->
         forall s, P s.
 Proof.
 move=>H1 H2; case; elim=>[|[k v] s IH] /= H.
@@ -546,7 +548,6 @@ rewrite (_ : FinMap _ = ins k v (FinMap S)).
 - by apply: H2 (IH _)=>x /T.
 by rewrite fmapE /= first_ins'.
 Qed.
-
 
 Fixpoint fcat' (s1 : fmap) (s2 : seq (K * V)) {struct s2} : fmap :=
   if s2 is (k, v)::t then fcat' (ins k v s1) t else s1.
@@ -684,7 +685,7 @@ End FMapInd.
 Section Filtering.
 Variables (K : ordType) (V : Type).
 Notation fmap := (finMap K V).
-Notation nil := (nil K V).
+Notation nil := (@nil K V).
 
 Definition kfilter' (p : pred K) (s : fmap) :=
   filter (fun kv => p kv.1) (seq_of s).
@@ -788,7 +789,7 @@ End Filtering.
 Section DisjointUnion.
 Variable (K : ordType) (V : Type).
 Notation fmap := (finMap K V).
-Notation nil := (nil K V).
+Notation nil := (@nil K V).
 
 Definition disj (s1 s2 : fmap) :=
   all (predC (fun x => x \in supp s2)) (supp s1).
@@ -860,7 +861,9 @@ case: (k \in supp s2)=>//=; first by rewrite andbF.
 by rewrite -!(disjC s) IH.
 Qed.
 
-Lemma fcatC (s1 s2 : fmap) : disj s1 s2 -> fcat s1 s2 = fcat s2 s1.
+Lemma fcatC (s1 s2 : fmap) : 
+        disj s1 s2 -> 
+        fcat s1 s2 = fcat s2 s1.
 Proof.
 rewrite /fcat.
 elim/fmap_ind': s2 s1=>[|k v s2 L IH] s1 /=; first by rewrite fcat_nil'.
@@ -869,7 +872,8 @@ by rewrite fcat_ins' // -IH  // seqof_ins //= -fcat_ins' ?notin_path.
 Qed.
 
 Lemma fcatA (s1 s2 s3 : fmap) :
-        disj s2 s3 -> fcat (fcat s1 s2) s3 = fcat s1 (fcat s2 s3).
+        disj s2 s3 -> 
+        fcat (fcat s1 s2) s3 = fcat s1 (fcat s2 s3).
 Proof.
 move=>H.
 elim/fmap_ind': s3 s1 s2 H=>[|k v s3 L IH] s1 s2 /=; first by rewrite !fcats0.
@@ -901,7 +905,8 @@ by apply: cancel_ins H5; rewrite supp_fcat negb_or /= ?H1?H3 H.
 Qed.
 
 Lemma fcatKs (s s1 s2 : fmap) :
-        disj s s1 && disj s s2 -> fcat s s1 = fcat s s2 -> s1 = s2.
+        disj s s1 && disj s s2 -> 
+        fcat s s1 = fcat s s2 -> s1 = s2.
 Proof.
 case/andP=>H1 H2.
 rewrite (fcatC H1) (fcatC H2); apply: fcatsK.
@@ -1012,7 +1017,7 @@ Lemma mapf_fcat s1 s2 : mapf (fcat s1 s2) = fcat (mapf s1) (mapf s2).
 Proof.
 elim/fmap_ind': s2 s1=>[|k v s2 H IH] s1 /=.
 - rewrite fcats0; set j := FinMap _.
-  by rewrite (_ : j = nil K V) ?fcat0s //; apply/fmapE.
+  by rewrite (_ : j = @nil K V) ?fcat0s //; apply/fmapE.
 by rewrite fcat_sins mapf_ins IH -fcat_sins mapf_ins.
 Qed.
 
@@ -1041,26 +1046,25 @@ Variables (A B: ordType) (V C: Type).
 Definition foldfmap g (e: C) (s: finMap A V) :=
   foldr g e (seq_of s).
 
-
 Lemma foldf_nil g e : foldfmap g e (@nil A V) = e.
 Proof. by rewrite /foldfmap //=. Qed.
 
 Lemma foldf_ins g e k v f:
-  path ord k (supp f) ->
-  foldfmap g e (ins k v f) = g (k, v) (foldfmap g e f).
+        path ord k (supp f) ->
+        foldfmap g e (ins k v f) = g (k, v) (foldfmap g e f).
 Proof. by move=> H; rewrite /foldfmap //= seqof_ins //. Qed.
 End FoldFMap.
 
 Section KeyMap.
 
 Section MapDef.
-Variables (A B: ordType) (V : Type).
+Variables (A B : ordType) (V : Type).
 
 Variable (f: A -> B).
 Hypothesis Hf : forall x y, strictly_increasing f x y.
 
 Definition mapk (m : finMap A V) : finMap B V :=
-  foldfmap (fun p s => ins (f (key p)) (value p) s) (nil B V) m.
+  foldfmap (fun p s => ins (f (key p)) (value p) s) nil m.
 
 (* mapK preserves sorted *)
 
@@ -1076,17 +1080,18 @@ rewrite {1}/supp //= {1}seqof_ins // /= => /andP [H]; move/IH=>H1.
 by rewrite /mapk foldf_ins // /supp /= seqof_ins //= H1 andbT (Hf H).
 Qed.
 
-Lemma mapk_nil : mapk (nil A V) = nil B V.
+Lemma mapk_nil : mapk (@nil A V) = @nil B V.
 Proof. by rewrite /mapk //=. Qed.
 
 Lemma mapk_ins k v s :
-   path  ord k (supp s) ->
-  mapk (ins k v s) = ins (f k) v (mapk s).
+        path  ord k (supp s) ->
+        mapk (ins k v s) = ins (f k) v (mapk s).
 Proof. by move=> H; rewrite /mapk foldf_ins =>//. Qed.
 End MapDef.
+
 Arguments mapk {A B V} f m.
 
-Variables (A B C : ordType)(V : Type)(f : A -> B) (g : B -> C).
+Variables (A B C : ordType) (V : Type) (f : A -> B) (g : B -> C).
 Hypothesis Hf : forall x y, strictly_increasing f x y.
 
 Lemma mapk_id m : @mapk A A V id m = m.
@@ -1312,7 +1317,7 @@ case: eqP=>/=; last by case: eqP=>// _ _; apply: IH.
 by move=>->{k1}; rewrite eq_refl; case=><- [<-].
 Qed.
 
-Lemma zunit0 : zip_unit (nil K V) = nil K V.
+Lemma zunit0 : zip_unit (@nil K V) = @nil K V.
 Proof. by apply/fmapE. Qed.
 
 Lemma zunit_ins f k v : 
@@ -1329,7 +1334,7 @@ Lemma zunit_fcat f1 f2 :
 Proof.
 elim/fmap_ind': f2 f1=>[|k v f2 H IH] f1 /=.
 - rewrite fcats0; set j := FinMap _.
-  by rewrite (_ : j = nil K V) ?fcat0s //; apply/fmapE.
+  by rewrite (_ : j = @nil K V) ?fcat0s //; apply/fmapE.
 by rewrite fcat_sins zunit_ins IH -fcat_sins zunit_ins.
 Qed.
 

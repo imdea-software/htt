@@ -177,7 +177,7 @@ Qed.
 
 Definition valid f := if f is Def _ _ then true else false.
 
-Definition empty := @Def (finmap.nil K V) is_true_true.
+Definition empty := @Def (@finmap.nil K V) is_true_true.
 
 Definition upd k v f :=
   if f is Def fs fpf then
@@ -536,7 +536,7 @@ Abort.
 Lemma xx (x : umap nat nat) : x \+ x == x \+ x. 
 Abort.
 
-(* can i store maps into maps without universe inconsistencies? *)
+(* can maps be stored into maps without universe inconsistencies? *)
 (* yes, the idea of the class works *)
 Lemma xx : 1 \\-> (1 \\-> 3) = 2 \\-> (7 \\-> 3). 
 Abort.
@@ -6773,6 +6773,13 @@ move/(big_find_some (dom_valid (find_some E1)) (or_introl erefl)).
 by rewrite E1; case=>->; exists x=>//; rewrite InE; left.
 Qed.
 
+Lemma big_find_someXP (xs : seq I) P a v :
+        find a (\big[join/Unit]_(i <- xs | P i) f i) = Some v ->
+        exists i, [/\ i \In xs, P i & find a (f i) = Some v].
+Proof.
+by rewrite -big_filter=>/big_find_someX [i] /Mem_filter [H1 H2 H3]; exists i.
+Qed.
+
 Lemma bigIn (xs : seq I) a i v :
         valid (\big[join/Unit]_(i <- xs) f i) ->
         i \In xs ->
@@ -6792,10 +6799,15 @@ Lemma bigInX (xs : seq I) a v :
         exists2 i, i \In xs & (a, v) \In f i.
 Proof. by case/In_find/big_find_someX=>x X /In_find; exists x. Qed.
 
+Lemma bigInXP (xs : seq I) P a v :
+        (a, v) \In \big[join/Unit]_(i <- xs | P i) f i ->
+        exists i, [/\ i \In xs, P i & (a, v) \In f i].
+Proof. by case/In_find/big_find_someXP=>x [X1 X2 /In_find]; exists x. Qed.
+
 End BigOpsUM.
 
 Prenex Implicits big_find_some big_find_someD.
-Prenex Implicits big_find_someX bigIn bigInD bigInX.
+Prenex Implicits big_find_someX big_find_someXP bigIn bigInD bigInX bigInXP.
 
 (* if the index type is eqtype, we can have a somewhat better *)
 (* big validity lemma *)
@@ -6881,6 +6893,24 @@ Lemma big_dom_seq (xs : seq I) :
 Proof. by move=>x; rewrite big_valid_dom_seq. Qed.
 
 End BigCatSeqUM.
+
+Section OMapBig.
+Variables (K : ordType) (C : pred K) (T T' : Type).
+Variables (U : union_map C T) (U' : union_map C T').
+Variables (I : Type) (f : I -> U).
+
+Lemma big_omapVUn (a : K * T -> option T') ts :
+        omap a (\big[join/Unit]_(x <- ts) f x) =
+        if valid (\big[join/Unit]_(x <- ts) f x)
+        then \big[join/Unit]_(x <- ts) omap a (f x)
+        else undef : U'.
+Proof.
+elim: ts=>[|t ts IH]; first by rewrite !big_nil omap0 valid_unit.
+by rewrite !big_cons omapVUn IH; case: ifP=>// /validR ->.
+Qed.
+
+End OMapBig.
+
 
 (* DEVCOMMENT: *)
 (*   remove "tests" for release *)

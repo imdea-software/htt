@@ -17,57 +17,11 @@ From pcm Require Import options axioms pred seqext.
 From pcm Require Import prelude pcm unionmap natmap heap autopcm automap.
 From htt Require Import options model heapauto tree.
 
-(* TODO: remove these after upgrading FCSL-PCM to 1.9+ *)
-Corollary foldr_join A (U : pcm) h (s : seq A) (a : A -> U):
-        foldr (fun t h => h \+ a t) h s =
-        h \+ foldr (fun t h => h \+ a t) Unit s.
-Proof.
-apply/esym/fusion_foldr; last by rewrite unitR.
-by move=>x y; rewrite joinA.
-Qed.
-
-Section BigOpsUM.
-Variables (K : ordType) (C : pred K) (T : Type).
-Variables (U : union_map C T).
-Variables (I : Type) (f : I -> U).
-
-Lemma big_find_someXP (xs : seq I) P a v :
-        find a (\big[join/Unit]_(i <- xs | P i) f i) = Some v ->
-        exists i, [/\ i \In xs, P i & find a (f i) = Some v].
-Proof.
-by rewrite -big_filter=>/big_find_someX [i] /Mem_filter [H1 H2 H3]; exists i.
-Qed.
-
-Lemma bigInXP (xs : seq I) P a v :
-        (a, v) \In \big[join/Unit]_(i <- xs | P i) f i ->
-        exists i, [/\ i \In xs, P i & (a, v) \In f i].
-Proof. by case/In_find/big_find_someXP=>x [X1 X2 /In_find]; exists x. Qed.
-
-End BigOpsUM.
-
-Section OMapBig.
-Variables (K : ordType) (C : pred K) (T T' : Type).
-Variables (U : union_map C T) (U' : union_map C T').
-Variables (I : Type) (f : I -> U).
-
-Lemma omapVUnBig (a : K * T -> option T') ts :
-        omap a (\big[join/Unit]_(x <- ts) f x) =
-        if valid (\big[join/Unit]_(x <- ts) f x)
-          then \big[join/Unit]_(x <- ts) omap a (f x)
-          else undef : U'.
-Proof.
-elim: ts=>[|t ts IH]; first by rewrite !big_nil omap0 valid_unit.
-by rewrite !big_cons omapVUn IH; case: ifP=>// /validR ->.
-Qed.
-
-End OMapBig.
-
 (**************)
 (**************)
 (* Union-find *)
 (**************)
 (**************)
-
 
 (******************)
 (* inverted trees *)
@@ -263,7 +217,8 @@ Lemma In_tsetP x r t:
         reflect ((x, r) \In tset t (rt t))
                 [&& valid (tset t (rt t)), x \in t & r == rt t].
 Proof.
-apply/(iffP idP); rewrite In_find find_tset; first by case/and3P=>->-> /eqP ->.
+apply/(iffP idP); rewrite In_find find_tset.
+- by case/and3P=>->-> /eqP ->.
 by case: ifP=>// /andP [->->][->] /=.
 Qed.
 
@@ -364,11 +319,13 @@ Proof. by move=>V; rewrite range_fsetE V inE. Qed.
 
 
 Lemma valid_fset_tset (ts : seq (tree ptr)) :
-        valid (fset ts) -> {in ts, forall i, valid (tset i (rt i))}.
+        valid (fset ts) -> 
+        {in ts, forall i, valid (tset i (rt i))}.
 Proof. by move=>+ i Hi; rewrite fsetE big_valid_seq=>/andP [/allP /(_ i Hi)]. Qed.
 
 Lemma valid_flay_tlay (ts : seq (tree ptr)) :
-        valid (flay ts) -> {in ts, forall i, valid (tlay i (rt i))}.
+        valid (flay ts) -> 
+        {in ts, forall i, valid (tlay i (rt i))}.
 Proof. by move=>+ i Hi; rewrite flayE big_valid_seq=>/andP [/allP /(_ i Hi)]. Qed.
 
 Lemma dom_flay (ts : seq (tree ptr)) x :
@@ -512,7 +469,6 @@ apply/In_fsetP; rewrite Vs; apply/hasP; exists j=>//.
 by rewrite P E (flay_mem_eq V Xi Ti Xj Tj) eqxx.
 Qed.
 
-
 Lemma froot_loop x r ts :
         (x, r) \In fset ts ->
         find x (flay ts) = Some (idyn x) ->
@@ -522,7 +478,7 @@ elim: ts r=>[|t ts IH] r //= /In_find H1 H2.
 move: (dom_valid (find_some H1)) (dom_valid (find_some H2))=>V1 V2.
 move: H1 H2; rewrite !findUnL ?(dom_tset,dom_tlay,validL V1,validL V2) //.
 case A: (x \in t).
-  rewrite find_tset ifT; first by case=>E; move/tlay_rt_loop=>K; rewrite K -E.
+- rewrite find_tset ifT; first by case=>E; move/tlay_rt_loop=>K; rewrite K -E.
   apply/andP; split=>//; first by apply: validL V1.
 by rewrite -In_find; apply: IH.
 Qed.
@@ -562,12 +518,10 @@ Lemma change_tset ta a b:
         mapv [fun v => v with a |-> b] (tset ta a) = tset ta b.
 Proof.
 elim/tree_ind2: ta a=>c ts IH a //; rewrite !tsetE /= => V.
-rewrite omapVUn omapPt /= eq_refl omapVUnBig !(validX V).
+rewrite omapVUn omapPt /= eq_refl big_omapVUn !(validX V).
 congr (_ \+ _); apply: eq_big_seq=>i /[dup] K /mem_seqP K'.
 by rewrite IH // (big_validV (validX V) K').
 Qed.
-
-
 
 (*******************)
 (* Shape predicate *)
@@ -581,6 +535,7 @@ Proof. by case=>ts [->->]; rewrite valid_flay_fset=>/andP []. Qed.
 (*******)
 (* NEW *)
 (*******)
+
 (* Creates a new equivalence class with a single element *)
 
 Program Definition newT :
@@ -596,13 +551,12 @@ Qed.
 (********)
 (* FIND *)
 (********)
+
 (* Returns the canonical representative of the equivalence class of an element*)
 
 Definition find_tp (x : ptr) :=
   STsep {rs r} (fun h => shape rs h /\ (x, r) \In rs,
                 [vfun res h => shape rs h /\ res = r]).
-
-
 
 Program Definition find1 (x : ptr) : find_tp x :=
   Do (let root := ffix (fun (go : forall x, find_tp x) (x : ptr) =>
@@ -626,13 +580,13 @@ Qed.
 (*********)
 (* UNION *)
 (*********)
+
 (* Joins the equivalence classes of the two arguments *)
 
 Definition union_tp (x y : ptr) := STsep {rx ry m}
    (fun h => [/\ shape m h, (x, rx) \In m & (y, ry) \In m],
    [vfun res h => shape (mapv [fun v => v with rx |-> ry] m) h /\
                         res = ry]).
-
 
 Program Definition union (x y : ptr) : union_tp x y :=
   Do (x_rt <-- find1 x;

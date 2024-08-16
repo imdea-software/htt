@@ -1,3 +1,16 @@
+(*
+Copyright 2009 IMDEA Software Institute
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*)
+
 From HB Require Import structures.
 From mathcomp Require Import ssreflect ssrbool ssrnat eqtype ssrfun.
 From mathcomp Require Import div finset seq fintype finfun choice.
@@ -23,137 +36,6 @@ From htt Require Import kvmaps hashtab congmath.
 Notation finE := finset.inE.
 
 Prenex Implicits sepit.
-Arguments nil {K V}.
-
-From mathcomp Require Import bigop.
-From Coq Require Import Setoid.
-Prenex Implicits star.
-
-Add Parametric Morphism U : (@star U) with signature
- @Eq_Pred _ _ ==> @Eq_Pred _ _ ==> @Eq_Pred _ _ as star_morph.
-Proof.
-move=>x y E x1 y1 E1 m /=.
-split; case=>h1 [h2][-> H1 H2]; exists h1, h2; split=>//.
-  by apply/E. by apply/E1.
-  by apply/E. by apply/E1.
-Qed.
-
-Lemma sepit0' (U : pcm) A (f : A -> Pred U) : 
-        IterStar.sepit [::] f <~> emp.
-Proof. exact: IterStar.sepit0. Qed.
-
-Lemma sepit_cons' (U : pcm) A x (s : seq A) (f : A -> Pred U) : 
-        IterStar.sepit (x :: s) f <~> 
-        f x # IterStar.sepit s f.
-Proof. exact: IterStar.sepit_cons. Qed.
-
-Lemma sepitX (U : pcm) A (s : seq A) (f : A -> Pred U) : 
-         IterStar.sepit s f <~>
-         \big[star/emp]_(i <- s) f i.
-Proof. 
-elim: s=>[|x s IH]. 
-- rewrite sepit0'. rewrite big_nil. by [].
-rewrite sepit_cons'.
-rewrite big_cons. 
-move=>m. 
-split; case=>h1 [h2][Em H1 H2]; exists h1, h2; split=>//.
-- by rewrite -IH. 
-by rewrite IH.
-Qed.
-
-Lemma Iter_sepit0 (U : pcm) A (f : A -> Pred U) : 
-        IterStar.sepit [::] f <~> emp.
-Proof. by rewrite sepitX big_nil. Qed.
-
-Lemma sepit_cons (U : pcm) A x (s : seq A) (f : A -> Pred U) : 
-        IterStar.sepit (x::s) f <~> f x # IterStar.sepit s f.
-Proof. by rewrite sepitX big_cons sepitX. Qed.
-
-(* U has the laws of commutative monoids from bigop *)
-(* but doesn't really, as it's up to extensional equality *)
-Lemma starA (U : pcm) (x y z : Pred U) : 
-        x # y # z <~> (x # y) # z.
-Proof.
-move=>m /=; split; case=>h1 [h2][H1 H2].
-- case=>h3 [h4][H3 H4 H5]. 
-  subst h2.
-  eexists (h1 \+ h3), h4.  rewrite -joinA. split=>//.
-  by exists h1, h3. 
-case: H2=>h3 [h4][? H2 H3 H4]. subst h1.
-exists h3, (h4 \+ h2). rewrite joinA. split=>//.
-by exists h4, h2.
-Qed.
-
-Lemma starC (U : pcm) (x y : Pred U) : 
-        x # y <~> y # x.
-Proof.
-move=>m /=.
-split.
-- case=>h1 [h2][H H1 H2].
-  exists h2, h1. rewrite joinC. by [].
-case=>h1 [h2][H H1 H2].
-exists h2, h1. by rewrite joinC.
-Qed.
-
-Lemma starL (U : pcm) (x : Pred U) : 
-        emp # x <~> x.
-Proof.
-move=>m /=.
-split.
-- case=>h1 [h2][->->]. rewrite unitL. by [].
-move=>H.
-exists Unit, m. rewrite unitL. by [].
-Qed.
-
-Lemma starR (U : pcm) (x : Pred U) : 
-        x # emp <~> x.
-Proof. by rewrite starC starL. Qed.
-
-(*
-HB.instance Definition _ (U : pcm) := 
-  Monoid.isComLaw.Build (Pred U) emp (@star U) (@starA U) (@starC U) (@starL U).
-*)
-
-Lemma big_sepit_seq (U : pcm) A (s : seq A) (f : A -> U) m : 
-        m = \big[join/Unit]_(i <- s) f i  <->
-        m \In IterStar.sepit s (fun i h => h = f i).
-Proof.
-rewrite sepitX.
-elim: s m=>[|x xs IH] /= m.
-- by rewrite !big_nil.
-rewrite !big_cons. 
-split.
-- move=>E. rewrite InE. exists (f x), (\big[join/Unit]_(j <- xs) f j).
-  split=>//. rewrite -IH. by [].
-case=>h1 [h2][Em H1 H2]. rewrite -toPredE /= in H1.
-rewrite Em H1.  
-congr (_ \+ _).
-by rewrite IH.
-Qed.
-
-Lemma Iter_sepit_emp (U : pcm) (A : eqType) (s : seq A) (f : A -> Pred U) : 
-         (forall x, x \in s -> f x <~> emp (U:=U)) -> 
-         IterStar.sepit s f <~> emp.
-Proof.
-move=>H. 
-rewrite sepitX.
-elim: s H=>[|a xs IH] H.
-- by rewrite big_nil.
-rewrite big_cons.
-rewrite H; last by rewrite inE eqxx.
-rewrite starL IH //.  
-move=>x X. apply: H.
-by rewrite inE X orbT.
-Qed.
-
-
-Lemma big_sepit (U : pcm) (I : finType) (s : {set I}) (f : I -> U) m : 
-        m = \big[join/Unit]_(i in s) (f i) <->
-        m \In sepit s (fun i h => h = f i).
-Proof. by rewrite /sepit /= -big_sepit_seq -big_enum. Qed.
-
-(* empty congruence only relates constant symbols to themselves *)
-Definition empty_cong s := closure (graph (@const s)).
 
 (*************)
 (* Signature *)
@@ -295,8 +177,8 @@ Program Definition init :
       htb <-- kvm_new (htab V hash10);
       p <-- alloc null;
       ret (Ptrs rx cl ul htb p)).
-Next Obligation. 
-case=>i [pf][/= f][hc][hct][->{i} Hc Hct].
+Next Obligation.   
+move=>_ cl loop k [i][pf][/= f][hc][hct][->{i} Hc Hct].
 case: decP=>[{}pf|] /=; last first.
 - case: (ltngtP k n) pf=>// Ekn _ _; step=>_.
   exists f, hc, hct; split=>//. 
@@ -313,20 +195,20 @@ apply: tableP2 Hct=>// a.
 - by rewrite !finE ltnS indx_injE; case: ltngtP.
 by rewrite !finE !ffunE indx_injE; case: eqP=>// ->; rewrite ltnn.
 Qed.
-Next Obligation.
-case=>_ ->; apply: [stepE]=>//= rx hr Er; apply: [stepU]=>//= cl hc Ec.
+Next Obligation. 
+case=>_ ->; apply: [stepE]=>//= rx hr Er; apply: [stepU]=>//= cl hc Ec. 
 apply: [stepX]@hc=>//=.
 - split=>//; exists [ffun x => null], hc, Unit; rewrite unitR.
   by split=>//; rewrite (_ : [set c | indx c < 0] = set0) // sepit0.
 case=>_ [f][hc'][hrest][-> Hc' Hrest].
 apply: [stepU]=>//= ul hu Ehu; apply: [stepU]=>//= htb ht Ht.
-set d := Data [ffun x => x] [ffun c => [:: c]] [ffun c => [::]] (@nil K V) [::].
+set d := Data [ffun x => x] [ffun c => [:: c]] [ffun c => [::]] (@nil K V) [::]. 
 step=>px; step; exists d; split; last by case: (initP s).
 split=>[a b|/=]; first by rewrite !ffunE !inE. 
 exists f, [ffun s => null].
 rewrite (_ : px :-> null \+ _ = hr \+ ((hc' \+ hrest) \+ (hu \+ Unit \+ 
   (ht \+ (px :-> null \+ Unit))))); last by rewrite unitR; heap_congr. 
-hhauto; rewrite /sepit Iter_sepit_emp // => k.
+hhauto; rewrite /sepit sepitseq_emp // => k.
 by rewrite /utab/table !ffunE; split=>//; case=>_ ->.
 Qed.
 
@@ -374,7 +256,7 @@ Program Definition join_hclass (a' b' : symb) :
               Array.write r s b';;
               loop tt)) tt).
 Next Obligation.
-case=>[[[/= d ct] ut]][i][H N] /=.
+move=>a' b' loop [][[[/= d ct] ut]][i][H N] /=.
 case: H=>/= rh [_][->{i} Rh][_][h][->][th][ctx][->] Th Ctx H. 
 rewrite (sepitT1 a') in Ctx; case: Ctx=>cta [w][->{ctx}Cta].
 rewrite (sepitS b') !finE eq_sym {1}N /=.  
@@ -419,7 +301,7 @@ case: (x =P a')=>// _; case: (x =P b')=>// _.
 by rewrite Eca rev_cons cat_rcons.
 Qed.
 Next Obligation.
-case=>d [i][[C]][/= ct][ut H] N.
+move=>a' b' [d][i][[C]][/= ct][ut H] N.
 apply: [gE (d, ct, ut)]=>//= [[m]][ct1][ut1] W _. 
 set d' := (Data _ _ _ _ _) in W; suff E : join_class d a' b' = d'.
 - by split; [apply: join_class_classP|rewrite E; eauto].
@@ -459,7 +341,7 @@ Program Definition join_huse (a' b' : symb) :
                Array.write ulist b' a;;
                loop tt)) tt).
 Next Obligation.
-case=>[/= d][i][don][N][H Eu].
+move=>a' b' loop [][/= d][i][don][N][H Eu].
 set d1 := join_use' d a' b' don in H Eu.  
 case: H=>C [/= ct][ut][rh][_][->{i} Rh][cth][_][-> Htc][_][_][->]
 [ru][hu][-> Ut Hu][ht][_][-> Ht][p'][_][hp][->-> Hp]. 
@@ -521,7 +403,7 @@ apply: tableP R=>a /=; rewrite !finE andbT /ut3/ut2 !ffunE /= ?ffunE /=;
 by case/andP=>/negbTE -> /negbTE ->.
 Qed.
 Next Obligation.
-by case=>d [i][N H]; apply: [gE d]=>[||??[]] //; exists [::]. 
+by move=>a' b' [d][i][N H]; apply: [gE d]=>[||??[]] //; exists [::]. 
 Qed.
 
 Definition pT : Type := forall x : unit,
@@ -552,7 +434,7 @@ Program Definition hpropagate :=
                join_huse a' b';;
                loop tt)) tt.
 Next Obligation.
-case=>/= d [i][C][/= ct][ut][hr][_][-> Hr][hc][_][-> Hc]
+move=>loop [[d]][i][C][/= ct][ut][hr][_][-> Hr][hc][_][-> Hc]
 [hu][_][-> Hu][ht][_][-> Ht][q][_][hp][->] -> Hp.
 step; case: (q =P null) Hp=>[->{q}|/eqP N] Hp.
 - apply: vrfV=>V; case/(lseq_null (validX V)): Hp=>{V} Ep /= ->{hp}.
@@ -611,7 +493,7 @@ Program Definition merge (e : Eq s) :
             Array.write ulist c2' x)
    end.
 Next Obligation.
-case=>R [_][d][[C]][/= ct][ut][hr][_][-> Hr][hc][_][-> Hc][_][_]
+move=>e a b [R][_][d][[C]][/= ct][ut][hr][_][-> Hr][hc][_][-> Hc][_][_]
 [->][hu][hu'][-> Hu Hu'][ht][_][-> Ht][q][_][hp][->] -> Hp [PI][Ep Erel].
 step; apply: [stepX (pending d)]@hp=>//= x _ [r0][{Hp}hp][-> Hp].
 set d1:=Data (rep d) (class d) (use d) (lookup d) (simp_pend a b :: pending d).
@@ -627,7 +509,7 @@ case: (propagatePE L)=>L1 [L2 L3]; exists (propagate d1); do 3!split=>//.
 by rewrite -L3 -Erel clos_clos /CRel -!orrA orrAC.
 Qed.
 Next Obligation.
-case=>R [_][d][[C]][/= ct][ut][hr][_][-> Hr][hc][_][-> H]
+move=>e c c1 c2 [R][_][d][[C]][/= ct][ut][hr][_][-> Hr][hc][_][-> H]
 [_][_][->][hu][hu'][-> Hu Hu'][ht][_][-> Ht][q][_]
 [hp][->] -> Hp [PI][Ep Erel]; set cx := (c, c1, c2).
 apply: [stepX rep d, hr]@hr=>//= _ _ [->->].
@@ -716,7 +598,7 @@ Program Definition hnorm :=
             else ret (app u1 u2)
         end)).
 Next Obligation.
-case=>d [_][Ci][/= ct][ut][hr][hrest][-> Hr Hrest].
+move=>hnorm t [d][_][Ci][/= ct][ut][hr][hrest][-> Hr Hrest].
 case: t=>[a|t1 t2].
 - apply: [stepX rep d, hr]@hr=>//= _ _ [->->].
   by step; do 2!split=>//; exists ct, ut; hhauto.
@@ -744,7 +626,7 @@ Program Definition check t1 t2 :
       u2 <-- hnorm t2;
       ret (u1 == u2)).
 Next Obligation.
-case=>R [h][d][H][[RI X]][Ep PI].
+move=>t1 t2 [R][h][d][H][[RI X]][Ep PI].
 apply: [stepX d]@h=>//= _ {H}h [-> H].
 apply: [stepX d]@h=>//= _ {H}h [-> H].
 step; split; first by exists d. 

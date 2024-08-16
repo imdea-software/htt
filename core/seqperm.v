@@ -204,6 +204,22 @@ apply: (@pperm_trans (x::s1++t1))=>//; apply: (@pperm_trans (x::s2++t2))=>//.
 by apply/pperm_cons.
 Qed.
 
+Lemma pperm_rcons s1 s2 x : 
+       perm s1 s2 <->
+       perm (rcons s1 x) (rcons s2 x).
+Proof.
+rewrite -!cats1; split=>[|H]; first by apply: pperm_cat2rL.
+by rewrite -[s1]cats0 -[s2]cats0 -(pperm_cat_cons x).
+Qed.
+
+Lemma pperm_rev s : perm s (rev s).
+Proof.
+elim: s=>[|x xs IH] //=.
+rewrite rev_cons -cats1.
+apply: (@pperm_trans ([:: x] ++ rev xs)); last by apply: pperm_catC.
+by rewrite pperm_cons. 
+Qed.
+
 End Permutations.
 
 #[export] Hint Resolve pperm_refl pperm_catC pperm_cons_catCA

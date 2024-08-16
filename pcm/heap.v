@@ -114,7 +114,7 @@ End NullLemmas.
 Notation base := (@UM.base ptr (fun k => k != null) (dynamic id)).
 
 Definition def h := if h is Def _ _ then true else false.
-Definition empty := @Def (finmap.nil _ _) is_true_true.
+Definition empty := @Def finmap.nil is_true_true.
 Definition upd k v h :=
   if h is Def hs ns then
     if decP (@idP (k != null)) is left pf then

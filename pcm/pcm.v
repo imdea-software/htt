@@ -18,7 +18,7 @@ limitations under the License.
 (******************************************************************************)
 
 From HB Require Import structures.
-From Coq Require Import ssreflect ssrbool ssrfun.
+From Coq Require Import ssreflect ssrbool ssrfun Setoid.
 From mathcomp Require Import ssrnat eqtype seq bigop fintype finset finfun.
 From pcm Require Import options axioms prelude seqperm pred seqext.
 
@@ -1246,7 +1246,7 @@ Hint Resolve pleq_undef : core.
 
 (* folding functions that are morphisms in the first argument *)
 
-Section PCMfold.
+Section PCMfoldLeft.
 Variables (A : Type) (R : pcm) (a : R -> A -> R).
 Hypothesis H : (forall x y k, a (x \+ y) k = a x k \+ y).
 
@@ -1254,14 +1254,15 @@ Hypothesis H : (forall x y k, a (x \+ y) k = a x k \+ y).
 Lemma foldl_helper (s1 s2 : seq A) (z0 : R) x :
         foldl a z0 (s1 ++ x :: s2) = foldl a z0 (x :: s1 ++ s2).
 Proof.
-elim: s1 s2 z0=>[|k ks IH] s2' z0 //=.
-rewrite IH /=; congr foldl.
+rewrite foldl_cat /= foldl_cat; congr foldl.
+elim: {s2} s1 z0=>[|k ks IH] z0 //=; rewrite IH; congr foldl.
 rewrite -[a z0 k]unitL H -[z0]unitL !H.
-by rewrite -{2}[a Unit x]unitL H joinCA joinA.
+by rewrite -{2}[a Unit x]unitL H joinCA joinA. 
 Qed.
 
 Lemma foldl_perm (s1 s2 : seq A) (z0 : R) :
-        perm s1 s2 -> foldl a z0 s1 = foldl a z0 s2.
+        perm s1 s2 -> 
+        foldl a z0 s1 = foldl a z0 s2.
 Proof.
 move=>P; elim: s1 s2 z0 P=>[|k ks IH] s2 z0 P; first by move/pperm_nil: P=>->.
 have K: k \In s2 by apply: pperm_in P _; rewrite InE; left.
@@ -1273,7 +1274,54 @@ Lemma foldl_init (s : seq A) (x y : R) :
         foldl a (x \+ y) s = foldl a x s \+ y.
 Proof. by elim: s x y=>[|k s IH] x y //=; rewrite H IH. Qed.
 
-End PCMfold.
+End PCMfoldLeft.
+
+Section PCMfoldRight. 
+Variables (A : Type) (R : pcm) (a : A -> R -> R).
+Hypothesis H : (forall k x y, a k (x \+ y) = a k x \+ y).
+
+Lemma foldr_helper (s1 s2 : seq A) (z0 : R) x :
+        foldr a z0 (s1 ++ x :: s2) = foldr a z0 (s1 ++ rcons s2 x).
+Proof.
+rewrite -!foldl_rev rev_cat rev_cons cat_rcons.
+rewrite foldl_helper; last by move=>*; rewrite H. 
+by rewrite -[x :: _ ++ _]revK rev_cons rev_cat !revK rcons_cat.
+Qed.
+
+Lemma foldr_perm (s1 s2 : seq A) (z0 : R) :
+        perm s1 s2 -> 
+        foldr a z0 s1 = foldr a z0 s2.
+Proof.
+move=>P; rewrite -!foldl_rev; apply: foldl_perm.
+- by move=>*; rewrite H.
+apply/(pperm_trans _ (pperm_rev _))/pperm_sym.
+by apply/(pperm_trans _ (pperm_rev _))/pperm_sym.
+Qed.
+
+Lemma foldr_init (s : seq A) (x y : R) :
+        foldr a (x \+ y) s = foldr a x s \+ y.
+Proof. by rewrite -!foldl_rev foldl_init. Qed.
+
+End PCMfoldRight.
+
+(* fold-join lemmas *)
+
+Lemma foldl_join A (U : pcm) h (s : seq A) (a : A -> U):
+        foldl (fun h t => a t \+ h) h s =
+        foldl (fun h t => a t \+ h) Unit s \+ h.
+Proof.
+set g := fun x => x \+ h.
+apply/esym/(fusion_foldl (g:=g)); last by rewrite /g unitL.
+by move=>x y; rewrite joinA.
+Qed.
+
+Lemma foldr_join A (U : pcm) h (s : seq A) (a : A -> U):
+        foldr (fun t h => h \+ a t) h s =
+        h \+ foldr (fun t h => h \+ a t) Unit s.
+Proof.
+apply/esym/fusion_foldr; last by rewrite unitR.
+by move=>x y; rewrite joinA.
+Qed.
 
 Section BigOps.
 Variables (U : pcm).
@@ -1315,214 +1363,292 @@ End BigOps.
 (* separating conjunction aka star *)
 (***********************************)
 
-Section Star.
-Variable U : pcm.
-
-Definition star (p1 p2 : Pred U) : Pred U :=
+Definition star {U : pcm} (p1 p2 : Pred U) : Pred U :=
   [Pred h | exists h1 h2, [ /\ h = h1 \+ h2, h1 \In p1 & h2 \In p2] ].
-Definition emp : Pred U := eq^~ Unit.
-Definition top : Pred U := PredT.
-
-End Star.
-
-Arguments emp {U}.
-Arguments top {U}.
+Definition emp {U : pcm} : Pred U := eq^~ Unit.
+Definition top {U : pcm} : Pred U := PredT.
 
 Notation "p1 '#' p2" := (star p1 p2)
   (at level 57, right associativity) : rel_scope.
 
-(* iterated star *)
+Add Parametric Morphism U : (@star U) with signature
+ @Eq_Pred _ _ ==> @Eq_Pred _ _ ==> @Eq_Pred _ _ as star_morph.
+Proof.
+move=>x y E x1 y1 E1 m /=; split; case=>h1 [h2][-> H1 H2];
+by exists h1, h2; split=>//; [apply/E|apply/E1].
+Qed.
 
-Module IterStar.
-Section IterStar.
-Variables (U : pcm) (A : Type).
+(* monoid laws for star hold under <~>, not = *)
+(* thus, require fun/prop extensionality to make hold under = *)
+(* working with <~> entails use of setoids *)
+(* and prevents use of monoids from bigops *)
+(* the latter isn't a big deal, however, as most lemmas *)
+(* in bigops are about decidable/finite sets *)
+(* and won't work with Prop anyway *)
 
-Definition seqjoin (s : seq U) : U :=
-  \big[join/Unit]_(i <- s) i.
+Section StarMonoid.
+Context {U : pcm}.
+Implicit Type x y z : Pred U.
 
-Definition sepit' (s : seq A) (f : A -> Pred U) : Pred U :=
+Lemma starA x y z : x # y # z <~> (x # y) # z.
+Proof.
+move=>m /=; split; case=>h1 [h2][H1 H2].
+- case=>h3 [h4][H3 H4 H5]; subst h2.
+  eexists (h1 \+ h3), h4; rewrite -joinA; split=>//.
+  by exists h1, h3. 
+case: H2=>h3 [h4][? H2 H3 H4]; subst h1.
+exists h3, (h4 \+ h2); rewrite joinA; split=>//.
+by exists h4, h2.
+Qed.
+
+Lemma starC x y : x # y <~> y # x.
+Proof.
+move=>m; split.
+- by case=>h1 [h2][H H1 H2]; exists h2, h1; rewrite joinC. 
+by case=>h1 [h2][H H1 H2]; exists h2, h1; rewrite joinC.
+Qed.
+
+Lemma starL x : emp # x <~> x.
+Proof.
+move=>m; split=>[|H]; first by case=>h1 [h2][->->]; rewrite unitL. 
+by exists Unit, m; rewrite unitL. 
+Qed.
+
+Lemma starR x : x # emp <~> x.
+Proof. by rewrite starC starL. Qed.
+
+Lemma starAC x y z : x # y # z <~> x # z # y.
+Proof. by rewrite (starC y). Qed.
+
+Lemma starCA x y z : x # (y # z) <~> y # (x # z).
+Proof. by rewrite starA (starC x) -starA. Qed.
+
+(*
+HB.instance Definition _ := 
+  Monoid.isComLaw.Build (Pred U) emp star starA starC starL.
+*)
+
+End StarMonoid.
+
+
+(* star iterated over sequence *)
+
+Section IterStarSeq.
+Context {U : pcm} {A : Type}.
+
+Notation seq_join hs := (\big[join/Unit]_(i <- hs) i).
+
+(* definition is locked to prevent automation from going inside *)
+Definition sepit_seq (s : seq A) (f : A -> Pred U) : Pred U :=
+  locked
   [Pred h | exists hs : seq U,
-              [ /\ size hs = size s, h = seqjoin hs &
-                   All (fun '(a, h) => h \In f a) (zip s hs)]].
+              [/\ size hs = size s, h = seq_join hs &
+                  All (fun '(a, h) => h \In f a) (zip s hs)]].
 
-Definition sepit s f := locked (sepit' s f).
+Lemma sepit_seq_unlock s f :
+        sepit_seq s f =   
+        [Pred h | exists hs : seq U,
+              [/\ size hs = size s, h = seq_join hs &
+                  All (fun '(a, h) => h \In f a) (zip s hs)]].
+Proof. by rewrite /sepit_seq -lock. Qed.
 
-Lemma sepitE s f : sepit s f = sepit' s f.
-Proof. by rewrite /sepit -lock. Qed.
-
-Lemma sepit0 f : sepit [::] f =p emp.
+Lemma sepit_seq0 f : sepit_seq [::] f <~> emp.
 Proof.
-move=>h; rewrite sepitE; split.
-- by case=>/= hs [/size0nil -> -> _]; rewrite /seqjoin !big_nil.
-by move=>->; exists [::]; rewrite /seqjoin !big_nil.
+rewrite sepit_seq_unlock=>h; split.
+- by case=>/= hs [/size0nil -> -> _]; rewrite !big_nil.
+by move=>->; exists [::]; rewrite !big_nil.
 Qed.
 
-Lemma sepit_cons x s f : sepit (x::s) f =p f x # sepit s f.
+Lemma sepitseq_cons x s f : 
+        sepit_seq (x::s) f <~> f x # sepit_seq s f.
 Proof.
-move=>h; rewrite !sepitE; split.
+rewrite !sepit_seq_unlock=>h; split.
 - case=>/=; case=>[|h0 hs]; case=>//= /eqP; rewrite eqSS =>/eqP Hs.
-  rewrite /seqjoin big_cons =>->[H0 H1].
-  by exists h0, (seqjoin hs); do!split=>//; exists hs.
+  rewrite big_cons =>->[H0 H1].
+  by exists h0, (seq_join hs); do!split=>//; exists hs.
 case=>h1[_][{h}-> H1][hs][E -> H].
-by exists (h1 :: hs); rewrite /= E /seqjoin !big_cons.
+by exists (h1 :: hs); rewrite /= E !big_cons.
 Qed.
 
-Lemma sepit_cat s1 s2 f : sepit (s1 ++ s2) f =p sepit s1 f # sepit s2 f.
+(* alternative def *)
+(* appears simpler, but no much gain from \big ops *)
+(* as star/emp are only monoids under <~>, not = *)
+Lemma sepit_seqE s f :
+         sepit_seq s f <~> \big[star/emp]_(i <- s) f i.
+Proof. 
+elim: s=>[|x s IH]; first by rewrite sepit_seq0 big_nil. 
+by rewrite sepitseq_cons big_cons IH.
+Qed.
+
+Lemma sepitseq_cat s1 s2 f : 
+        sepit_seq (s1 ++ s2) f <~>
+        sepit_seq s1 f # sepit_seq s2 f.
 Proof.
-rewrite !sepitE; elim: s1 s2=>[|x s1 IH] s2 h /=; split.
-- case=>hs [E {h}-> H2]; rewrite -sepitE.
-  exists Unit, (seqjoin hs); rewrite unitL.
-  by split=>//; [rewrite sepit0 | exists hs].
-- by case=>h1[h2][{h}->]; rewrite -sepitE sepit0=>->; rewrite unitL.
+rewrite sepit_seq_unlock.
+elim: s1 s2=>[|x s1 IH] s2 h /=; split.
+- case=>hs [E {h}-> H2].
+  exists Unit, (seq_join hs); rewrite unitL.
+  split=>//; first by rewrite sepit_seq0.
+  by rewrite sepit_seq_unlock; exists hs.
+- case=>h1[h2][{h}->]; rewrite sepit_seq0=>->. 
+  by rewrite sepit_seq_unlock unitL.
 - case=>/=; case=>[|h0 hs]; case=>//= /eqP; rewrite eqSS=>/eqP E.
-  rewrite /seqjoin !big_cons /= =>->[H0 HS].
-  case: (IH s2 (seqjoin hs)).1; first by exists hs.
-  move=>h1[h2][HJ H1 H2]; rewrite /seqjoin in HJ.
+  rewrite !big_cons /= =>->[H0 HS].
+  case: (IH s2 (seq_join hs)).1; first by exists hs.
+  move=>h1[h2][HJ H1 H2].
   exists (h0 \+ h1), h2; rewrite HJ joinA; split=>//.
-  by rewrite -sepitE sepit_cons sepitE; exists h0, h1.
-case=>h1[h2][{h}->[]]; case=>[|h0 hs1]; case=>//= /eqP; rewrite eqSS=>/eqP E1.
-rewrite /seqjoin !big_cons /= =>{h1}->[H0 H1]; case=>hs2[E2 {h2}-> H2].
-exists (h0 :: hs1 ++ hs2); rewrite /seqjoin big_cons big_cat joinA; split=>//=.
+  by rewrite sepitseq_cons; exists h0, h1.
+case=>h1 [h2][{h} ->]; rewrite sepit_seq_unlock.
+case; case=>[|h0 hs1]; case=>//= /eqP; rewrite eqSS=>/eqP E1.
+rewrite !big_cons /= =>{h1}->[H0 H1].
+rewrite sepit_seq_unlock; case=>hs2[E2 {h2}-> H2].
+exists (h0 :: hs1 ++ hs2); rewrite big_cons big_cat joinA; split=>//=.
 - by rewrite !size_cat E1 E2.
 rewrite zip_cat //=; split=>//.
 by apply/All_cat.
 Qed.
 
-Lemma sepit_perm s1 s2 (f : A -> Pred U) :
-        perm s1 s2 -> sepit s1 f =p sepit s2 f.
+Lemma sepitseq_perm s1 s2 (f : A -> Pred U) :
+        perm s1 s2 -> 
+        sepit_seq s1 f <~> sepit_seq s2 f.
 Proof.
 elim: s1 s2 =>[|x s1 IH] s2 /=; first by move/pperm_nil=>->.
 move=>H; have Hx: x \In s2 by apply/(pperm_in H)/In_cons; left.
 case: (In_split Hx)=>s21[s22] E; rewrite {s2 Hx}E in H *.
 move/pperm_cons_cat_cons: H=>/IH {}IH.
-rewrite sepit_cons sepit_cat /= =>h; split.
-- case=>h1[h2][{h}-> H1]; rewrite IH sepit_cat !sepitE.
-  case=>_[_][{h2}-> [hs3][E3 -> H3] [hs4][E4 -> H4]]; rewrite joinCA.
-  exists (seqjoin hs3), (h1 \+ seqjoin hs4); split=>//; first by exists hs3.
-  rewrite -sepitE sepit_cons sepitE; exists h1, (seqjoin hs4).
+rewrite sepitseq_cons sepitseq_cat=>h; rewrite !toPredE; split.
+- case=>h1 [h2][->{h} H1]; rewrite IH sepitseq_cat 2!sepit_seq_unlock.
+  case=>_ [_][->{h2}][hs3][E3 -> H3][hs4][E4 -> H4]; rewrite joinCA.
+  exists (seq_join hs3), (h1 \+ seq_join hs4); split=>//; first by exists hs3.
+  rewrite sepitseq_cons sepit_seq_unlock; exists h1, (seq_join hs4).
   by split=>//; exists hs4.
-rewrite sepitE; case=>_[h2][{h}-> [hs1][Hs1 -> H1]].
-rewrite sepit_cons sepitE.
-case=>h3[_][{h2}-> H3 [hs2][Hs2 -> H2]]; rewrite joinCA.
-exists h3, (seqjoin hs1 \+ seqjoin hs2); split=>//.
-rewrite IH sepitE; exists (hs1 ++ hs2); split.
+rewrite sepitseq_cons sepit_seq_unlock. 
+case=>_ [h2][{h}-> [hs1][Hs1 -> H1]].
+rewrite sepit_seq_unlock.
+case=>h3 [_][->{h2} H3 [hs2][Hs2 -> H2]]; rewrite joinCA.
+exists h3, (seq_join hs1 \+ seq_join hs2); split=>//.
+rewrite IH sepit_seq_unlock; exists (hs1 ++ hs2); split.
 - by rewrite !size_cat Hs1 Hs2.
-- by rewrite /seqjoin big_cat.
+- by rewrite big_cat.
 by rewrite zip_cat //; apply/All_cat.
 Qed.
 
-Lemma sepitF s (f1 f2 : A -> Pred U) :
-        (forall x, x \In s -> f1 x =p f2 x) -> 
-        sepit s f1 =p sepit s f2.
+Lemma sepit_seqF s (f1 f2 : A -> Pred U) :
+        (forall x, x \In s -> f1 x <~> f2 x) -> 
+        sepit_seq s f1 <~> sepit_seq s f2.
 Proof.
-elim: s=>[|x s IH] H h; first by rewrite !sepit0.
+elim: s=>[|x s IH] H h; rewrite !toPredE.
+- by rewrite !sepit_seq0.
 have /IH {IH}H': forall x : A, x \In s -> f1 x =p f2 x.
   by move=>? H0; apply: H; apply/In_cons; right.
 have Hx : x \In x :: s by apply/In_cons; left.
-by rewrite !sepit_cons; split; case=>h1[h2][{h}-> H1 H2]; exists h1, h2;
+by rewrite !sepitseq_cons; split; case=>h1[h2][{h}-> H1 H2]; exists h1, h2;
 split=>//; [rewrite -H | rewrite -H' | rewrite H | rewrite H'].
 Qed.
 
-End IterStar.
+Lemma big_sepitseq (s : seq A) (f : A -> U) m : 
+        m = \big[join/Unit]_(i <- s) f i <->
+        m \In sepit_seq s (fun i h => h = f i).
+Proof.
+rewrite sepit_seqE; elim: s m=>[|x xs IH] /= m; first by rewrite !big_nil.
+rewrite !big_cons; split=>[E|]; last first.
+- by case=>h1 [h2][Em H1 H2]; rewrite Em H1; congr (_ \+ _); rewrite IH.
+by rewrite InE; exists (f x), (\big[join/Unit]_(j <- xs) f j); rewrite -IH. 
+Qed.
+
+Lemma eq_sepitseqF s (f1 f2 : A -> Pred U) :
+        (forall x, x \In s -> f1 x <~> f2 x) -> 
+        sepit_seq s f1 <~> sepit_seq s f2.
+Proof. by move=>H; apply: sepit_seqF=>x Hx; apply: H. Qed.
+
+Lemma sepitseq_emp (s : seq A) (f : A -> Pred U) : 
+        (forall x, x \In s -> f x <~> emp (U:=U)) -> 
+        sepit_seq s f <~> emp.
+Proof.
+move=>H; rewrite sepit_seqE.
+elim: s H=>[|a xs IH] H; first by rewrite big_nil.
+rewrite big_cons H ?InE; last by left.
+by rewrite starL IH // => x X; apply: H; rewrite InE; right.
+Qed.
+
+End IterStarSeq.
 
 (* iterated star on eqType *)
 
 Section IterStarEq.
-Variables (U : pcm) (A : eqType).
+Context {U : pcm} {A : eqType}.
 
-Lemma sepitP x s (f : A -> Pred U) :
+Lemma sepit_seqP x s (f : A -> Pred U) :
         uniq s ->
-        sepit s f =p if x \in s
-                       then f x # sepit (filter (predC1 x) s) f
-                       else sepit s f.
+        sepit_seq s f <~>
+        if x \in s then f x # sepit_seq (filter (predC1 x) s) f
+        else sepit_seq s f.
 Proof.
+(* can't use big library for this proof, because all *)
+(* necessary lemmas require AC wrt =; thus, direct proof below *)
 case E: (x \in s)=>//.
-elim: s E=>[|y s IH] //= /[swap]; case/andP=>Hy Hu; rewrite sepit_cons inE; case/orP.
-- by move/eqP=>->; rewrite eq_refl filter_predC1.
+elim: s E=>[|y s IH] //= /[swap]; case/andP=>Hy Hu.
+- rewrite sepitseq_cons inE; case/orP.
+  by move/eqP=>->; rewrite eq_refl filter_predC1.
 move=>Hx h0.
 have ->: (y != x) by apply/eqP=>Hxy; rewrite Hxy Hx in Hy.
-by split; case=>ha[h1][{h0}-> Ha]; [rewrite (IH Hx Hu) | rewrite sepit_cons];
+by split; case=>ha[h1][{h0}-> Ha]; [rewrite (IH Hx Hu) | rewrite sepitseq_cons];
 case=>hb[h][{h1}-> Hb H]; rewrite joinCA; exists hb, (ha \+ h); split=>//;
-[rewrite sepit_cons | rewrite (IH Hx Hu)]; exists ha, h.
+[rewrite sepitseq_cons | rewrite (IH Hx Hu)]; exists ha, h.
 Qed.
 
-Lemma eq_sepitF s (f1 f2 : A -> Pred U) :
-        (forall x, x \in s -> f1 x =p f2 x) -> 
-        sepit s f1 =p sepit s f2.
-Proof. by move=>H; apply: sepitF=>x Hx; apply/H/mem_seqP. Qed.
-
-Corollary perm_sepit s1 s2 (f : A -> Pred U) :
-            perm_eq s1 s2 -> sepit s1 f =p sepit s2 f.
-Proof. by move/perm_eq_perm; exact: sepit_perm. Qed.
+Lemma perm_sepitseq s1 s2 (f : A -> Pred U) :
+        perm_eq s1 s2 -> 
+        sepit_seq s1 f <~> sepit_seq s2 f.
+Proof. by move/perm_eq_perm; exact: sepitseq_perm. Qed.
 
 End IterStarEq.
-
-End IterStar.
 
 (* iterated star on finsets *)
 
 Section FinIterStar.
-Variables (U : pcm) (I : finType).
+Context {U : pcm} {I : finType}.
 
-Definition sepit (s : {set I}) (Ps : I -> Pred U) :=
-  IterStar.sepit (enum s) Ps.
+Definition sepit (s : {set I}) (Ps : I -> Pred U) := 
+  sepit_seq (enum s) Ps.
 
-Lemma sepit0 f : sepit set0 f =p emp.
-Proof.
-rewrite /sepit (IterStar.perm_sepit (s2 := filter pred0 (enum I))).
-- by rewrite filter_pred0 IterStar.sepit0.
-apply: uniq_perm; first by exact: enum_uniq.
-- by rewrite filter_uniq // enum_uniq.
-by move=>x; rewrite !mem_filter /= in_set0.
-Qed.
+Lemma sepitE (s : {set I}) f :
+        sepit s f <~> \big[star/emp]_(i in s) f i.
+Proof. by rewrite -big_filter /sepit sepit_seqE. Qed.
+
+Lemma sepit0 f : sepit set0 f <~> emp.
+Proof. by rewrite sepitE big_pred0 // => x; rewrite in_set0. Qed.
 
 Lemma sepitF (s : {set I}) f1 f2 :
-        (forall x, x \in s -> f1 x =p f2 x) -> 
-        sepit s f1 =p sepit s f2.
-Proof.
-move=>H; apply: IterStar.eq_sepitF=>x H1; apply: H.
-by rewrite -mem_enum.
+        (forall x, x \in s -> f1 x <~> f2 x) -> 
+        sepit s f1 <~> sepit s f2.
+Proof. 
+move=>H; apply: eq_sepitseqF=>x /mem_seqP.
+by rewrite mem_enum; apply: H. 
 Qed.
 
 Lemma eq_sepit (s1 s2 : {set I}) f : 
         s1 =i s2 -> 
-        sepit s1 f =p sepit s2 f.
-Proof. by move/eq_enum=>H; apply: IterStar.perm_sepit; rewrite H. Qed.
+        sepit s1 f <~> sepit s2 f.
+Proof. by move/eq_enum=>H; apply: perm_sepitseq; rewrite H. Qed.
 
 Lemma sepitS x (s : {set I}) f :
-        sepit s f =p if x \in s then f x # sepit (s :\ x) f
-                     else sepit s f.
+        sepit s f <~> if x \in s then f x # sepit (s :\ x) f
+                      else sepit s f.
 Proof.
-case E: (x \in s)=>//.
-rewrite (IterStar.sepitP x (s:=enum s) f (enum_uniq s)) mem_enum E.
-have Hp: perm_eq [seq y <- enum s | predC1 x y] (enum (s :\ x)).
-- rewrite -filter_predI.
-  apply: uniq_perm=>[||y]; try by rewrite enum_uniq.
-  by rewrite !mem_filter /= in_setD1.
-by move=>h0; split; case=>h1[h2][{h0}-> H1 H]; exists h1, h2; split=>//;
-rewrite IterStar.perm_sepit; try by [exact: H]; [rewrite perm_sym |].
+rewrite /sepit {1}(sepit_seqP x f (enum_uniq s)) mem_enum.
+case: (x \in s)=>//; rewrite !sepit_seqE !big_filter big_filter_cond.  
+rewrite (eq_bigl (mem (s :\ x))) //.
+by move=>z; rewrite !inE andbC.
 Qed.
 
-Lemma sepitT1 x f : sepit setT f =p f x # sepit (setT :\ x) f.
+Lemma sepitT1 x f : sepit setT f <~> f x # sepit (setT :\ x) f.
 Proof. by rewrite (sepitS x) in_setT. Qed.
 
 Lemma big_sepit (s : {set I}) (f : I -> U) m : 
         m = \big[join/Unit]_(i in s) (f i) <->
         m \In sepit s (fun i h => h = f i).
-Proof.
-rewrite {1}/sepit IterStar.sepitE/IterStar.sepit'/IterStar.seqjoin. 
-split; last first.
-- case=>hs [Es Em] H. 
-  suff {Em}E : hs = map f (enum s) by rewrite Em E big_map big_enum.
-  elim: hs (enum s) Es H=>[|h hs IH] es; first by move/esym/size0nil=>->. 
-  by case: es=>//= e es [E][H1 H2]; rewrite H1 -IH.
-move=>Em; exists (map f (enum s)); split.
-- by rewrite size_map.
-- by rewrite big_map big_enum.
-apply/AllP; case=>a b.
-rewrite {1}(_ : enum s = map id (enum s)); last by rewrite map_id.
-by rewrite zip_map; case/MapP=>x /= _ [->->]. 
-Qed.
+Proof. by rewrite /sepit /= -big_sepitseq -big_enum. Qed.
 
 Lemma big_sepitT (f : I -> U) m : 
         m = \big[join/Unit]_i (f i) <->

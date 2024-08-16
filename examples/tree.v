@@ -18,7 +18,7 @@ From pcm Require Import pred prelude seqext.
 
 (* arbitrarily branching tree *)
 Inductive tree A := TNode of A & seq (tree A).
-Arguments TNode [A].
+Arguments TNode {A}.
 
 Section Tree.
 Context {A : Type}.
@@ -29,26 +29,18 @@ Definition ch (t : tree A) := let: TNode _ ts := t in ts.
 Lemma tree_ext (t : tree A) : TNode (rt t) (ch t) = t.
 Proof. by case: t. Qed.
 
-(* a leaf is a node with an empty list *)
+(* leaf is a node with an empty list *)
 Definition lf a : tree A := TNode a [::].
 
 Lemma tree_ind' (P : tree A -> Prop) :
-  (forall a l, All P l -> P (TNode a l)) ->
-  forall t, P t.
-Proof.
-move=> indu; fix H 1.
-elim => a l; apply indu.
-by elim: l.
-Qed.
+        (forall a l, All P l -> P (TNode a l)) ->
+        forall t, P t.
+Proof. by move=>indu; fix H 1; elim => a l; apply indu; elim: l. Qed.
 
 Lemma tree_rec' (P : tree A -> Type) :
-  (forall a l, AllT P l -> P (TNode a l)) ->
-  forall t, P t.
-Proof.
-move=>indu; fix H 1.
-elim => a l; apply: indu.
-by elim: l.
-Qed.
+       (forall a l, AllT P l -> P (TNode a l)) ->
+       forall t, P t.
+Proof. by move=>indu; fix H 1; elim => a l; apply: indu; elim: l. Qed.
 
 (* custom induction principles *)
 
@@ -65,7 +57,7 @@ Fixpoint preorder (t : tree A) : seq A :=
   let: TNode a ts := t in
   foldl (fun s t => s ++ preorder t) [::a] ts.
 
-Corollary foldl_cat {B C} z (fs : seq B) (a : B -> seq C):
+Lemma foldl_cat {B C} z (fs : seq B) (a : B -> seq C):
         foldl (fun s t => s ++ a t) z fs =
         z ++ foldl (fun s t => s ++ a t) [::] fs.
 Proof.
@@ -73,7 +65,9 @@ apply/esym/fusion_foldl; last by rewrite cats0.
 by move=>x y; rewrite catA.
 Qed.
 
-Lemma preorderE t : preorder t = rt t :: \big[cat/[::]]_(c <- ch t) (preorder c).
+Lemma preorderE t : 
+        preorder t = 
+        rt t :: \big[cat/[::]]_(c <- ch t) (preorder c).
 Proof.
 case: t=>a cs /=; rewrite foldl_cat /=; congr (_ :: _).
 elim: cs=>/= [| c cs IH]; first by rewrite big_nil.
@@ -108,7 +102,6 @@ Qed.
 
 End EncodeDecodeTree.
 
-
 HB.instance Definition _ (A : eqType) := 
   Equality.copy (tree A) (pcan_type (pcancel_tree A)).
 
@@ -125,7 +118,8 @@ Coercion pred_of_tree (t : tree_eqclass) : {pred A} := mem_tree t.
 Canonical tree_predType := ssrbool.PredType (pred_of_tree : tree A -> pred A).
 
 Lemma in_tnode a t ts : 
-        (t \in TNode a ts) = (t == a) || has (fun q => t \in q) ts.
+        (t \in TNode a ts) = 
+        (t == a) || has (fun q => t \in q) ts.
 Proof. by []. Qed.
 
 (* frequently used facts about membership in a tree *)
@@ -160,7 +154,7 @@ Qed.
 
 End TreeEq.
 
-Arguments in_tnode2 [A x y a ts].
+Arguments in_tnode2 {A x y a ts}.
 #[export] Hint Resolve in_tnode1 : core.
 
 (* a simplified induction principle for eq types *)
