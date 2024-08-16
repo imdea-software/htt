@@ -145,6 +145,8 @@ Qed.
 
 HB.instance Definition _ s := hasDecEq.Build (@exp s) (@eqexpP s).
 
+Notation rel_exp s := (Pred (exp s * exp s)).
+
 (****************************************)
 (* Congruence relations over expression *)
 (****************************************)
@@ -154,8 +156,7 @@ Section Congruence.
 Variable s : seq constant.
 Notation symb := (symb s).
 Notation exp := (exp s).
-
-Notation rel_exp := (Pred (exp*exp)).
+Notation rel_exp := (rel_exp s).
 
 Definition Reflexive (r : rel_exp) := 
   forall x, (x, x) \In r.
@@ -167,7 +168,6 @@ Definition Equivalence (r : rel_exp) :=
   Reflexive r /\ Symmetric r /\ Transitive r.
 Definition Antisymmetric (r : rel_exp) := 
   forall x y, (x, y) \In r -> (y, x) \In r -> x = y.
-
 Definition monotone (R : rel_exp) : Prop :=
   forall f1 f2 e1 e2, (f1, f2) \In R -> 
     (e1, e2) \In R -> (app f1 e1, app f2 e2) \In R.
@@ -228,6 +228,7 @@ move=>{}R1 {}R2 H [x y] H1 C H2 H3; apply: H1 H3.
 by rewrite H.
 Qed.
 
+(* to be repeated outside of the section *)
 Add Morphism closure with
   signature Morphisms.respectful (fun e1 e2 => e1 <~> e2) 
    (fun e1 e2 => e1 <~> e2) as closure_morph.
@@ -315,18 +316,42 @@ Qed.
 Definition graph (f : symb -> exp) : rel_exp :=
   [Pred e | e \in image (fun s => (const s, f s)) predT].
 
+End Congruence.
+
+Hint Resolve reflC symC reflC symC : core.
+
+(* repeat the morphism declaration outside the section *)
+Add Parametric Morphism s : (@closure s) with
+  signature Morphisms.respectful (fun e1 e2 => e1 <~> e2) 
+   (fun e1 e2 => e1 <~> e2) as closure_morph'.
+Proof. by apply: closE. Qed.
+
+(********************************************************************)
+(* The definition of the data structures involved in the algorithm. *)
+(********************************************************************)
+
+Section Structures.
+Variable s : seq constant.
+Notation symb := (symb s).
+Notation exp := (exp s).
+Notation rel_exp := (rel_exp s).
+
 (* Equations in canonical form, as required by the congruence closure     *)
 (* algorithm. An equation is in canonical form if it is an equation       *)
 (* between two constants, or between a constant and an application of two *)
 (* constants. *)
 
-Inductive Eq : Type := simp_eq of symb & symb | comp_eq of symb & symb & symb.
+Inductive Eq : Type := 
+  simp_eq of symb & symb | 
+  comp_eq of symb & symb & symb.
 
 (* equations are an equality type *)
 Definition eqEq (eq1 eq2 : Eq) : bool :=
   match eq1, eq2 with
-    simp_eq c1 c2, simp_eq d1 d2 => (c1 == d1) && (c2 == d2)
-  | comp_eq c c1 c2, comp_eq d d1 d2 => (c == d) && (c1 == d1) && (c2 == d2)
+    simp_eq c1 c2, simp_eq d1 d2 => 
+      (c1 == d1) && (c2 == d2)
+  | comp_eq c c1 c2, comp_eq d d1 d2 => 
+      (c == d) && (c1 == d1) && (c2 == d2)
   | _, _ => false
   end.
 
@@ -410,10 +435,6 @@ Definition pend2eq (p : pend) :=
   | comp_pend (c, c1, c2) (d, d1, d2) => simp_eq c d
   end.
 
-(********************************************************************)
-(* The definition of the data structures involved in the algorithm. *)
-(********************************************************************)
-
 Record data : Type :=
   Data {(* An array, indexed by symbs, containing for each symb its *)
         (* current representative (for the relation obtained by the *)
@@ -432,8 +453,8 @@ Record data : Type :=
         (* The list of equations pending to be processed *)
         pending : seq pend}.
 
-(* We can collect the representatives of all the symbols into a finite list. *)
-(* We remove the duplicates. *)
+(* Collect the representatives of all the symbols *)
+(* into a finite list. Remove the duplicates. *)
 Definition reps D : seq symb := undup (map (rep D) (enum predT)).
 
 Lemma uniq_reps D : uniq (reps D).
@@ -490,10 +511,22 @@ Hint Resolve cong_rel : core.
 Lemma clos_rel D R a : (const a, const (rep D a)) \In closure (CRel D \+p R).
 Proof. by rewrite /CRel clos_clos orrA; apply: clos_rep. Qed.
 
+End Structures.
 
-(*******************************************)
-(* Congruence Closure Code and Termination *)
-(*******************************************)
+Hint Resolve uniq_reps rep_in_reps clos_rep cong_rel : core.
+
+(************************************)
+(* Mathematical (purely-functional) *)
+(* model of the algorithm.          *)
+(* Also, proof of termination.      *)
+(************************************)
+
+Section MathModel.
+Variable s : seq constant.
+Notation symb := (symb s).
+Notation exp := (exp s).
+Notation rel_exp := (rel_exp s).
+Notation data := (data s).
 
 (* termination metric is the number of equations in the use and pending lists *)
 Definition metric (D : data) : nat :=
@@ -566,8 +599,8 @@ Lemma join_class_metric (D : data) (a' b' : symb) :
 Proof.
 move=>H1 H2 H3; rewrite /metric /= -addnA; congr plus.
 by rewrite (perm_big _ (join_class_perm H3 H2))
-       -(perm_big _ (permEl (perm_filterC (pred1 a') (reps D))))
-       big_cat filter_pred1_uniq // !big_filter big_cons /= big_nil addn0 addnC.
+ -(perm_big _ (permEl (perm_filterC (pred1 a') (reps D))))
+ big_cat filter_pred1_uniq // !big_filter big_cons /= big_nil addn0 addnC.
 Qed.
 
 (* joining the use lists *)
@@ -633,20 +666,19 @@ case S2: (x == a')=>//=.
 by rewrite ffunE S2.
 Qed.
 
-Let pend0 (e : pend) :=
-  match e with simp_pend a b => a | comp_pend (a,_,_) (b,_,_) => a end.
-Let pend1 (e : pend) :=
-  match e with simp_pend a b => b | comp_pend (a,_,_) (b,_,_) => b end.
-Notation "e ..0" := (pend0 e) (at level 2).
-Notation "e ..1" := (pend1 e) (at level 2).
+(* left/right symbol in pending equation *)
+Definition pendL (e : pend s) :=
+  let: (simp_pend a _ | comp_pend (a,_,_) _) := e in a.
+Definition pendR (e : pend s) :=
+  let: (simp_pend _ b | comp_pend _ (b,_,_)) := e in b.
 
 (* loop through the equations in the pending list *)
 Function propagate (D : data) {measure metric D} : data :=
   match (pending D) with
     | [::] => D
     | e :: p' =>
-        let: a' := rep D (e..0) in
-        let: b' := rep D (e..1) in
+        let: a' := rep D (pendL e) in
+        let: b' := rep D (pendR e) in
         let: D' := Data (rep D) (class D) (use D) (lookup D) p' in
           if a' == b' then propagate D'
           else
@@ -660,7 +692,7 @@ Proof.
   by rewrite /metric eq addSn; apply: ltP; apply: ltnSn.
 move=>D e p' eq H.
 rewrite join_use_metric ?H //; last first.
-- by rewrite join_class_eq ?mem_filter ?rep_in_reps //= ?(eq_sym (rep D e..1)) H.
+- by rewrite join_class_eq ?mem_filter ?rep_in_reps //= ?(eq_sym (rep D (pendR e))) H.
 - by rewrite join_class_eq ?mem_filter ?rep_in_reps ?H //= eq_refl.
 rewrite -join_class_metric ?H ?rep_in_reps //.
 by apply: ltP; rewrite /metric /reps /= eq /= addSn.
@@ -680,9 +712,20 @@ Fixpoint norm (D : data) (t : exp) {struct t} : exp :=
        end
      end.
 
-(************************************)
-(* Some invariants of the algorithm *)
-(************************************)
+End MathModel.
+
+(*******************************)
+(* Invariants of the algorithm *)
+(*******************************)
+
+Section Invariants.
+Variable s : seq constant.
+Notation symb := (symb s).
+Notation exp := (exp s).
+Notation rel_exp := (rel_exp s).
+Notation data := (data s).
+Notation pend2eq := (@pend2eq s).
+Implicit Type D : data.
 
 (* the rep function is idempotent *)
 Definition rep_idemp D := forall a, rep D (rep D a) = rep D a.
@@ -823,13 +866,28 @@ Definition propagate_inv D :=
   rep_idemp D /\ use_inv D /\ lookup_inv D /\ 
   use_lookup_inv D /\ lookup_use_inv D.
 
-(****************)
-(* Verification *)
-(****************)
+End Invariants.
+
+(**********************************)
+(* Verification of the math model *)
+(**********************************)
+
+(* proving properties of the mathematal model *)
+
+Section MathModelProofs.
+Variable s : seq constant.
+Notation symb := (symb s).
+Notation exp := (exp s).
+Notation rel_exp := (rel_exp s).
+Notation data := (data s).
+Notation pend2eq := (@pend2eq s).
+Notation symb2eq := (@symb2eq s).
+Notation closure := (@closure s).
+Implicit Type D : data.
 
 (* first some basic rewrite rules *)
 
-Lemma reps_rep (D : data) (a : symb) : 
+Lemma reps_rep D (a : symb) : 
         rep_idemp D -> a \in reps D -> rep D a = a.
 Proof. by move=>H; rewrite mem_undup; case/mapP=>x _ ->; apply: H. Qed.
 
@@ -906,7 +964,7 @@ move=>H2 H3 H1 [x y]; split=>/= T.
   case/imageP=>z _ /= [->->] {x y}; rewrite ffunE /=.
   case: eqP=>[<-|_]; last by apply: clos_rep.
   apply: (transC (y:=const (rep D z))); first by apply: clos_rep.
-  by apply: (@closI _ (const (rep D z), const b')); right.
+  by apply: closI; right.
 move: (clos_idemp (rep2rel (join_class D a' b')) (x,y))=>/=<-.
 apply: sub_closI T=>{x y} [[x y]].
 case; last first.
@@ -914,12 +972,12 @@ case; last first.
   by rewrite /= !ffunE /= reps_rep // eq_refl.
 case/imageP=>z _ /= [->->] {x y}.
 case E: (rep D z == a'); last first.
-- apply: (@closI _ (const z, const (rep D z))); apply/imageP.
+- apply: closI; apply/imageP.
   by exists z; rewrite // ffunE /= E.
 apply: (transC (y:=const b')).
-- apply: (@closI _ (const z, const b')); apply/imageP. 
+- apply: closI; apply/imageP. 
   by exists z; rewrite // ffunE /= E.
-apply: symC; apply: (@closI _ (const (rep D z), const b')); apply/imageP.
+apply: symC; apply: closI; apply/imageP.
 by exists (rep D z); rewrite // ffunE /= H1 // E.
 Qed.
 
@@ -1072,9 +1130,7 @@ move=>L1 L2 L3 H1 H4 H5 [x y]; rewrite !toPredE; split.
       move: Q4; apply: sub_closI=>{x y} [[x y]] Q4; apply: sub_orl.  
       by rewrite orrA.
     rewrite const_rel /CRel clos_clos !orrA symR.
-    apply: (@closI _ (app (const (rep D c1))  
-                     (const (rep D c2)), const (rep D d))).
-    apply: sub_orr; apply: sub_orl.
+    apply: closI; apply: sub_orr; apply: sub_orl.
     rewrite invert_look.
     exists (rep D d1), (rep D d2), d, d1, d2.
     by rewrite -Q2 -Q3 !rep_in_reps.
@@ -1581,8 +1637,8 @@ have L2: forall D pend_eq p' a b a' b' D' D'',
     by case=>[_][_][[d][d1][d2]][]; rewrite U.
   rewrite -H6 /= join_classE // T H6=>->.
   by apply: IH.
-apply/(@propagate_ind (fun d d' => inv d -> inv d' /\ 
-  pending d' = [::] /\ CRel d <~> CRel d')); first by [].
+apply/(@propagate_ind s (fun d d' => inv d -> inv d' /\ 
+  pending d' = [::] /\ CRel d <~> CRel d'))=>//.
 - by move=>D e p' H1 a' H2 b' H3 D'; apply: L1 H1 _ H2 H3;
      case: e=>// [[[c c1]] c2] [[d d1] d2].
 move=>D e p' H1 a' H2 b' H3 D' E [] // H _ D''; 
@@ -1593,8 +1649,8 @@ Qed.
 (* Lemmas about interaction of propagate with pending and closure *)
 
 Lemma propagate_pendP d eq : propagate_inv d ->
-        propagate_inv (Data (rep d) (class d) (use d) 
-                            (lookup d) (eq :: pending d)).
+        @propagate_inv s (Data (rep d) (class d) (use d) 
+                               (lookup d) (eq :: pending d)).
 Proof.
 move=>H; set d' := Data _ _ _ _ _.
 have L: forall a b, similar d a b -> similar d' a b.
@@ -1618,7 +1674,7 @@ Lemma propagate_clos_pendP d c c1 c2 e e1 e2 :
 Proof.
 move=>PI H.
 have [R1 R2]: rep d e1 = rep d c1 /\ rep d e2 = rep d c2.
-- by move: PI=>[_][_][L1] _; apply: (L1 _ _ e).
+- by move: PI=>[_][_][L1] _; apply: L1 H; apply: rep_in_reps.
 rewrite /CRel /= /eq2rel /=.
 rewrite clos_clos -!(rpull (eqs2rel _)) !orrA; apply: closKR.
 move=>[z y]; split=>O; rewrite toPredE -clos_idemp; move: O; apply: sub_closI;
@@ -1661,13 +1717,13 @@ move: PI=>[R1][U1][L1][UL1] LU1; do 2!split=>//.
 - move=>a e e1 e2; rewrite /reps /= !ffunE /= => T1.
   case: ifP=>E1.
   - rewrite E (eqP E1) inE.
-    by case/orP=>[|O]; [case/eqP=>_->->; right | apply: U1 O].
+    by case/orP=>[/eqP [_ ->->]|O]; [right|apply/U1/O/rep_in_reps].
   case: ifP=>E2; last by apply: U1 T1.
   rewrite (eqP E2) inE.
-  by case/orP=>[|O]; [case/eqP=>_->->; left | apply: U1 O].
+  by case/orP=>[/eqP [_ ->->]|O]; [left|apply/U1/O/rep_in_reps].
 split=>[a b e e1 e2|].
 - rewrite /reps /= fnd_ins.
-  by case: ifP=>E1; [case/eqP: E1=>->-> T1 T2 [_->->] | apply: L1].
+  by case: ifP=>E1; [case/eqP: E1=>->-> T1 T2 [_->->]|apply: L1].
 split=>[a e e1 e2|].
 - rewrite /reps /= !ffunE /= => T1.
   case: ifP=>E1.
@@ -1782,15 +1838,7 @@ move=>[a][b][c][c1][c2][/= -> Q1 Q2 Q3 ->] /=; do 2!rewrite reps_rep //.
 by rewrite Q3 H1.
 Qed.
 
-End Congruence.
-
-Notation rel_exp s := (Pred (exp s * exp s)).
-
-(* repeat the morphism declaration outside the section *)
-Add Parametric Morphism s : (@closure s) with
-  signature Morphisms.respectful (fun e1 e2 => e1 <~> e2) 
-   (fun e1 e2 => e1 <~> e2) as closure_morph'.
-Proof. by apply: closE. Qed.
+End MathModelProofs.
 
 (* empty congruence only relates constant symbols to themselves *)
 Definition empty_cong s := closure (graph (@const s)).
