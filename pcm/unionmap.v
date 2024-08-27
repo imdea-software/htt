@@ -2595,6 +2595,9 @@ case=>k'; rewrite InPtUnE //; case; first by case; left.
 by move=>H; right; apply/IH; exists k'.
 Qed.
 
+Lemma In_rangeEX k v f : (k, v) \In f -> v \In range f.
+Proof. by move=>H; apply/In_rangeX; exists k. Qed.
+
 Lemma In_range_valid k f : k \In range f -> valid f.
 Proof. by case/In_rangeX=>v /In_dom/dom_valid. Qed.
 
@@ -2702,6 +2705,9 @@ Proof. by apply: mem_seqP. Qed.
 
 Lemma mem_rangeX v f : v \in range f <-> exists k, (k, v) \In f.
 Proof. by split; [move/mem_seqP/In_rangeX|move/In_rangeX/mem_seqP]. Qed.
+
+Lemma mem_rangeEX k v f : (k, v) \In f -> v \in range f.
+Proof. by move=>H; apply/mem_rangeX; exists k. Qed.
 
 Lemma range_valid k f : k \in range f -> valid f.
 Proof. by move/mem_seqP/In_range_valid. Qed.
@@ -6910,7 +6916,6 @@ by rewrite !big_cons omapVUn IH; case: ifP=>// /validR ->.
 Qed.
 
 End OMapBig.
-
 
 (* DEVCOMMENT: *)
 (*   remove "tests" for release *)
