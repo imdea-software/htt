@@ -334,6 +334,22 @@ Lemma lastkey_memk A (U : natmap A) (h : U) k :
         last_key h <= k.
 Proof. by case: lastkeyP=>//= v _; case: ltngtP=>// _; apply. Qed.
 
+(* view for last_val can simplify obligations from last_keyP *)
+(* by joining the cases for unit and undef *)
+Variant lastval_spec A (U : natmap A) (h : U) : option A -> Type :=
+| lastval_none of last_val h = None & (forall kv, kv \Notin h) :
+    lastval_spec h None 
+| lastval_some r kv of last_val h = Some r & kv \In h :
+    lastval_spec h (Some r).
+
+Lemma lastvalP A (U : natmap A) (h : U) : lastval_spec h (last_val h).
+Proof.
+case: lastkeyP=>[->|->|v].
+- by apply: lastval_none; [rewrite lastval_undef|move=>kv /In_undef].
+- by apply: lastval_none; [rewrite lastval0|move=>kv /In0].
+by move=>H; apply/lastval_some/H/In_findE.
+Qed.
+
 (************)
 (* last_key *)
 (************)
