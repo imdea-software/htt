@@ -323,16 +323,9 @@ by rewrite H1 lt0n (negbTE H2) H4; apply/lastkey_dom_valid/In_last.
 Qed.
 
 (* main membership invariant of last_key *)
-Lemma lastkey_mem0 A (U : natmap A) (h : U) : last_key h \in 0 :: dom h.
+Lemma lastkey_mem0 A (U : natmap A) (h : U) : 
+        last_key h \in 0 :: dom h.
 Proof. by rewrite inE; case: lastkeyP. Qed.
-
-(* DEVCOMMENT: *)
-(*    Weird variation. Worth preserving? *)
-(* /DEVCOMMENT *)
-Lemma lastkey_memk A (U : natmap A) (h : U) k :
-        (k < last_key h -> last_key h \notin dom h) -> 
-        last_key h <= k.
-Proof. by case: lastkeyP=>//= v _; case: ltngtP=>// _; apply. Qed.
 
 (* view for last_val can simplify obligations from last_keyP *)
 (* by joining the cases for unit and undef *)
@@ -359,7 +352,9 @@ Variables (A : Type) (U : natmap A).
 Implicit Type h : U.
 
 (* last_key is upper bound *)
-Lemma dom_lastkey h k : k \in dom h -> k <= last_key h.
+Lemma dom_lastkey h k : 
+        k \in dom h -> 
+        k <= last_key h.
 Proof.
 rewrite /last_key !umEX /UM.dom; case: (UMC_from h)=>//; case=>s H _ /=.
 rewrite /supp/ord /= (leq_eqVlt k) orbC. 
@@ -374,21 +369,20 @@ Proof. by apply: contraL; rewrite -leqNgt; apply: dom_lastkey. Qed.
 Lemma lastkey_dom0 h k : last_key h < k -> k \notin 0 :: dom h.
 Proof. by apply: contraL; rewrite -leqNgt; apply: dom0_lastkey. Qed.
 
-(* DEVCOMMENT: *)
-(*   Weird variation. Worth preserving? *)
-(* /DEVCOMMENT *)
-Lemma dom_lastkey_eq h k :
-        k \in dom h -> 
-        (k < last_key h -> last_key h \notin dom h) ->
-        k = last_key h.
-Proof.
-move/dom_lastkey=>D /lastkey_memk H.
-by rewrite (@anti_leq (last_key _) k) // H D.
-Qed.
-
 (* last_key is least upper bound *)
-Lemma lastkey_lub h k : {in dom h, forall x, x <= k} -> last_key h <= k.
+Lemma lastkey_lub h k : 
+         {in dom h, forall x, x <= k} -> 
+         last_key h <= k.
 Proof. by case lastkeyP=>// v /In_dom H; apply. Qed.
+
+(* variant with contrapositive side-condition *)
+Lemma lastkey_memk h k :
+        (forall x, k < x -> x \notin dom h) -> 
+        last_key h <= k.
+Proof. 
+move=>H; apply: lastkey_lub=>x; rewrite leqNgt.
+by apply/contraL/H.
+Qed.
 
 (* useful variant with equality *)
 Lemma lub_lastkey h k : 
@@ -402,27 +396,49 @@ apply: lastkey_lub=>x; apply: contraTT.
 by rewrite -ltnNge; apply: X.
 Qed.
 
+(* no need to quantify over x in lastkey_memk *)
+(* it suffices to use x := last_key h *)
+Lemma lastkey_memkX h k :
+        (k < last_key h -> last_key h \notin dom h) -> 
+        last_key h <= k.
+Proof. by case: lastkeyP=>//= v _; case: ltngtP=>// _; apply. Qed.
+
+(* no need to quantify over x in lub_lastkey *)
+(* it suffices to use x := last_key h *)
+Lemma lub_lastkeyX h k :
+        k \in dom h -> 
+        (k < last_key h -> last_key h \notin dom h) ->
+        k = last_key h.
+Proof.
+move/dom_lastkey=>D /lastkey_memkX H.
+by rewrite (@anti_leq (last_key _) k) // H D.
+Qed.
+
 (* equivalences *)
 
-Lemma lastkey_leq h k : (last_key h <= k) = all (fun x => x <= k) (dom h).
+Lemma lastkey_leq h k : 
+        (last_key h <= k) = all (fun x => x <= k) (dom h).
 Proof. 
 apply/idP/allP=>[H x /dom_lastkey D|]; 
 by [apply: leq_trans D H | apply: lastkey_lub].
 Qed.
 
-Lemma leq_lastkey h k : (k <= last_key h) = has (fun x => k <= x) (0 :: dom h).
+Lemma leq_lastkey h k : 
+        (k <= last_key h) = has (fun x => k <= x) (0 :: dom h).
 Proof. 
 apply/idP/hasP=>[|[x] D H]; last by apply: leq_trans H (dom0_lastkey D).
 by exists (last_key h)=>//; apply: lastkey_mem0.
 Qed.
 
-Lemma ltn_lastkey h k : (k < last_key h) = has (fun x => k < x) (dom h).
+Lemma ltn_lastkey h k : 
+        (k < last_key h) = has (fun x => k < x) (dom h).
 Proof. 
 apply/idP/hasP=>[|[x] D H]; last by apply: leq_trans H (dom_lastkey D).
 by exists (last_key h)=>//; case: lastkeyP H.
 Qed.
 
-Lemma lastkey_ltn h k : (last_key h < k) = all (fun x => x < k) (0 :: dom h).
+Lemma lastkey_ltn h k : 
+        (last_key h < k) = all (fun x => x < k) (0 :: dom h).
 Proof. 
 apply/idP/allP=>[H x D|]; last by apply; apply: lastkey_mem0.
 by apply: leq_ltn_trans (dom0_lastkey D) H. 
@@ -692,18 +708,14 @@ Proof. by move/lastkey_dom; apply/(subsetC omf_subdom). Qed.
 Lemma lastkey_odom0 f h k : last_key h < k -> k \notin 0 :: dom (f h).
 Proof. move/lastkey_dom0; apply/(subsetC omf_subdom0). Qed.
 
-(* DEVCOMMENT: *)
-(*   Weird variation. Worth preserving? *)
-(*   composes dom_lastkey_eq with In_dom_omfX *)
-(* /DEVCOMMENT *)
-Lemma odom_lastkey_eq f h k v :
+Lemma olub_lastkeyX f h k v :
         (k, v) \In h -> omf f (k, v) ->
         (forall w, k < last_key (f h) -> 
            (last_key (f h), w) \In h -> 
            omf f (last_key (f h), w) -> False) ->
         k = last_key (f h).
 Proof.
-move=>D1 D2 H; apply: dom_lastkey_eq=>[|X].
+move=>D1 D2 H; apply: lub_lastkeyX=>[|X].
 - by apply/In_dom_omfX; exists v.
 by apply/In_dom_omfX; case=>w []; apply: H X.
 Qed.
