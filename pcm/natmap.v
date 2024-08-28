@@ -508,7 +508,7 @@ Proof. by rewrite joinC; apply: lastkeyUnLT. Qed.
 (* disjoint maps with equal last keys are both empty *)
 Lemma lastkeyUn0T A1 A2 (U1 : natmap A1) (U2 : natmap A2) (h1 : U1) (h2 : U2) :
         valid h1 -> valid h2 ->
-        (forall x, x \in dom h1 -> x \in dom h2 -> false) ->
+        (forall x, x \in dom h1 -> x \in dom h2 -> False) ->
         last_key h1 = last_key h2 -> 
         (h1 = Unit) * (h2 = Unit).
 Proof.
@@ -527,7 +527,7 @@ Proof. by case: validUn=>// ?? D _; apply: lastkeyUn0T=>// x /D/negbTE ->. Qed.
 
 (* variation to avoid validity *)
 Lemma lastkey00 A1 A2 (U1 : natmap A1) (U2 : natmap A2) (h1 : U1) (h2 : U2) :
-        (forall x, x \in dom h1 -> x \in dom h2 -> false) ->
+        (forall x, x \in dom h1 -> x \in dom h2 -> False) ->
         last_key h1 = last_key h2 -> 
         (last_key h1 = 0) * (last_key h2 = 0).
 Proof.
@@ -539,12 +539,27 @@ Qed.
 (* variation with subdoms *)
 Lemma lastkey_subdom00 A1 A2 (U1 : natmap A1) (U2 : natmap A2) 
            (h1 : U1) (h2 : U2) (s1 s2 : pred nat) : 
-        (forall x, x \in s1 -> x \in s2 -> false) ->
+        (forall x, x \in s1 -> x \in s2 -> False) ->
         {subset dom h1 <= s1} ->
         {subset dom h2 <= s2} ->
         last_key h1 = last_key h2 -> 
         (last_key h1 = 0) * (last_key h2 = 0).
 Proof. by move=>D S1 S2; apply: lastkey00=>x /S1 H /S2; apply: D H. Qed.
+
+(* variation with subdoms and indexing *)
+Lemma lastkey_subdom00E A1 A2 (U1 : natmap A1) (U2 : natmap A2) 
+          (g : nat -> pred nat) (h1 : U1) (h2 : U2) (t1 t2 : nat) :
+        (forall x, x \in g t1 -> x \in g t2 -> t1 = t2) ->
+        {subset dom h1 <= g t1} ->
+        {subset dom h2 <= g t2} ->
+        last_key h1 != 0 ->
+        last_key h1 = last_key h2 ->
+        t1 = t2.
+Proof.
+move=>H S1 S2 X E; apply: contraNeq X=>/eqP X.
+move/(lastkey_subdom00 _ S1 S2): E=>-> //. 
+by move=>x D1 /(H x D1)/X.
+Qed.
 
 (* interaction with constructors *)
 
@@ -799,6 +814,42 @@ by rewrite domPtUn inE H orbT lastkeyPtUnV ?(dom_valid H,lastkey_omfT').
 Qed.
 
 End LastKeyOmapFun.
+
+(* lastkey_subdom00 for application of omap functions *)
+Lemma lastkey00E A A1 A2 (U : natmap A) (U1 : natmap A1) (U2 : natmap A2) 
+          (f1 : omap_fun U U1) (f2 : omap_fun U U2) (h1 : U) (h2 : U) :
+        (forall x, x \in dom h1 -> x \in dom h2 -> False) ->
+        last_key (f1 h1) = last_key (f2 h2) -> 
+        (last_key (f1 h1) = 0) * (last_key (f2 h2) = 0).
+Proof. by move=>H; apply: lastkey_subdom00 H omf_subdom omf_subdom. Qed.
+
+(* formulation with application and indexing *)
+(* NOTE: not a consequence of lastkey_subdom00E *)
+Lemma lastkeyFE T A A1 A2 (U : natmap A) (g : nat -> T -> U) 
+          (U1 : natmap A1) (f1 : omap_fun U U1) 
+          (U2 : natmap A2) (f2 : omap_fun U U2)
+          (h1 h2 : T) t1 t2 :
+        (forall x, x \in dom (g t1 h1) -> x \in dom (g t2 h2) -> t1 = t2) ->
+        last_key (f1 (g t1 h1)) != 0 ->
+        last_key (f1 (g t1 h1)) = last_key (f2 (g t2 h2)) -> 
+        t1 = t2.
+Proof.
+move=>X N1 E; apply: contraNeq N1=>/eqP N2.
+by move/lastkey00E: E=>-> // x D1 /(X x D1)/N2.
+Qed.
+
+(* formulation with application of composition and with indexing *)
+Lemma lastkeyFFE T A A1 A2 A1' A2' (U : natmap A) (g : nat -> T -> U) 
+          (U1 : natmap A1) (f1 : omap_fun U U1)
+          (U2 : natmap A2) (f2 : omap_fun U U2)
+          (U1' : natmap A1') (f1' : omap_fun U1 U1') 
+          (U2' : natmap A2') (f2' : omap_fun U2 U2')
+          (h1 h2 : T) t1 t2 :
+        (forall x, x \in dom (g t1 h1) -> x \in dom (g t2 h2) -> t1 = t2) ->
+        last_key (f1' (f1 (g t1 h1))) != 0 ->
+        last_key (f1' (f1 (g t1 h1))) = last_key (f2' (f2 (g t2 h2))) -> 
+        t1 = t2.
+Proof. by rewrite (compE f1') (compE f2'); apply: lastkeyFE. Qed.
 
 (* last_key and filter *)
 
