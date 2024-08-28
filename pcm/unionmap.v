@@ -4167,12 +4167,12 @@ Lemma In_umfilt p x f : x \In f -> p x -> x \In um_filter p f.
 Proof. by move=>X1 X2; apply/In_umfiltX. Qed.
 
 Lemma In_dom_umfilt p f k :
-        reflect (exists v, [/\ p (k, v) & (k, v) \In f])
+        reflect (exists2 v, p (k, v) & (k, v) \In f)
                 (k \in dom (um_filter p f)).
 Proof.
-case: In_domX=>H; constructor.
-- by case: H=>v /In_umfiltX []; exists v.
-by case=>v [Hp Hf]; elim: H; exists v; apply/In_umfilt.
+apply: (iffP (In_domX _ _)).
+-  by case=>v /In_umfiltX []; exists v.
+by case=>v Hp Hf; exists v; apply/In_umfilt.
 Qed.
 
 Lemma dom_omf_umfilt V' (U' : union_map C V') (f : omap_fun U U') x :
@@ -4180,8 +4180,8 @@ Lemma dom_omf_umfilt V' (U' : union_map C V') (f : omap_fun U U') x :
 Proof.
 apply/domE=>k; apply/idP/idP.
 - case/In_dom_omfX=>//= v [H1 H2].
-  by apply/In_dom_umfilt; exists v; rewrite /= H2.
-case/In_dom_umfilt=>w [/=].
+  by apply/In_dom_umfilt; exists v. 
+case/In_dom_umfilt=>w /=.
 case E: (omf f (k, w))=>[a|] // _ H.
 by move/In_dom: (In_omf _ H E).
 Qed.
@@ -4198,7 +4198,7 @@ Proof.
 apply: ord_sorted_eq=>//=.
 - by apply: sorted_filter; [apply: trans | apply: sorted_dom].
 move=>k; rewrite mem_filter; apply/idP/idP.
-- by case/In_dom_umfilt=>w [H1 H2]; move/In_find: H2 (H2) H1=>-> /In_dom ->->.
+- by case/In_dom_umfilt=>w H1 H2; move/In_find: H2 (H2) H1=>-> /In_dom ->->.
 case X: (find k f)=>[v|] // /andP [H1 _]; move/In_find: X=>H2.
 by apply/In_dom_umfilt; exists v.
 Qed.
@@ -4329,7 +4329,7 @@ move: f z0; elim/um_indf=>[||k v f IH W P] z0 /=.
 - by rewrite !pfunit !umfoldl0.
 have V1 : all (ord k) (dom f) by apply/allP=>x; apply: path_mem (@trans K) P.
 have V2 : all (ord k) (dom (um_filter p f)).
-- apply/allP=>x /In_dom_umfilt [w][_] /In_dom.
+- apply/allP=>x /In_dom_umfilt [w _] /In_dom.
   by apply: path_mem (@trans K) P.
 have : valid (um_filter p (pts k v \+ f)) by rewrite pfVE W.
 by rewrite !umfiltPtUn W; case: ifP=>E V3; rewrite !umfoldlPtUn // E IH.
@@ -4390,11 +4390,11 @@ Lemma dom_umfilt2 p1 p2 f x :
         (x \in dom (um_filter p1 f)) && (x \in dom (um_filter p2 f)).
 Proof.
 rewrite -umfilt_predI; apply/idP/idP.
-- case/In_dom_umfilt=>v [/andP [X1 X2] H].
+- case/In_dom_umfilt=>v /andP [X1 X2] H.
   by apply/andP; split; apply/In_dom_umfilt; exists v.
-case/andP=>/In_dom_umfilt [v1][X1 H1] /In_dom_umfilt [v2][X2 H2].
+case/andP=>/In_dom_umfilt [v1 X1 H1] /In_dom_umfilt [v2 X2 H2].
 move: (In_fun H1 H2)=>E; rewrite -{v2}E in X2 H2 *.
-by apply/In_dom_umfilt; exists v1; split=>//; apply/andP.
+by apply/In_dom_umfilt; exists v1=>//; apply/andP.
 Qed.
 
 End FilterDefLemmas.
@@ -4418,7 +4418,7 @@ Proof.
 apply: ord_sorted_eq=>//=.
 - by apply: sorted_filter; [apply: trans | apply: sorted_dom].
 move=>k; rewrite mem_filter; apply/idP/idP.
-- by case/In_dom_umfilt=>v [/= -> /In_dom].
+- by case/In_dom_umfilt=>v /= -> /In_dom.
 by case/andP=>H1 /In_domX [v H2]; apply/In_dom_umfilt; exists v.
 Qed.
 
@@ -4428,8 +4428,8 @@ Lemma valid_umfiltkUn p1 p2 f :
         valid (um_filterk p1 f \+ um_filterk p2 f).
 Proof.
 move=>W H; rewrite validUnAE !pfVE W /=.
-apply/allP=>x; case/In_dom_umfilt=>v1 /= [H2 F1].
-apply/negP; case/In_dom_umfilt=>v2 /= [H1 F2].
+apply/allP=>x; case/In_dom_umfilt=>v1 /= H2 F1.
+apply/negP; case/In_dom_umfilt=>v2 /= H1 F2.
 by move: (H x (In_dom F1) H1 H2).
 Qed.
 
@@ -4440,7 +4440,8 @@ Proof. by move=>k; rewrite dom_umfiltkE mem_filter. Qed.
 (* this also holds for invalid f1, as the corollary shows *)
 (* /DEVCOMMENT *)
 Lemma umfiltk_dom f1 f2 :
-        valid (f1 \+ f2) -> um_filterk (mem (dom f1)) (f1 \+ f2) = f1.
+        valid (f1 \+ f2) -> 
+        um_filterk (mem (dom f1)) (f1 \+ f2) = f1.
 Proof.
 move=>W; apply/umem_eq; first by rewrite pfVE.
 - by rewrite (validL W).
@@ -4456,14 +4457,16 @@ by rewrite -{2}[f]unitR umfiltk_dom // unitR.
 Qed.
 
 Lemma eq_in_umfiltk p1 p2 f :
-        {in dom f, p1 =1 p2} -> um_filterk p1 f = um_filterk p2 f.
+        {in dom f, p1 =1 p2} -> 
+        um_filterk p1 f = um_filterk p2 f.
 Proof. by move=>H; apply/eq_in_umfilt; case=>k v /In_dom; apply: H. Qed.
 
 (* filter p x is lower bound for p *)
 Lemma umfiltk_subdom p f : {subset dom (um_filterk p f) <= p}.
 Proof. by move=>a; rewrite dom_umfiltk; case/andP. Qed.
 
-Lemma umfiltk_subdomE p f : {subset dom f <= p} <-> um_filterk p f = f.
+Lemma umfiltk_subdomE p f : 
+        {subset dom f <= p} <-> um_filterk p f = f.
 Proof.
 split; last by move=><- a; rewrite dom_umfiltk; case/andP.
 by move/eq_in_umfiltk=>->; rewrite umfilt_predT.
@@ -4478,7 +4481,8 @@ Lemma find_umfiltk k (p : pred K) f :
 Proof. by rewrite find_umfilt /=; case: (find _ _)=>[a|]; case: ifP. Qed.
 
 Lemma umfiltk_subdom0 p f :
-        valid f -> {subset dom f <= predC p} <-> um_filterk p f = Unit.
+        valid f -> 
+        {subset dom f <= predC p} <-> um_filterk p f = Unit.
 Proof.
 move=>W; split=>[H|H k X].
 - rewrite (eq_in_umfiltk (p2:=pred0)) ?umfilt_pred0 //.
@@ -5064,8 +5068,7 @@ Lemma eval_oevUmfilt a p f z0 :
         oeval a (dom (um_filter p f)) (um_filter p f) z0.
 Proof.
 apply: eq_in_oevF =>k v H; rewrite In_umfiltX.
-split; last by case.
-split=>//; move: H; move/In_dom_umfilt => [v' [H H1]].
+split=>[|[]//]; split=>//; case/In_dom_umfilt: H=>v' H H1.
 by rewrite (In_fun H1 H0) in H.
 Qed.
 
@@ -5421,7 +5424,7 @@ Lemma umcntF p k v f :
 Proof.
 move=>H; move/In_dom: (H)=>/= D; rewrite /um_count.
 case E: (k \in dom (um_filter p f)).
-- case/In_dom_umfilt: E=>w [H1 H2].
+- case/In_dom_umfilt: E=>w H1 H2.
   rewrite -{w H2}(In_fun H H2) in H1 *.
   rewrite H1 omfF size_domF ?subn1 //=.
   by apply/In_dom_umfilt; exists v.
@@ -5498,7 +5501,7 @@ Proof.
 case: (normalP f)=>[->|W]; first by rewrite !umcnt_undef.
 rewrite /um_count umfilt_predU size_domUn //.
 case: validUn=>//; rewrite ?(pfV,W) //.
-move=>k /In_dom_umfilt [v1 [P1 H1]] /In_dom_umfilt [v2 [/= P2 H2]].
+move=>k /In_dom_umfilt [v1 P1 H1] /In_dom_umfilt [v2 /= P2 H2].
 by rewrite -(In_fun H1 H2) P1 in P2.
 Qed.
 
@@ -5878,7 +5881,7 @@ Proof.
 case=>Vh V D.
 rewrite validUnAE !pfV //=; apply/allP=>x /In_dom_omapX [].
 move=>t1 [/In_dom /= H _]; apply/In_dom_umfilt.
-case; case=>tx vx [/eqP /= N].
+case; case=>tx vx /= /eqP /= N.
 by move/(In_side Ut)/In_dom/D/(_ H)/esym/N.
 Qed.
 

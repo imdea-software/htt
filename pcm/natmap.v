@@ -2282,27 +2282,29 @@ Lemma pts_sub_lt V t1 t2 : t1 < t2 -> subpred (T:=nat*V) (le t1) (lt t2).
 Proof. by move=>T [k v] /leq_ltn_trans; apply. Qed.
 
 Lemma ptsD V t1 t2 :
-        t1 <= t2 -> predD (le t2) (le t1) =1 
-                    (fun kv : (nat * V) =>
-                       let '(k, v) := kv in t1 < k <= t2).  
+        t1 <= t2 -> 
+        predD (le t2) (le t1) =1 
+          (fun kv : (nat * V) =>
+           let '(k, v) := kv in t1 < k <= t2).  
 Proof. by move=>T [k v] /=; rewrite -ltnNge. Qed.
 
 Lemma ptsD_lt V t1 t2 :
-        t1 < t2 -> predD (lt t2) (le t1) =1 
-                   (fun kv : nat * V => 
-                     let '(k, v) := kv in t1 < k < t2).
+        t1 < t2 -> 
+        predD (lt t2) (le t1) =1 
+          (fun kv : nat * V => 
+           let '(k, v) := kv in t1 < k < t2).
 Proof. by move=>T [k v] /=; rewrite -ltnNge. Qed.
 
 Lemma lastkey_umfilt_leq A (U : natmap A) (h : U) t : 
         last_key (um_filterk (leq^~ t) h) <= t.
 Proof.
-case V : (valid h); last first.
-- by move/negbT/invalidE: V=>->; rewrite pfundef lastkey_undef.
+case: (normalP h)=>[->|V].
+- by rewrite pfundef lastkey_undef.
 set j := um_filterk _ _.
 have V' : valid j by rewrite pfV.
 case E : (unitb j); first by move/unitbP: E=>->; rewrite lastkey0.
 have : last_key j \in dom j by case: lastkeyP V' E.
-by case/In_dom_umfilt=>v [].
+by case/In_dom_umfilt.
 Qed.
 
 Lemma lastkey_umfilt_dom A (U : natmap A) (h : U) t :
@@ -2310,10 +2312,10 @@ Lemma lastkey_umfilt_dom A (U : natmap A) (h : U) t :
 Proof. by apply: lastkey_mono; apply: omf_subdom. Qed.
 
 Lemma umfilt_le_last A (U : natmap A) (h : U) t :
-        last_key h <= t -> um_filter (le t) h = h.
+        last_key h <= t -> 
+        um_filter (le t) h = h.
 Proof.
-case V : (valid h); last first.
-- by move/invalidE: (negbT V)=>->; rewrite pfundef.
+case: (normalP h)=>[->|V]; first by rewrite pfundef.
 move=>N; rewrite -{2}[h]umfilt_predT; apply/eq_in_umfilt.
 by case=>k v /In_dom/dom_lastkey/leq_trans; apply.
 Qed.
@@ -2327,7 +2329,9 @@ Lemma umfilt_le_fresh A (U : natmap A) (h : U) :
 Proof. by apply: umfilt_le_last; apply: ltnW. Qed.
 
 Lemma umfilt_le0 A (U : natmap A) (h : U) t :
-        valid h -> {in dom h, forall k, t < k} -> um_filter (le t) h = Unit.
+        valid h -> 
+        {in dom h, forall k, t < k} -> 
+        um_filter (le t) h = Unit.
 Proof.
 move=>V D; rewrite -(umfilt_pred0 V).
 apply/eq_in_umfilt; case=>k v [/= _][z E]; subst h.
@@ -2373,7 +2377,8 @@ by rewrite subX //; case: (ltngtP k1 k.-1).
 Qed.
 
 Lemma umfilt_leUn A (U : natmap A) (h1 h2 : U) t :
-        valid (h1 \+ h2) -> t <= last_key h1 ->
+        valid (h1 \+ h2) -> 
+        t <= last_key h1 ->
         {in dom h2, forall k, k > last_key h1} ->
         um_filter (le t) (h1 \+ h2) = um_filter (le t) h1.
 Proof.
@@ -2382,7 +2387,10 @@ by move=>k /D /(leq_ltn_trans K).
 Qed.
 
 Lemma umfilt_le_gapless A (U : natmap A) (h1 h2 : U) t :
-        gapless h1 -> valid h2 -> [pcm h1 <= h2] -> t <= last_key h1 ->
+        gapless h1 -> 
+        valid h2 -> 
+        [pcm h1 <= h2] -> 
+        t <= last_key h1 ->
         um_filter (le t) h2 = um_filter (le t) h1.
 Proof.
 move=>G V H K; case: (gapless_pleq G V H)=>h [? D].
@@ -2390,7 +2398,8 @@ by subst h2; rewrite umfilt_leUn.
 Qed.
 
 Lemma dom_umfilt_le_eq A (U : natmap A) (h : U) t1 t2 :
-        t1 \in 0::dom h -> t2 \in 0::dom h ->
+        t1 \in 0::dom h -> 
+        t2 \in 0::dom h ->
         um_filter (le t1) h = um_filter (le t2) h ->
         t1 = t2.
 Proof.
@@ -2407,20 +2416,23 @@ by rewrite !leqnn; case: ltngtP.
 Qed.
 
 Lemma eval_leUn A (U : natmap A) R a (h1 h2 : U) t (z0 : R) :
-        valid (h1 \+ h2) -> t <= last_key h1 ->
+        valid (h1 \+ h2) -> 
+        t <= last_key h1 ->
         {in dom h2, forall k, k > last_key h1} ->
         eval a (le t) (h1 \+ h2) z0 = eval a (le t) h1 z0.
 Proof. by move=>V K D; apply: eq_filt_eval; apply: umfilt_leUn. Qed.
 
 Lemma eval_le_gapless A (U : natmap A) R a (h1 h2 : U) t (z0 : R) :
-        gapless h1 -> valid h2 -> [pcm h1 <= h2] -> t <= last_key h1 ->
+        gapless h1 -> 
+        valid h2 -> 
+        [pcm h1 <= h2] -> 
+        t <= last_key h1 ->
         eval a (le t) h2 z0 = eval a (le t) h1 z0.
 Proof. by move=>G V H K; apply: eq_filt_eval; apply: umfilt_le_gapless. Qed.
 
 Lemma eval_le0 A (U : natmap A) R a (h : U) (z0 : R) : eval a (le 0) h z0 = z0.
 Proof.
-case W : (valid h); last first.
-- by move/negbT/invalidE: W=>->; rewrite eval_undef.
+case: (normalP h)=>[->|V]; first by rewrite eval_undef.
 rewrite eval_umfilt umfilt_mem0L ?eval0 //.
 by move=>k v /In_dom/dom_cond; rewrite /=; case: ltngtP.
 Qed.
@@ -2430,10 +2442,9 @@ Lemma eval_le_split A (U : natmap A) R a (h : U) t1 t2 (z0 : R) :
         eval a (le t2) h z0 =
         eval a (fun '(k, _)=>t1 < k <= t2) h (eval a (le t1) h z0).
 Proof.
-move=>T; case V : (valid h); last first.
-- by move/invalidE: (negbT V)=>->; rewrite !eval_undef.
+move=>T; case: (normalP h)=>[->|V]; first by rewrite !eval_undef.
 rewrite eval_umfilt (umfilt_predD h (pts_sub T)) evalUn; last first.
-- move=>x y /In_dom_umfilt [vx][X _] /In_dom_umfilt [wy][/= /andP][].
+- move=>x y /In_dom_umfilt [vx X _] /In_dom_umfilt [wy /= /andP][].
   by rewrite /= -ltnNge; move/(leq_ltn_trans X).
 - by rewrite -(umfilt_predD h (pts_sub T)) pfV.
 by rewrite -!eval_umfilt; apply: eq_in_eval; case=>k v _; apply: ptsD.
@@ -2444,10 +2455,9 @@ Lemma eval_lt_split A (U : natmap A) R a (h : U) t1 t2 (z0 : R) :
         eval a (lt t2) h z0 =
         eval a (fun '(k, _)=>t1 < k < t2) h (eval a (le t1) h z0).
 Proof.
-move=>T; case V : (valid h); last first.
-- by move/invalidE: (negbT V)=>->; rewrite !eval_undef.
+move=>T; case: (normalP h)=>[->|V]; first by rewrite !eval_undef.
 rewrite eval_umfilt (umfilt_predD h (pts_sub_lt T)) evalUn; last first.
-- move=>x y /In_dom_umfilt [vx][X _] /In_dom_umfilt [wy][/= /andP][].
+- move=>x y /In_dom_umfilt [vx X _] /In_dom_umfilt [wy /= /andP][].
   by rewrite /= -ltnNge; move/(leq_ltn_trans X).
 - by rewrite -(umfilt_predD h (pts_sub_lt T)) pfV.
 by rewrite -!eval_umfilt; apply: eq_in_eval; case=>k v _; apply: ptsD_lt.
@@ -2457,11 +2467,10 @@ Lemma eval_le_lt_split A (U : natmap A) R a (h : U) t (z0 : R) :
         eval a (le t) h z0 =
         eval a (fun '(k, _)=>k == t) h (eval a (lt t) h z0).
 Proof.
-case V : (valid h); last first.
-- by move/invalidE: (negbT V)=>->; rewrite !eval_undef.
+case: (normalP h)=>[->|V]; first by rewrite !eval_undef.
 have D : subpred (T:=nat*A) (lt t) (le t) by case=>k v /ltnW.
 rewrite eval_umfilt (umfilt_predD h D) evalUn; last first.
-- move=>x y /In_dom_umfilt [vx][X _] /In_dom_umfilt [wy][/= /andP][].
+- move=>x y /In_dom_umfilt [vx X _] /In_dom_umfilt [wy /= /andP][].
   by rewrite /= -ltnNge; move/(leq_ltn_trans X).
 - by rewrite -(umfilt_predD h D) pfV.
 rewrite -!eval_umfilt; apply: eq_in_eval; case=>k v _ /=.
@@ -2469,7 +2478,8 @@ by case: ltngtP.
 Qed.
 
 Lemma eval_eq A (U : natmap A) R a (h : U) t v (z0 : R) :
-        (t, v) \In h -> eval a (fun '(k, _)=>k == t) h z0 = a z0 t v.
+        (t, v) \In h -> 
+        eval a (fun '(k, _)=>k == t) h z0 = a z0 t v.
 Proof.
 move=>H; rewrite eval_umfilt; have N : t != 0 by move/In_dom/dom_cond: H.
 suff -> : um_filter (fun '(k, _)=>k == t) h = pts t v by rewrite evalPt /= N.
@@ -2480,7 +2490,8 @@ by move=>[/eqP -> H1]; rewrite (In_fun H H1); apply: In_condPt.
 Qed.
 
 Lemma eval_le_last A (U : natmap A) R a (h : U) t (z0 : R) :
-        last_key h <= t -> eval a (le t) h z0 = eval a xpredT h z0.
+        last_key h <= t -> 
+        eval a (le t) h z0 = eval a xpredT h z0.
 Proof.
 by move=>H; apply: eq_in_eval; case=>k v /In_dom/dom_lastkey/leq_trans; apply.
 Qed.
@@ -2490,8 +2501,8 @@ Lemma eval_fresh_le A (U : natmap A) R a (h : U) t v (z0 : R) :
         if t <= last_key h then eval a (le t) h z0 else
           if valid h then a (eval a predT h z0) (fresh h) v else z0.
 Proof.
-case V: (valid h); last first.
-- by move/invalidE: (negbT V)=>->; rewrite join_undef !eval_undef; case: ifP.
+case: (normalP h)=>[->|V].
+- by rewrite join_undef !eval_undef; case: ifP.
 case: ifP=>H.
 - by rewrite eval_umfilt umfiltPtUn freshPtUnV // V ltnNge H -eval_umfilt.
 rewrite joinC evalUnPt; last first.
@@ -2507,8 +2518,8 @@ Lemma eval_fresh_lt A (U : natmap A) R a (h : U) t v (z0 : R) :
         if t <= fresh h then eval a (lt t) h z0 else
           if valid h then a (eval a predT h z0) (fresh h) v else z0.
 Proof.
-case V: (valid h); last first.
-- by move/invalidE: (negbT V)=>->; rewrite join_undef !eval_undef; case: ifP.
+case: (normalP h)=>[->|V].
+- by rewrite join_undef !eval_undef; case: ifP.
 case: ifPn=>H.
 - by rewrite eval_umfilt umfiltPtUn valid_fresh // V ltnNge H -eval_umfilt.
 rewrite joinC evalUnPt; last first.
@@ -2580,24 +2591,30 @@ by rewrite (umcnt_predD _ (pts_sub T)) (eq_in_umcnt2 _ (ptsD T)).
 Qed.
 
 Lemma umcnt_le0 A (U : natmap A) p (h : U) t :
-        valid h -> {in dom h, forall k, t < k} ->
+        valid h -> 
+        {in dom h, forall k, t < k} ->
         um_count (predI p (le t)) h = 0.
 Proof. by rewrite -umcnt_umfilt=>V /(umfilt_le0 V) ->; rewrite umcnt0. Qed.
 
 Lemma umcnt_leUn A (U : natmap A) p (h1 h2 : U) t :
-        valid (h1 \+ h2) -> t <= last_key h1 ->
+        valid (h1 \+ h2) -> 
+        t <= last_key h1 ->
         {in dom h2, forall k, k > last_key h1} ->
         um_count (predI p (le t)) (h1 \+ h2) =
         um_count (predI p (le t)) h1.
 Proof. by move=>V K D; rewrite -!umcnt_umfilt umfilt_leUn. Qed.
 
 Lemma umcnt_le_gapless A (U : natmap A) p (h1 h2 : U) t :
-        gapless h1 -> valid h2 -> [pcm h1 <= h2] -> t <= last_key h1 ->
+        gapless h1 -> 
+        valid h2 -> 
+        [pcm h1 <= h2] -> 
+        t <= last_key h1 ->
         um_count (predI p (le t)) h2 = um_count (predI p (le t)) h1.
 Proof. by move=>G V K D; rewrite -!umcnt_umfilt (umfilt_le_gapless G). Qed.
 
 Lemma umcnt_le_last A (U : natmap A) p (h : U) t :
-        last_key h <= t -> um_count (predI p (le t)) h = um_count p h.
+        last_key h <= t -> 
+        um_count (predI p (le t)) h = um_count p h.
 Proof. by move=>K; rewrite -!umcnt_umfilt umfilt_le_last. Qed.
 
 Lemma umcnt_fresh_le A (U : natmap A) p (h : U) t v :
@@ -2605,9 +2622,8 @@ Lemma umcnt_fresh_le A (U : natmap A) p (h : U) t v :
         if t <= last_key h then um_count (predI p (le t)) h else
         if p (fresh h, v) && valid h then 1 + um_count p h else um_count p h.
 Proof.
-case V: (valid h); last first.
-- move/invalidE: (negbT V)=>->; rewrite join_undef !umcnt_undef.
-  by rewrite lastkey_undef andbF; case: ifP.
+case: (normalP h)=>[->|V].
+- by rewrite join_undef !umcnt_undef lastkey_undef andbF; case: ifP.
 case: ifP=>H.
 - by rewrite -!umcnt_umfilt umfiltPtUn valid_fresh // V ltnNge H.
 rewrite umcntPtUn ?valid_fresh //= ltnNge H /=.
@@ -2719,7 +2735,7 @@ move=>G N; case W: (valid h); last first.
 rewrite eval_umfilt [in X in oleq _ X]eval_umfilt (umfilt_le_split h N).
 rewrite evalUn; first by apply: helper0=>x y z /In_umfiltX [_ /G].
 - by rewrite -(umfilt_le_split h N) pfV.
-by move=>??/In_dom_umfilt[?][/leq_ltn_trans Y _]/In_dom_umfilt[?][/andP[/Y]].
+by move=>??/In_dom_umfilt[? /leq_ltn_trans Y _]/In_dom_umfilt[? /andP[/Y]].
 Qed.
 
 (* "eliminating" growth *)
@@ -2742,15 +2758,15 @@ have Eh: um_filter (le t2) h = h0 \+ (h1 \+ (pts k v \+ h2)).
   by rewrite (umfilt_le_split h K2) (umfilt_pt_split H) -!joinA.
 have W1 : valid (h0 \+ (h1 \+ (pts k v \+ h2))) by rewrite -Eh pfV.
 rewrite eval_umfilt (umfilt_le_split h K2) evalUn ?(validAL W1) //; last first.
-- by move=>??/In_dom_umfilt[?][/leq_ltn_trans Y] _ /In_dom_umfilt[?][] /andP [/Y].
+- by move=>??/In_dom_umfilt[?/leq_ltn_trans Y] _ /In_dom_umfilt[?] /andP [/Y].
 rewrite -(eval_umfilt (le t1)); apply: helper2 (validR W1) _ _ _ _ =>//.
 - by apply: growR W1 _; rewrite -Eh=>k1 v1 z1 /In_umfiltX [] _ /G.
-- by move=>x /In_dom_umfilt; rewrite (subX t1 x) //; case=>v0 [] /andP [].
-- by apply/allP=>x /In_dom_umfilt; case=>v0 [] /andP [].
+- by move=>x /In_dom_umfilt; rewrite (subX t1 x) //; case=>v0 /andP [].
+- by apply/allP=>x /In_dom_umfilt; case=>v0 /andP [].
 rewrite eval_umfilt Eh evalUn ?(validX W1) -?eval_umfilt // in E.
-move=>x y /In_dom_umfilt; case=>v1 [/leq_ltn_trans Y _].
+move=>x y /In_dom_umfilt; case=>v1 /leq_ltn_trans Y _.
 rewrite -(umfilt_pt_split H) -(umfilt_lt_split h K3).
-by rewrite -(umfilt_lt_split h K4) =>/In_dom_umfilt; case=>v0 [/andP][/Y].
+by rewrite -(umfilt_lt_split h K4) =>/In_dom_umfilt; case=>v0 /andP [/Y].
 Qed.
 
 End Growing.
@@ -2762,14 +2778,17 @@ Variables (V R : Type) (U : natmap V) (X : ordType) (a : R -> V -> R) (f : R -> 
 Implicit Types p : pred (nat*V).
 
 Lemma growIn (h : U) t1 t2 z0 :
-        growing a f h -> t1 <= t2 ->
+        growing a f h -> 
+        t1 <= t2 ->
         f (exec a t1 h z0) <= f (exec a t2 h z0).
 Proof.
 by move=>G N; move: (growI z0 G N); rewrite leq_eqVlt /oleq/ord orbC.
 Qed.
 
 Lemma growEn (h : U) t1 t2 z0 k v :
-        growing a f h -> (k, v) \In h -> t1 < k <= t2 ->
+        growing a f h -> 
+        (k, v) \In h -> 
+        t1 < k <= t2 ->
         f (exec a t2 h z0) = f (exec a t1 h z0) ->
         f (a (exec a k.-1 h z0) v) = f (exec a k.-1 h z0).
 Proof. by apply: growE. Qed.
