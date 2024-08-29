@@ -1745,6 +1745,14 @@ Proof. by rewrite !validUnPt. Qed.
 Lemma validPtPt v1 v2 k : valid (pts k v1 \+ pts k v2 : U) = false.
 Proof. by rewrite (validPtUnE v2) validUnEb um_unitbPt. Qed.
 
+Lemma validPt2 k1 k2 v1 v2 : 
+        valid (pts k1 v1 \+ pts k2 v2 : U) = 
+        [&& C k1, C k2 & k1 != k2].
+Proof.
+rewrite validPtUn validPt domPt inE negb_and.
+by case: (C k2)=>//=; rewrite eq_sym.
+Qed.
+
 (* the projections from validPtUn are often useful *)
 
 Lemma validPtUnI v1 k f :
@@ -1793,6 +1801,14 @@ Proof. by apply/domE=>x; rewrite !domPtUn !validPtUn. Qed.
 
 Lemma domUnPtE2 k v1 v2 f : dom (f \+ pts k v1) = dom (f \+ pts k v2).
 Proof. by rewrite !(joinC f); apply: domPtUnE2. Qed.
+
+Lemma domPt2 k1 k2 v1 v2 x : 
+        x \in dom (pts k1 v1 \+ pts k2 v2 : U) =
+        [&& C k1, C k2, k1 != k2 & x \in pred2 k1 k2].
+Proof.
+rewrite domPtUn !inE validPt2 domPt inE !(eq_sym x).
+by case: (C k1)=>//=; case: (C k2).
+Qed.
 
 Lemma validxx f : valid (f \+ f) -> dom f =i pred0.
 Proof. by case: validUn=>// _ _ L _ z; case: (_ \in _) (L z)=>//; elim. Qed.
