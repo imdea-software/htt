@@ -103,7 +103,7 @@ Lemma slt_irr x ks : x <[ks] x = false.
 Proof. by rewrite seqlt_unlock; apply: ltnn. Qed.
 
 (* non-equational variant *)
-Lemma slt_irrN x ks : ~ x <[ks] x.
+Lemma sltnn x ks : ~ x <[ks] x.
 Proof. by rewrite slt_irr. Qed.
 
 (****************** antisymmetry ****************)
