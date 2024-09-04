@@ -1338,17 +1338,17 @@ Lemma free_undef k : free undef k = undef :> U.
 Proof. by rewrite !umEX. Qed.
 
 Lemma freeU k1 k2 v f :
-        free (upd k2 v f) k1 =
+        free (upd k1 v f) k2 =
         if k1 == k2 then
-          if C k2 then free f k1 else undef
-        else upd k2 v (free f k1).
+          if C k1 then free f k2 else undef
+        else upd k1 v (free f k2).
 Proof.
 rewrite !umEX /UM.free /UM.upd.
 case: (UMC_from f)=>[|f' F]; first by case: ifP=>H1 //; case: ifP.
 case: ifP=>H1; case: decP=>H2 //=.
-- by rewrite H2 !umEX rem_ins H1.
+- by rewrite H2 !umEX rem_ins eq_sym H1.
 - by case: ifP H2.
-by rewrite !umEX rem_ins H1.
+by rewrite !umEX rem_ins eq_sym H1.
 Qed.
 
 Lemma freeF k1 k2 f :
@@ -1660,21 +1660,25 @@ by move=>->; rewrite valid_unit andbT; case: ifP=>// _ [->].
 Qed.
 
 Lemma freePt2 k1 k2 v :
-        C k2 ->
-        free (pts k2 v) k1 = if k1 == k2 then Unit else pts k2 v :> U.
+        C k1 ->
+        free (pts k1 v) k2 = if k1 == k2 then Unit else pts k1 v :> U.
 Proof. by move=>N; rewrite ptsU freeU free0 N. Qed.
 
 Lemma freePt k v :
-        C k -> free (pts k v : U) k = Unit.
+        C k -> 
+        free (pts k v : U) k = Unit.
 Proof. by move=>N; rewrite freePt2 // eq_refl. Qed.
 
 Lemma cancelPt k v1 v2 :
-        valid (pts k v1 : U) -> pts k v1 = pts k v2 :> U -> v1 = v2.
+        valid (pts k v1 : U) -> 
+        pts k v1 = pts k v2 :> U -> 
+        v1 = v2.
 Proof. by rewrite validPt !ptsU; apply: upd_inj. Qed.
 
 Lemma cancelPt2 k1 k2 v1 v2 :
         valid (pts k1 v1 : U) ->
-        pts k1 v1 = pts k2 v2 :> U -> (k1, v1) = (k2, v2).
+        pts k1 v1 = pts k2 v2 :> U -> 
+        (k1, v1) = (k2, v2).
 Proof.
 move=>H E; have : dom (pts k1 v1 : U) = dom (pts k2 v2 : U) by rewrite E.
 rewrite !domPtK -(validPt _ v1) -(validPt _ v2) -E H.
@@ -1698,7 +1702,8 @@ by case E: decP=>[a|a] /=; [rewrite a | case: ifP].
 Qed.
 
 Lemma assocsUnPt f k v :
-        valid (f \+ pts k v) -> all (ord^~ k) (dom f) ->
+        valid (f \+ pts k v) -> 
+        all (ord^~ k) (dom f) ->
         assocs (f \+ pts k v) = rcons (assocs f) (k, v).
 Proof.
 rewrite /ptsx !umEX /UM.assocs/UM.union/UM.pts/UM.dom/supp /=.
@@ -1707,7 +1712,8 @@ by case: allP=>//; case: g H2=>// s1 H2 H3 H4 _; apply: first_ins' H4.
 Qed.
 
 Lemma assocsPtUn f k v :
-        valid (pts k v \+ f) -> all (ord k) (dom f) ->
+        valid (pts k v \+ f) -> 
+        all (ord k) (dom f) ->
         assocs (pts k v \+ f) = (k, v) :: (assocs f).
 Proof.
 rewrite /ptsx !umEX /UM.assocs/UM.union/UM.pts/UM.dom/supp /=.
@@ -1870,36 +1876,37 @@ Proof. by rewrite joinC; apply: findPtUn2. Qed.
 (* free *)
 
 Lemma freePtUn2 k1 k2 v f :
-        valid (pts k2 v \+ f) ->
-        free (pts k2 v \+ f) k1 =
-        if k1 == k2 then f else pts k2 v \+ free f k1.
+        valid (pts k1 v \+ f) ->
+        free (pts k1 v \+ f) k2 =
+        if k1 == k2 then f else pts k1 v \+ free f k2.
 Proof.
-move=>V'; rewrite freeUn domPtUn inE V' /= eq_sym.
+move=>V'; rewrite freeUn domPtUn inE V' /=.
 rewrite ptsU freeU (validPtUn_cond V') free0.
-case: eqP=>/= E; first by rewrite E unitL (dom_free (validPtUnD V')).
+case: (k1 =P k2)=>/= E.
+- by rewrite -E unitL (dom_free (validPtUnD V')).
 by case: ifP=>// N; rewrite dom_free // N.
 Qed.
 
-Lemma freeUnPt2 k1 k2 v f :
-        valid (f \+ pts k2 v) ->
-        free (f \+ pts k2 v) k1 =
-        if k1 == k2 then f else free f k1 \+ pts k2 v.
-Proof. by rewrite !(joinC _ (pts k2 v)); apply: freePtUn2. Qed.
-
 Lemma freePtUn k v f :
-        valid (pts k v \+ f) -> free (pts k v \+ f) k = f.
+        valid (pts k v \+ f) -> 
+        free (pts k v \+ f) k = f.
 Proof. by move=>V'; rewrite freePtUn2 // eq_refl. Qed.
 
 Lemma freeUnPt k v f :
-        valid (f \+ pts k v) -> free (f \+ pts k v) k = f.
+        valid (f \+ pts k v) -> 
+        free (f \+ pts k v) k = f.
 Proof. by rewrite joinC; apply: freePtUn. Qed.
 
-Lemma freeX k v f1 f2 : valid f1 -> f1 = pts k v \+ f2 -> f2 = free f1 k.
+Lemma freeX k v f1 f2 : 
+         valid f1 -> 
+         f1 = pts k v \+ f2 -> 
+         f2 = free f1 k.
 Proof. by move=>W E; rewrite E freePtUn // -E. Qed.
 
 (* upd *)
 
-Lemma updPtUn k v1 v2 f : upd k v1 (pts k v2 \+ f) = pts k v1 \+ f.
+Lemma updPtUn k v1 v2 f : 
+        upd k v1 (pts k v2 \+ f) = pts k v1 \+ f.
 Proof.
 case V1 : (valid (pts k v2 \+ f)).
 - by rewrite updUnL domPt inE eq_refl updPt (validPtUn_cond V1).
@@ -1923,7 +1930,9 @@ apply: find_eta=>//; first by rewrite validU H W.
 by move=>k'; rewrite findU H W findPtUn2 // findF; case: eqP.
 Qed.
 
-Lemma upd_eta2 k v f : k \notin dom f -> upd k v f = pts k v \+ f.
+Lemma upd_eta2 k v f : 
+        k \notin dom f -> 
+        upd k v f = pts k v \+ f.
 Proof. by move=>D; rewrite upd_eta freeND. Qed.
 
 (* um_unitb *)
@@ -1986,7 +1995,7 @@ move: (V1); rewrite E => V2.
 have E' : f2 = pts k1 v1 \+ free f1 k2.
 - move: (erefl (free (pts k1 v1 \+ f1) k2)).
   rewrite {2}E freeUn E domPtUn inE V2 eq_refl /=.
-  by rewrite ptsU freeU eq_sym X free0 -ptsU freePtUn.
+  by rewrite ptsU freeU X free0 -ptsU freePtUn.
 suff E'' : free f1 k2 = free f2 k1.
 - by rewrite -E''; rewrite E' joinCA in E; case/(cancel V1): E.
 move: (erefl (free f2 k1)).
