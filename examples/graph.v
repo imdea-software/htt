@@ -1129,7 +1129,8 @@ Lemma npregraphUnL n g1 g2 :
         n_pregraph_axiom n (g1 \+ g2) -> 
         n_pregraph_axiom n g1.
 Proof. 
-by rewrite !npregraphP=>V H x X; apply: H; rewrite rangeUn inE V X.
+rewrite !npregraphP=>V H _ /mem_seqP/Mem_map_inv [[v xs]][-> X]. 
+by apply: H; apply/mem_seqP/Mem_map/In_rangeL/X. 
 Qed.
 
 Lemma npregraphUnR n g1 g2 :
@@ -1141,7 +1142,15 @@ Proof. by rewrite joinC; apply: npregraphUnL. Qed.
 Lemma npregraphF n g x : 
         n_pregraph_axiom n g ->
         n_pregraph_axiom n (free g x).
-Proof. by rewrite !npregraphP=>H z /rangeF; apply: H. Qed.
+Proof. 
+rewrite !npregraphP=>H z /mem_seqP/Mem_map_inv [[v xs]][-> X]. 
+apply/H/mem_seqP/Mem_map.
+
+
+
+
+
+by rewrite !npregraphP=>H z /rangeF; apply: H. Qed.
 
 Lemma links_nth n g x :
         n_pregraph_axiom n g ->
