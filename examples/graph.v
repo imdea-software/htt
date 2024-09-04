@@ -1146,6 +1146,7 @@ Proof.
 rewrite !npregraphP=>H z /mem_seqP/Mem_map_inv [[v xs]][-> X]. 
 apply/H/mem_seqP/Mem_map.
 
+UP TO HERE
 
 
 
