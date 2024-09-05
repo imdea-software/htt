@@ -68,7 +68,7 @@ Lemma pregraph_is_umc :
                         pg_undefb pg_pts pg_from pg_to. 
 Proof. by split=>//; split=>[|[]]. Qed.
 
-HB.instance Definition blah := 
+HB.instance Definition _ := 
   isUnion_map.Build node nat_pred (A * seq node)%type 
                     (pregraph A) pregraph_is_umc. 
 End PregraphUMC.
@@ -271,6 +271,8 @@ Lemma edge_umfiltkE g p :
 Proof. by move=>x y; rewrite !inE => X Y; rewrite edge_umfiltk /= X Y. Qed.
 
 End PregraphLemmas.
+
+Prenex Implicits In_graph.
 
 (***********************)
 (* Depth-first search  *)
@@ -1111,11 +1113,19 @@ Proof. by move=>H; move: (getnth_mem0 g x n); rewrite (negbTE H). Qed.
 
 (* n-pregraph is pregraph with global bound n *)
 (* for the number of links of a node *)
-
+Definition n_pregraphb (n : nat) g := 
+  all (fun x => size (links g x) == n) (dom g).
 Definition n_pregraph_axiom (n : nat) g :=
   {in dom g, forall x, size (links g x) = n}.
 
-Lemma npregraphP n g : 
+Lemma npregraphP (n : nat) g :
+        reflect (n_pregraph_axiom n g) (n_pregraphb n g).
+Proof.
+apply: (iffP allP)=>H; first by move=>x /H /eqP.
+by move=>x D; apply/eqP/H.
+Qed.
+
+Lemma npregraphE n g : 
         n_pregraph_axiom n g <->
         {in map snd (range g), forall xs, size xs = n}.
 Proof.
@@ -1124,12 +1134,23 @@ case/mem_seqP/Mem_map_inv=>-[v xs][->] /In_rangeX [k X].
 by rewrite (In_graph X); apply: H (In_dom X).
 Qed.
 
+Lemma npregraphUn n g1 g2 :
+        n_pregraph_axiom n g1 ->
+        n_pregraph_axiom n g2 ->
+        n_pregraph_axiom n (g1 \+ g2).
+Proof.
+move=>H1 H2 z; rewrite domUn inE; case/andP=>V.
+case/orP=>D.
+- by rewrite /links findUnL // D H1.
+by rewrite /links findUnR // D H2.
+Qed.
+
 Lemma npregraphUnL n g1 g2 :
         valid (g1 \+ g2) ->
         n_pregraph_axiom n (g1 \+ g2) -> 
         n_pregraph_axiom n g1.
 Proof. 
-rewrite !npregraphP=>V H _ /mem_seqP/Mem_map_inv [[v xs]][-> X]. 
+rewrite !npregraphE=>V H _ /mem_seqP/Mem_map_inv [[v xs]][-> X]. 
 by apply: H; apply/mem_seqP/Mem_map/In_rangeL/X. 
 Qed.
 
@@ -1143,15 +1164,9 @@ Lemma npregraphF n g x :
         n_pregraph_axiom n g ->
         n_pregraph_axiom n (free g x).
 Proof. 
-rewrite !npregraphP=>H z /mem_seqP/Mem_map_inv [[v xs]][-> X]. 
-apply/H/mem_seqP/Mem_map.
-
-UP TO HERE
-
-
-
-
-by rewrite !npregraphP=>H z /rangeF; apply: H. Qed.
+rewrite !npregraphE=>H z /mem_seqP/Mem_map_inv [[v xs]][->]. 
+by case/In_rangeF=>k' _ /In_range X; apply/H/mem_seqP/Mem_map.
+Qed.
 
 Lemma links_nth n g x :
         n_pregraph_axiom n g ->
@@ -1163,6 +1178,30 @@ move=>H Dx; apply/(eq_from_nth (x0:=null))=>[|i Hi].
 by rewrite map_nth_iota0 ?H // -(H _ Dx) take_size.
 Qed.
 
+(* n_pregraph gives rise to seprel *)
+
+Definition n_pregraph n g1 g2 :=
+  n_pregraphb n g1 && n_pregraphb n g2.
+
+Lemma npregraph_is_sep n : seprel_axiom (@n_pregraph n).
+Proof.
+split=>[|x y V|x y V|x y z V]; rewrite /n_pregraph.
+- by rewrite /n_pregraphb dom0.
+- by rewrite andbC.
+- by rewrite /n_pregraphb dom0; case/andP=>->.
+case/andP=>Hx Hy /andP [_ Hz]; rewrite Hx Hy Hz /=.
+apply/allP=>w; rewrite domUn inE (validX V) /=.
+case/orP=>Dw.
+- by rewrite /links findUnL ?(validX V) // Dw (allP Hy).
+by rewrite /links findUnR ?(validX V) // Dw (allP Hz).
+Qed.
+
+HB.instance Definition _ n := 
+  isSeprel.Build (pregraph A) (n_pregraph n) (npregraph_is_sep n).
+
+End NpregraphLemmas.
+
+
 (**********)
 (**********)
 (* Graphs *)
@@ -1170,22 +1209,26 @@ Qed.
 (**********)
 
 (* x is in_node if it's in the graph or is null *)
-Definition in_node (g : pregraph) (x : node) := 
+Definition in_node A (g : pregraph A) (x : node) := 
   (x == null) || (x \in dom g).
 
 (* x is out-node if no edge goes into it *)
-Definition out_node (g : pregraph) (x : node) := 
-  {in range g, forall xs, x \notin xs}.
+Definition out_node A (g : pregraph A) (x : node) := 
+  {in map snd (range g), forall xs, x \notin xs}.
 
 (* pregraph is graph if *)
 (* all nodes in all adjacency lists are in-nodes *)
-Definition graph_axiom (g : pregraph) := 
-  forall xs x, xs \in range g -> x \in xs -> in_node g x.
+Definition graph_axiom A (g : pregraph A) := 
+  forall xs x, xs \in map snd (range g) -> x \in xs -> in_node g x.
 
-HB.mixin Record isGraph (g : pregraph) := {
+HB.mixin Record isGraph A (g : pregraph A) := {
   graph_subproof : graph_axiom g}.
 #[short(type=graph)]
-HB.structure Definition Graph := {g of isGraph g }.
+HB.structure Definition Graph A := {g of isGraph A g}.
+
+Section GraphLemmas.
+Context {A : Type}.
+Implicit Type g : pregraph A. 
 
 (* removing out-node causes no dangling edges; *)
 (* hence preserves graph axiom *)
@@ -1194,8 +1237,9 @@ Lemma graphF g x :
         graph_axiom g ->
         graph_axiom (free g x).
 Proof.
-move=>Hna Ha xs q /rangeF Hs Hq.
-move: (Ha xs q Hs Hq) (Hna _ Hs)=>{}Hs.
+move=>Hna Ha xs q /mem_seqP/MapP [[v vs]] /In_rangeF [k'] N 
+/In_range/(Mem_map snd)/mem_seqP Hs ->{xs} Hq.
+move: (Ha vs q Hs Hq) (Hna _ Hs)=>{}Hs.
 rewrite /in_node domF inE in Hs *.
 by case: (x =P q) Hq=>//= ->->.
 Qed.
@@ -1209,9 +1253,12 @@ Proof.
 have E : g = subconnect g x \+ um_filterk 
   (negb \o connect pred0 g x) g by apply: umfilt_predC.
 move=>V Ha xs /= n Hxs Hn; have {}Dn : in_node g n.
-- by apply: Ha Hn; rewrite E rangeUn inE -E V Hxs.
-case/mem_rangeX: Hxs=>k /In_umfiltX [/= Ck] /In_graph Hf.
-rewrite /in_node in Dn *; case/boolP: (n == null) Dn=>//= Hnn Dn.
+- case/mem_seqP/MapP: Hxs=>-[a b Hxs /= H].
+  apply: Ha Hn; apply/mem_seqP/MapP; exists (a, b)=>//. 
+  by rewrite E; apply/In_rangeL/Hxs; rewrite -E.
+case/mem_seqP/MapP: Hxs=>-[v vs] /In_rangeX [k] /In_umfiltX [/= Ck].
+move/In_graph=>->{vs} Hf; rewrite /in_node in Dn *.
+case/boolP: (n == null) Dn=>//= Hnn Dn.
 case: (connectD Ck)=>_ Dk.
 rewrite /subconnect dom_umfiltk inE /= Dn andbT.
 apply: connect_trans Ck _; apply/connectP; split=>//.
@@ -1242,4 +1289,6 @@ case: (ltnP n (size (links g x)))=>Hm; last first.
 - by rewrite /get_nth nth_default.
 by move/(graph_links (x:=x)); apply; rewrite mem_nth.
 Qed.
+
+End GraphLemmas.
 

@@ -2673,9 +2673,18 @@ Lemma rangeUnPtK k v f :
         range (f \+ pts k v) = rcons (range f) v.
 Proof. by move=>W H; rewrite /range assocsUnPt // map_rcons. Qed.
 
+Lemma In_rangeF k v f : 
+        v \In range (free f k) <->
+        exists2 k', k' != k & (k', v) \In f.
+Proof.
+rewrite In_rangeX; split; first by case=>x /InF []; exists x. 
+case=>k' Nk H; exists k'; apply/InF; split=>//.
+by rewrite validF (In_valid H).
+Qed.
+
 End Range.
 
-Prenex Implicits In_range_valid In_range In_rangeUn.
+Prenex Implicits In_range_valid In_range In_rangeUn In_rangeF.
 
 (* decidable versions, when V is eqtype *)
 
@@ -6832,6 +6841,60 @@ Lemma bigInXP (xs : seq I) P a v :
         exists i, [/\ i \In xs, P i & (a, v) \In f i].
 Proof. by case/In_find/big_find_someXP=>x [X1 X2 /In_find]; exists x. Qed.
 
+Lemma bigF (xs : seq I) k : 
+        valid (\big[join/Unit]_(i <- xs) f i) ->
+        free (\big[join/Unit]_(i <- xs) f i) k = 
+        \big[join/Unit]_(i <- xs) free (f i) k.
+Proof.
+elim: xs=>[|x xs IH]; first by rewrite !big_nil free0.
+rewrite !big_cons => V; rewrite freeUn.
+rewrite -IH ?(validR V) //; case: ifP=>// D.
+rewrite !freeND //; apply: contraFN D=>D;
+by rewrite domUn inE D V //= orbT.
+Qed.
+
+(* if xs is domain of some map *)
+
+Lemma bigD1FE (k : K) (F : K -> U) (g : U) : 
+        \big[join/Unit]_(i <- dom g) F i = 
+        if k \in dom g then 
+          F k \+ \big[join/Unit]_(i <- dom (free g k)) F i
+        else \big[join/Unit]_(i <- dom (free g k)) F i.
+Proof.
+case: ifP=>D; last by rewrite freeND // (negbT D).
+rewrite (bigD1_seq k) //= -big_filter (_ : filter _ _ = dom (free g k)) //.
+apply/ord_sorted_eq; first by rewrite sorted_filter.
+- by rewrite sorted_dom.
+by move=>z; rewrite mem_filter domF inE eq_sym; case: (k =P z).
+Qed.
+
+Lemma bigPtUnE (x : K) (a : T) (g : U) (F : K -> U) : 
+        \big[join/Unit]_(i <- dom (pts x a \+ g)) F i = 
+        if valid (pts x a \+ g) then 
+          F x \+ \big[join/Unit]_(i <- dom g) F i
+        else Unit.
+Proof. 
+rewrite (bigD1FE x) domPtUnE.
+case: (normalP (pts x a \+ g))=>[->|V].
+- by rewrite free_undef dom_undef big_nil.
+by rewrite freePtUn.
+Qed.
+
+Lemma bigPtUn (x : K) (a : T) (g : U) (F : K -> U) : 
+        valid (pts x a \+ g) ->
+        \big[join/Unit]_(i <- dom (pts x a \+ g)) F i = 
+        F x \+ \big[join/Unit]_(i <- dom g) F i.
+Proof. by move=>V; rewrite bigPtUnE V. Qed.
+
+Lemma bigDUE (x : K) (a : T) (g : U) (F : K -> U) : 
+         \big[join/Unit]_(i <- dom (upd x a g)) F i = 
+         if C x && valid g then 
+           F x \+ \big[join/Unit]_(i <- dom (free g x)) F i
+         else Unit.
+Proof.
+by rewrite (upd_eta x) bigPtUnE validPtUn validF domF inE eqxx andbT.
+Qed.
+
 End BigOpsUM.
 
 Prenex Implicits big_find_some big_find_someD.
@@ -6921,6 +6984,16 @@ Lemma big_dom_seq (xs : seq I) :
 Proof. by move=>x; rewrite big_valid_dom_seq. Qed.
 
 End BigCatSeqUM.
+
+Lemma bigPt_valid (K : ordType) (C : pred K) T (U : union_map C T)
+           (g : U) (F : K -> T) : 
+         valid (\big[join/Unit]_(i <- dom g) pts i (F i) : U).
+Proof.
+rewrite big_valid_seq; apply/andP; split.
+- by apply/allP=>z Dz; rewrite validPt (dom_cond Dz).
+apply/uniq_big_catEX=>//; split=>[i Di|i j k Di Dj] //.
+by rewrite !domPt !inE (dom_cond Di) (dom_cond Dj)=>/eqP -> /eqP.
+Qed.
 
 Section OMapBig.
 Variables (K : ordType) (C : pred K) (T T' : Type).
