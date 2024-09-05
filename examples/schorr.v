@@ -45,20 +45,6 @@ rewrite -[RHS]connect_umfiltk eq_connect_aux //.
 by move=>y /S2; rewrite !inE negbK.
 Qed.
 
-(*****************)
-(* Binary graphs *)
-(*****************)
-
-Lemma getU A (g : pregraph A) (x : node) v lf rg i : 
-        get_nth (upd2 g x v lf rg) x i = 
-        if x \notin dom g then null
-        else nth null [:: lf; rg] i.
-Proof.
-rewrite /get_nth/graph.links/upd2 find_omf/omfx /=.
-case: (dom_find x)=>[|w /In_find H _]; first by rewrite nth_nil.
-by case: v=>[v|] /=; rewrite findU eqxx /= (In_cond H) (In_valid H).
-Qed.
-
 (****************)
 (* Schorr-Waite *)
 (****************)
@@ -131,9 +117,11 @@ Lemma ch_path_uniq g s :
 Proof. by apply: path_uniq; [apply: chN0|apply: ch_fun]. Qed.
 *)
 
-(* node x is in the stack iff its marked L or R *)
+(* node in the stack are marked L or R *)
+(* other direction also holds, but isn't stated explicitly *)
+(* as it's implied by graph_diff (defined below) *)
 Definition stack_marked (g : pregraph) (s : seq node) := 
-  forall x, x \in s = isSome (omark g x).
+  forall x, x \in s -> isSome (omark g x).
 
 (* consecutive stack nodes respect marking *)
 Definition stack_consec (g : pregraph) (s : seq node) := 
@@ -149,15 +137,16 @@ Definition stack_consec (g : pregraph) (s : seq node) :=
 Definition graph_diff (g0 g : pregraph) (s : seq node) t := 
   [/\ (* graphs have equal nodes, and *)
       dom g0 = dom g & forall x, 
-      (* if x is marked by m, then *)
+      (* if x is marked m, then *)
       if omark g x is Some m then
-      (* sel2 m g x is predecessor of x (or null, if stack empty) *)
+      (* m-child of x in g is predecessor of x (or null, if stack empty) *)
         [/\ consec (null :: s) (sel2 m g x) x, 
-      (* sel2 m g0 x is successor of x (or t, if x last) *)
+      (* m-child of x in g0 is successor of x (or t, if x last) *)
             consec (rcons s t) x (sel2 m g0 x) &
       (* graphs agree on children of flipped marking *)
             sel2 (flip m) g x = sel2 (flip m) g0 x] 
-      (* if x is unmarked or fully marked then graphs agree *)
+      (* otherwise, if x is unmarked or fully marked, then *)
+      (* graphs agree on children of x *)
       else forall m, sel2 m g x = sel2 m g0 x].
       
 (* each unmarked node is reachable either from t *)

@@ -1369,6 +1369,16 @@ rewrite !validPtUn valid_omap dom_omf_some // in V *.
 by rewrite V.
 Qed.
 
+Lemma sel2U A (g : pregraph A) (x : node) v lf rg i : 
+        sel2 i (upd2 g x v lf rg) x = 
+        if x \notin dom g then null
+        else nth null [:: lf; rg] i.
+Proof.
+rewrite /get_nth/graph.links/upd2 find_omf/omfx /=.
+case: (dom_find x)=>[|w /In_find H _]; first by rewrite nth_nil.
+by case: v=>[v|] /=; rewrite findU eqxx /= (In_cond H) (In_valid H).
+Qed.
+
 (**********)
 (**********)
 (* Graphs *)
