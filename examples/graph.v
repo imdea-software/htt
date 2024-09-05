@@ -15,7 +15,7 @@ From HB Require Import structures.
 From Coq Require Import ssreflect ssrfun.
 From mathcomp Require Import ssrbool eqtype ssrnat seq path.
 From pcm Require Import options axioms pred prelude seqext.
-From pcm Require Import pcm unionmap natmap autopcm automap.
+From pcm Require Import heap pcm unionmap natmap autopcm automap.
 
 (*************)
 (*************)
@@ -38,7 +38,7 @@ From pcm Require Import pcm unionmap natmap autopcm automap.
 (* in that the set of nodes is drawn from an infinite set *)
 (* not from a fixed finite set. *)
 
-Notation node := nat.
+Definition node := nat.
 (* A is the contents/labeling of the nodes *)
 Record pregraph (A : Type) := 
   Pregraph {pregraph_base : @UM.base node nat_pred (A * seq node)}.
@@ -84,9 +84,14 @@ Coercion Pred_of_history A (x : pregraph A) : {Pred _} :=
 
 Notation "x &-> v" := (ptsT (@pregraph _) x v) (at level 30).
 
-(**************************)
-(* Links, children, edges *)
-(**************************)
+(**********************************)
+(* labels, links, children, edges *)
+(**********************************)
+
+(* maps each node to its contents (ie. label) *)
+Definition labels {A} (g : pregraph A) : nmap A := mapv fst g.
+HB.instance Definition _ A := OmapFun.copy (@labels A) (@labels A).
+Definition olabel {A} (g : pregraph A) x := find x (labels g).
 
 (* Links of x includes all edges outgoing from x *)
 (* and may explicitly include nodes that aren't in dom g *)
@@ -105,6 +110,21 @@ Arguments edge {A} g x y : simpl never.
 Section PregraphLemmas.
 Context {A : Type}.
 Implicit Type g : pregraph A.
+
+(* marks lemmas *)
+
+Lemma In_labelsX g x v :
+        (x, v) \In labels g <-> 
+        exists lks, (x, (v, lks)) \In g.
+Proof.
+rewrite In_omfX; split; last by case=>lks H; exists (v, lks).
+by case; case=>w lks /= H [<-{v}]; exists lks.
+Qed.
+
+Lemma In_labels g x v lks :
+        (x, (v, lks)) \In g ->
+        (x, v) \In labels g.
+Proof. by rewrite In_labelsX; exists lks. Qed.
 
 (* links lemmas *)
 
@@ -1201,6 +1221,153 @@ HB.instance Definition _ n :=
 
 End NpregraphLemmas.
 
+(********************)
+(********************)
+(* Binary pregraphs *)
+(********************)
+(********************)
+
+(* notation for left/right node of x *)
+Notation sel2 m g x := (get_nth g x m).
+Notation lft g x := (sel2 LL g x).
+Notation rgh g x := (sel2 RR g x).
+
+(* updating binary pregraph at node x *)
+
+(* if v = None, updates links, keeping the label *)
+Definition upd2 A (g : pregraph A) x (v : option A) (lft rgh : node) :=
+  if find x (labels g) is Some v' then 
+    if v is Some w then upd x (w, [:: lft; rgh]) g 
+    else upd x (v', [:: lft; rgh]) g
+  else undef.
+
+Lemma upd2_is_binary A (g : pregraph A) x v lft rgh : 
+        n_pregraph_axiom 2 g ->
+        n_pregraph_axiom 2 (@upd2 A g x v lft rgh).
+Proof.
+move=>H z; rewrite /upd2 find_omf /omfx /=; case: (find x g)=>[[m lnk]|//].
+case: v=>[w|]; rewrite domU inE /graph.links findU;
+case: (x =P 0)=>//= /eqP Nx; case: (z =P x)=>[_ V|_ Dz].
+- by rewrite V.
+- by rewrite H.
+- by rewrite V.
+by rewrite H.
+Qed.
+
+(* updating just contents *)
+Notation updC g x v := (upd2 g x (Some v) (lft g x) (rgh g x)).
+(* updating just left link *)
+Notation updL g x l := (upd2 g x None l (rgh g x)).
+(* updating just right link *)
+Notation updR g x r := (upd2 g x None (lft g x) r).
+(* updating just contents and left link *)
+Notation updCL g x v l := (upd2 g x (Some v) l (rgh g x)).
+(* updating just contents and right link *)
+Notation updCR g x v r := (upd2 g x (Some v) (lft g x) r).
+
+Lemma In_links2 A (g : pregraph A) (x : node) v lks : 
+        n_pregraph_axiom 2 g ->
+        (x, (v, lks)) \In g ->
+        lks = [:: lft g x; rgh g x].
+Proof. 
+move=>H X; rewrite (In_graph X).
+by rewrite (links_nth H (In_dom X)).
+Qed.
+
+(* laying binary pregraph onto heap *)
+
+Definition lay2_k {A} (v : A * seq node) : dynamic id :=
+  idyn (v.1, (nth null v.2 0, nth null v.2 1)).
+Definition lay2 {A} (g : pregraph A) : heap := mapv lay2_k g.
+HB.instance Definition _ A := OmapFun.copy (@lay2 A) (@lay2 A).
+
+Lemma In_layX A (g : pregraph A) x (c : A) lft rgh : 
+        (x, idyn (c, (lft, rgh))) \In lay2 g <->
+        exists lks, 
+          [/\ lft = nth null lks 0, 
+              rgh = nth null lks 1 & 
+              (x, (c, lks)) \In g].
+Proof.
+rewrite In_omfX; split; last first.
+- by case=>lks [->-> H]; exists (c, lks).
+case=>-[w lks] H /Some_inj/inj_pair2 /= [<-<-<-].
+by exists lks.
+Qed.
+
+Lemma In_lay A (g : pregraph A) x (c : A) lks :
+        (x, (c, lks)) \In g ->
+        (x, idyn (c, (nth null lks 0, nth null lks 1))) \In lay2 g.
+Proof. by rewrite In_layX=>H; exists lks. Qed.
+
+Lemma In_lay2X A (g : pregraph A) x (v : A) lft rgh : 
+        n_pregraph_axiom 2 g ->
+        (x, idyn (v, (lft, rgh))) \In lay2 g <->
+        (x, (v, [:: lft; rgh])) \In g.
+Proof.
+move=>H; split; last first.
+- by move=>X; apply/In_layX; exists [:: lft; rgh].
+case/In_layX=>lks [L R X]. 
+rewrite -(_ : lks = [:: lft; rgh]) //.
+rewrite (In_graph X) (links_nth H (In_dom X)) /=.
+by rewrite /get_nth -(In_graph X) -L -R.
+Qed.
+
+Lemma In_lay2 A (g : pregraph A) x (c : A) lft rgh : 
+        n_pregraph_axiom 2 g ->
+        (x, (c, [:: lft; rgh])) \In g ->
+        (x, idyn (c, (lft, rgh))) \In lay2 g.
+Proof. by move=>H /In_lay2X-/(_ H). Qed.
+
+Lemma lay2_eta A (g : pregraph A) x c pl pr : 
+        n_pregraph_axiom 2 g ->
+        (x, (c, [:: pl; pr])) \In g ->
+        exists h, lay2 g = x :-> (c, (pl, pr)) \+ h.
+Proof. by move=>H Gx; eexists _; apply/heap_eta2/In_find/In_lay2. Qed.
+
+(* lay with update that changes label *)
+Lemma lay2CU A (g : pregraph A) x l r c : 
+        lay2 (upd2 g x (Some c) l r) = 
+        if x \in dom g then 
+          upd x (idyn (c, (l, r))) (lay2 g)
+        else undef.
+Proof.
+rewrite /lay2/upd2 find_omf/omfx /=.
+case: (dom_find x)=>[|v]; first by rewrite omap_undef.
+move/In_find=>E _; rewrite (upd_eta x).
+rewrite omapPtUn -(upd_eta x) validU.
+rewrite (In_cond E) (In_valid E) /=.
+rewrite (upd_eta x) !omap_free !omap_omap.
+congr (_ \+ _); apply/eq_in_omap.
+by case=>k w /= H; case: (k =P x).
+Qed.
+
+(* lay with update that keeps label fixed *)
+Lemma lay2U A (g : pregraph A) x l r : 
+        lay2 (upd2 g x None l r) = 
+        if find x (labels g) is Some c then 
+          upd x (idyn (c, (l, r))) (lay2 g)
+        else undef.
+Proof.
+rewrite /olabel/lay2/upd2 find_omf /=.
+case: (dom_find x g)=>[/In_findN D|v /In_find E _].
+- by rewrite omap_undef.
+rewrite /omfx /= (upd_eta x).
+rewrite omapPtUn -(upd_eta x) validU.
+rewrite (In_cond E) (In_valid E) /=.
+rewrite (upd_eta x) !omap_free !omap_omap.
+congr (_ \+ _); apply/eq_in_omap.
+by case=>k w /= H; case: (k =P x).
+Qed.
+
+Lemma lay2PtUn A (g : pregraph A) x l r c : 
+        lay2 (x &-> (c, [:: l; r]) \+ g) = 
+        x :-> (c, (l, r)) \+ lay2 g.
+Proof.
+rewrite omfPtUn /=; case: ifP=>// V; set j := (_ \+ _).
+case: (normalP j)=>[->//|].
+rewrite !validPtUn valid_omap dom_omf_some // in V *.
+by rewrite V.
+Qed.
 
 (**********)
 (**********)

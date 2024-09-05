@@ -879,15 +879,17 @@ Definition inhab {I : ifinType} : I := inhab0 card_inhab.
 Inductive Side := LL | RR.
 Definition Side_eq x y :=
   match x, y with LL, LL => true | RR, RR => true | _, _ => false end.
-Definition nat2Side x := if odd x then LL else RR.
-Definition Side2nat x := if x is RR then 0 else 1.
 
-Lemma ssrcanc : ssrfun.cancel Side2nat nat2Side. Proof. by case. Qed.
+Coercion nat_of_side x := if x is LL then 0 else 1.
+Definition side_of_nat x := if odd x then RR else LL.
+Lemma ssrcanc : ssrfun.cancel nat_of_side side_of_nat. Proof. by case. Qed.
 HB.instance Definition _ : isCountable Side := CanIsCountable ssrcanc.
 
 Lemma Side_enumP : Finite.axiom [:: LL; RR]. Proof. by case. Qed.
 HB.instance Definition _ : isFinite Side := isFinite.Build Side Side_enumP.
 HB.instance Definition _ := isInhabited.Build Side (inhabits LL).
+
+Definition flip x := if x is LL then RR else LL.
 
 (*************)
 (* Sequences *)

@@ -20,7 +20,7 @@ limitations under the License.
 From HB Require Import structures.
 From Coq Require Import ssreflect ssrbool ssrfun Eqdep.
 From mathcomp Require Import ssrnat eqtype fintype tuple finfun seq path bigop.
-From pcm Require Import options axioms prelude finmap.
+From pcm Require Import options axioms prelude pred finmap.
 From pcm Require Import pcm unionmap natmap.
 
 (************)
@@ -170,6 +170,9 @@ End Heap.
 Export Heap.Exports.
 
 Notation "x :-> v" := (ptsT heap x (idyn v)) (at level 30).
+
+Canonical heap_PredType : PredType (nat * dynamic id) := um_PredType heap.
+Coercion Pred_of_nmap (x : heap) : {Pred _} := [eta Mem_UmMap x].
 
 (********************)
 (* points-to lemmas *)

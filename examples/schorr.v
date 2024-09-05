@@ -49,154 +49,12 @@ Qed.
 (* Binary graphs *)
 (*****************)
 
-(* short notation for left/right node of x *)
-Notation lft g x := (get_nth g x 0).
-Notation rgh g x := (get_nth g x 1).
-
-Definition contents {A} (g : pregraph A) : nmap A := mapv fst g.
-
-HB.instance Definition _ A := 
-  OmapFun.copy (@contents A) (@contents A).
-
-Lemma In_contentsX A (g : pregraph A) x v :
-        (x, v) \In contents g <-> 
-        exists lks, (x, (v, lks)) \In g.
-Proof.
-rewrite In_omfX; split; last by case=>lks H; exists (v, lks).
-by case; case=>w lks /= H [<-{v}]; exists lks.
-Qed.
-
-Lemma In_contents A (g : pregraph A) x v lks :
-        (x, (v, lks)) \In g ->
-        (x, v) \In contents g.
-Proof. by rewrite In_contentsX; exists lks. Qed.
-
-Definition links {A} (g : pregraph A) : nmap (seq node) := mapv snd g.
-
-HB.instance Definition _ A := 
-  OmapFun.copy (@links A) (@links A).
-
-Lemma In_linksX A (g : pregraph A) x lks : 
-        (x, lks) \In links g <->
-        exists v, (x, (v, lks)) \In g.
-Proof.
-rewrite In_omfX; split; last by case=>v H; exists (v, lks).
-by case; case=>v lks' /= H [<-{lks}]; exists v.
-Qed.
-
-Lemma In_links A (g : pregraph A) x v lks : 
-        (x, (v, lks)) \In g ->
-        (x, lks) \In links g.
-Proof. by rewrite In_linksX; exists v. Qed.
-
-(* laying binary pregraph onto heap *)
-Definition lay2_k {A} (v : A * seq node) : dynamic id :=
-  idyn (v.1, (nth null v.2 0, nth null v.2 1)).
-Definition lay2 {A} (g : pregraph A) : heap := mapv lay2_k g.
-
-HB.instance Definition _ A := 
-  OmapFun.copy (@lay2 A) (@lay2 A).
-
-
-Canonical heap_PredType : PredType (nat * dynamic id) := 
-  um_PredType heap.
-Coercion Pred_of_nmap (x : heap) : {Pred _} := 
-  [eta Mem_UmMap x].
-
-Lemma In_layX A (g : pregraph A) x (v : A) lft rgh : 
-        (x, idyn (v, (lft, rgh))) \In lay2 g <->
-        exists lks, 
-          [/\ lft = nth null lks 0, 
-              rgh = nth null lks 1 & 
-              (x, (v, lks)) \In g].
-Proof.
-rewrite In_omfX; split; last first.
-- by case=>lks [->-> H]; exists (v, lks).
-case=>-[w lks] H /Some_inj/inj_pair2 /= [<-{v} <-<-].
-by exists lks.
-Qed.
-
-Lemma In_lay A (g : pregraph A) x (v : A) lks :
-        (x, (v, lks)) \In g ->
-        (x, idyn (v, (nth null lks 0, nth null lks 1))) \In lay2 g.
-Proof. by rewrite In_layX=>H; exists lks. Qed.
-
-Lemma In_lay2X A (g : pregraph A) x (v : A) lft rgh : 
-        n_pregraph_axiom 2 g ->
-        (x, idyn (v, (lft, rgh))) \In lay2 g <->
-        (x, (v, [:: lft; rgh])) \In g.
-Proof.
-move=>H; split; last first.
-- by move=>X; apply/In_layX; exists [:: lft; rgh].
-case/In_layX=>lks [L R X]. 
-rewrite -(_ : lks = [:: lft; rgh]) //.
-rewrite (In_graph X) (links_nth H (In_dom X)) /=.
-by rewrite /get_nth -(In_graph X) -L -R.
-Qed.
-
-Lemma In_lay2 A (g : pregraph A) x (v : A) lft rgh : 
-        n_pregraph_axiom 2 g ->
-        (x, (v, [:: lft; rgh])) \In g ->
-        (x, idyn (v, (lft, rgh))) \In lay2 g.
-Proof. by move=>H /In_lay2X-/(_ H). Qed.
-
-
-
-(* updating binary pregraph at node x *)
-
-(* pass v = None to just update links *)
-Definition bupd A (g : pregraph A) x (v : option A) (lft rgh : node) :=
-  if find x (contents g) is Some v' then 
-    if v is Some w then upd x (w, [:: lft; rgh]) g 
-    else upd x (v', [:: lft; rgh]) g
-  else undef.
-
-Lemma bupd_is_binary A (g : pregraph A) x v lft rgh : 
-        n_pregraph_axiom 2 g ->
-        n_pregraph_axiom 2 (@bupd A g x v lft rgh).
-Proof.
-move=>H z; rewrite /bupd find_omf /omfx /=.
-case: (find x g)=>[[m lnk]|//].
-case: v=>[w|]; rewrite domU inE /graph.links findU;
-case: (x =P 0)=>//= /eqP Nx; case: (z =P x)=>[_ V|_ Dz].
-- by rewrite V.
-- by rewrite H.
-- by rewrite V.
-by rewrite H.
-Qed.
-
-(* updating just contents *)
-Notation updC g x v := (bupd g x (Some v) (lft g x) (rgh g x)).
-(* updating just left link *)
-Notation updL g x l := (bupd g x (contents g x) l (rgh g x)).
-(* updating just right link *)
-Notation updR g x r := (bupd g x (contents g x) (lft g x) r).
-(* updating just contents and left link *)
-Notation updCL g x v l := (bupd g x (Some v) l (rgh g x)).
-(* updating just contents and right link *)
-Notation updCR g x v r := (bupd g x (Some v) (lft g x) r).
-
-Lemma glE A (g : pregraph A) (x : node) : 
-        n_pregraph_axiom 2 g ->
-        x \in dom g ->
-        graph.links g x = [:: lft g x; rgh g x].
-Proof. by move=>H D; rewrite (links_nth H D). Qed.
-
-Lemma glD A (g : pregraph A) (x : node) : 
-        n_pregraph_axiom 2 g ->
-        x \in dom g ->
-        (x, [:: lft g x; rgh g x]) \In links g.
-Proof.
-move=>H /[dup]/In_graphX R /(glE H) <-.
-by apply/In_linksX.
-Qed.
-
 Lemma getU A (g : pregraph A) (x : node) v lf rg i : 
-        get_nth (bupd g x v lf rg) x i = 
+        get_nth (upd2 g x v lf rg) x i = 
         if x \notin dom g then null
         else nth null [:: lf; rg] i.
 Proof.
-rewrite /get_nth/graph.links/bupd find_omf/omfx /=.
+rewrite /get_nth/graph.links/upd2 find_omf/omfx /=.
 case: (dom_find x)=>[|w /In_find H _]; first by rewrite nth_nil.
 by case: v=>[v|] /=; rewrite findU eqxx /= (In_cond H) (In_valid H).
 Qed.
@@ -206,12 +64,19 @@ Qed.
 (****************)
 
 (* type of markings *)
-Inductive mark := U | L | R | LR.
+(* U = unmarked *)
+(* M m = marked, but still exploring m (LL or RR) subgraph *)
+(* MM = fully marked and explored both subgraphs *)
+Inductive mark := U | M of Side | MM.
 (* decidable equality on marks *)
 Definition eq_mark l1 l2 : bool :=
-  if (l1, l2) is ((U,U)|(L, L)|(R, R)|(LR, LR)) then true else false.
+  if (l1, l2) is ((U,U)|(M LL, M LL)|(M RR, M RR)|(MM, MM)) 
+  then true else false.
 Lemma eq_markP : Equality.axiom eq_mark.
-Proof. by case; case=>//=; constructor. Qed.
+Proof. 
+case; case=>//=; try by [constructor];
+by case=>[|[]|]; constructor.
+Qed.
 HB.instance Definition _ := hasDecEq.Build mark eq_markP.
 
 Notation pregraph := (pregraph mark).
@@ -220,19 +85,22 @@ Definition marked (g : pregraph) : pregraph :=
   um_filterv (fun v => v.1 != U) g.
 HB.instance Definition _ := OmapFun.copy marked marked.
 
+Definition omark (g : pregraph) x : option Side :=
+  if olabel g x is Some (M m) then Some m else None.
 
 (* marking of children *)
 
+(*
 (* given marking map m, x is m-child of y iff: *)
 (* - m y = L and x is left child of y *)
 (* - m y = R and x is right child of y *)
 Definition ch (g : pregraph) (x y : nat) := 
-  [|| (find y (contents g) == Some L) && (lft g y == x) |
-      (find y (contents g) == Some R) && (rgh g y == x)].
+  [|| (olabel g y == Some LL) && (lft g y == x) |
+      (olabel g y == Some RR) && (rgh g y == x)].
 
 Lemma chP (g : pregraph) x y : 
-        reflect [\/ (y, L) \In contents g /\ lft g y = x |
-                    (y, R) \In contents g /\ rgh g y = x]
+        reflect [\/ (y, L) \In labels g /\ lft g y = x |
+                    (y, R) \In labels g /\ rgh g y = x]
                 (ch g x y).
 Proof.
 rewrite /ch; case: orP=>H; constructor.
@@ -261,152 +129,115 @@ Lemma ch_path_uniq g s :
         path (ch g) null s -> 
         uniq (null :: s).
 Proof. by apply: path_uniq; [apply: chN0|apply: ch_fun]. Qed.
-
-
-Definition upd_edge g x y : mark * seq node := 
-  match find x (contents g) with
-  | Some L => (L, [:: y; rgh g x])
-  | _ => (R, [:: lft g x; y])
-  end.
-
-Fixpoint rev_graph' (g : pregraph) (ps : seq node) t : pregraph := 
-  if ps is p :: ps then 
-    rev_graph' (free g p) ps p \+ pts p (upd_edge g p t)
-  else g.
-
-Definition rev_graph g s t := rev_graph' g (rev s) t.
-
-(* layout of graph+marking as heap *)
-
-
-(*
-Definition lay (g : pregraph) : heap := 
-  \big[join/Unit]_(x <- dom g) (x :-> (gl g x, gr g x, odflt L (find x m))).
-
-Lemma bigF (A : eqType) (xs : seq A) (f : A -> heap) k : 
-        valid (\big[join/Unit]_(i <- xs) f i) ->
-        free (\big[join/Unit]_(i <- xs) f i) k = 
-        \big[join/Unit]_(i <- xs) free (f i) k.
-Proof.
-elim: xs=>[|x xs IH].
-- by rewrite !big_nil free0.
-rewrite !big_cons => V.
-rewrite freeUn.
-case: ifP=>D.
-- rewrite IH //. rewrite (validR V). by [].
-rewrite -IH; last by rewrite (validX V).
-rewrite !freeND //.
-- apply: contraFN D=>D.
-  rewrite domUn inE D orbT andbT.
-  by [].
-apply: contraFN D=>D.
-by rewrite domUn inE (validX V) D.
-Qed.
 *)
 
+(* node x is in the stack iff its marked L or R *)
+Definition stack_marked (g : pregraph) (s : seq node) := 
+  forall x, x \in s = isSome (omark g x).
 
-Lemma In_layE1 (g : pregraph) x pl pr c : 
-        n_pregraph_axiom 2 g ->
-        find x (lay2 g) = Some (idyn (c, (pl, pr))) ->
-        (x, (c, [:: pl; pr])) \In g.
-Proof. by move=>H /In_find /In_lay2X-/(_ H). Qed.
+(* consecutive stack nodes respect marking *)
+Definition stack_consec (g : pregraph) (s : seq node) := 
+  forall x y m, 
+    (* if x is just under y in the stack *)
+    consec (null :: s) x y -> 
+    (* and y is marked by m *)
+    omark g y = Some m ->
+    (* then x is y's child, left or right determined by m *)
+    x = sel2 m g y.
 
-Lemma In_layE2 (g : pregraph) x pl pr c : 
-        n_pregraph_axiom 2 g ->
-        (x, (c, [:: pl; pr])) \In g ->
-        find x (lay2 g) = Some (idyn (c, (pl, pr))).
-Proof. by move=>H /In_lay2X-/(_ H)/In_find. Qed.
-
-Lemma In_layX2 (g : pregraph) x c pl pr : 
-        n_pregraph_axiom 2 g ->
-        (x, (c, [:: pl; pr])) \In g ->
-        exists h, lay2 g = x :-> (c, (pl, pr)) \+ h.
-Proof. by move=>H Gx; eexists _; apply/heap_eta2/In_layE2. Qed.
-
-Lemma In_layX3 (g : pregraph) x l r c : 
-         lay2 (bupd g x (Some c) l r) = 
-         if x \in dom g then 
-           upd x (idyn (c, (l, r))) (lay2 g)
-         else undef.
-Proof.
-rewrite /lay2/bupd find_omf/omfx /=.
-case: (dom_find x)=>[|v]; first by rewrite omap_undef.
-move/In_find=>E _; rewrite (upd_eta x).
-rewrite omapPtUn -(upd_eta x) validU.
-rewrite (In_cond E) (In_valid E) /=.
-rewrite (upd_eta x) !omap_free !omap_omap.
-congr (_ \+ _); apply/eq_in_omap.
-by case=>k w /= H; case: (k =P x).
-Qed.
-
-Lemma In_layX4 (g : pregraph) x l r c : 
-         lay2 (x &-> (c, [:: l; r]) \+ g) = 
-         x :-> (c, (l, r)) \+ lay2 g.
-Proof.
-rewrite omfPtUn /=; case: ifP=>// V; set j := (_ \+ _).
-case: (normalP j)=>[->//|].
-rewrite !validPtUn valid_omap dom_omf_some // in V *.
-by rewrite V.
-Qed.
-
-(* reach g s t holds iff *)
-(* each unmarked node x in g is reachable through unmarked nodes *)
-(* - either starting from t, or *)
-(* - starting from a right child of some node in s *)
-
+(* graph g differs from g0 only in reversing edges on the stack *)
+Definition graph_diff (g0 g : pregraph) (s : seq node) t := 
+  [/\ (* graphs have equal nodes, and *)
+      dom g0 = dom g & forall x, 
+      (* if x is marked by m, then *)
+      if omark g x is Some m then
+      (* sel2 m g x is predecessor of x (or null, if stack empty) *)
+        [/\ consec (null :: s) (sel2 m g x) x, 
+      (* sel2 m g0 x is successor of x (or t, if x last) *)
+            consec (rcons s t) x (sel2 m g0 x) &
+      (* graphs agree on children of flipped marking *)
+            sel2 (flip m) g x = sel2 (flip m) g0 x] 
+      (* if x is unmarked or fully marked then graphs agree *)
+      else forall m, sel2 m g x = sel2 m g0 x].
+      
+(* each unmarked node is reachable either from t *)
+(* or from stack's right spine, *)
+(* in both cases by avoiding marked nodes *)
 Definition reach (g : pregraph) (s : seq node) (t : node) := 
   forall x, 
     (* if x is unmarked node in g *)
-    (x, U) \In contents g ->
+    (x, U) \In labels g ->
     (* then x is reachable from t avoiding marked nodes *)
-    x \in connect (mem (dom (marked g))) g t \/
-    (* or x is reachable from some right child of a node in s *)
+    x \in connect [dom (marked g)] g t \/
+    (* or x is reachable from some right child of a node in stack s *)
     (* avoiding marked nodes *)
     exists2 y, y \in s &
-      x \in connect (mem (dom (marked g))) g (rgh g y).
+      x \in connect [dom (marked g)] g (rgh g y).
 
-UP TO HERE
-
-Definition shape (g0 g : pregraph) (m : nmap mark) (r p t : node) :=
-  fun h => exists stack, 
-    [/\ h = lay m g, 
-        {subset dom m <= dom g},
-        path (ch m g) null stack, 
-        rev_graph m g stack t = g0, 
-        reach m g stack t, 
-        {subset dom (um_filterv (predU (pred1 L) (pred1 LR)) m) <= stack},
-        p = last null stack, 
-        r = head t stack, 
-        n_pregraph_axiom 2 g &
-        graph_axiom g].
+Definition shape (g0 g : pregraph) (r p t : node) :=
+  fun h => exists s, 
+    [/\ h = lay2 g, p = last null s, r = head t s, 
+        stack_marked g s, stack_consec g s,
+        graph_diff g0 g s t, reach g s t,
+        n_pregraph_axiom 2 g & graph_axiom g].
 
 Program Definition pop (p t : ptr): 
-  STsep {g0 g m r} (fun h => 
-    [/\ shape g0 g m r p t h,
-        (p, R) \In m &
-        t \in dom m \/ t = null],
+  STsep {g0 g r} (fun h => 
+    [/\ shape g0 g r p t h,
+        (p, M RR) \In labels g &
+        t \in dom (marked g) \/ t = null],
     [vfun res h => 
-       let: g' := upd p [:: gl g p; t] g in
-       let: m' := upd p LR m in
-         shape g0 g' m' r res.1 res.2 h /\
-         res = (gr g p, p)]) :=
-  Do (q <-- read (A:=node*node*mark) p;
-      p ::= (q.1.1, t, LR);;
-      ret (q.1.2, p)).
+       shape g0 (updCR g p MM t) r res.1 res.2 h /\
+       res = (rgh g p, p)]) :=
+  Do ('(_, (l, r)) <-- read (mark*(node*node)) p;
+      p ::= (MM, (l, t));;
+      ret (r, p)).
 Next Obligation.
-move=>p t [g0][g][m][r][/= h][H Pm D]. 
-case: H=>stack [-> H1 H2 H3 H4 H5 H6 H7 H8 H9].
-move: (H1 p (In_dom Pm))=>Pg.
-case/(glD H8)/(In_layX2 H8 H1): (Pg)=>h' E.
-rewrite E.
-do 3!step; split=>//; exists stack; split.
-- rewrite In_layX3.
-  - by rewrite upd_eta E freePtUn // (validX H).
-  - by rewrite (dom_valid Pg).
-  - by rewrite (In_valid Pm).
-  - by rewrite (In_cond Pm).
+move=>p t [g0][g][r][_][[s [->]] S Sel Dg C Rc Ep Er H G Pm D] /=.
+case/In_marksX: Pm=>lks /[dup] /(In_blinks H) -> Pm.
+have Uq : uniq (null :: s).
+- admit.
+have Ps : p \in s.
+- by rewrite Ep last_change // -Ep (In_cond Pm).
+rewrite Ep in Ps.
+case/rcons_lastP: Ps=>s'.  rewrite -Ep.
+move=>E. subst s.
+clear Ep. 
+have Nxs' : p \notin s'.
+- simpl in Uq. rewrite rcons_uniq in Uq.
+  by case/and3P: Uq.
 
-Search upd.
+case: (In_layX2 H Pm)=>h /[dup] E ->; do 3!step; move=>V.
+split=>//; exists s'; split. 
+- by rewrite In_layX3 /= (In_dom Pm) upd_eta E freePtUn ?(validX V).
+- move=>x. 
+  rewrite /bupd (In_findE (In_marks Pm)) omfU ?(In_cond Pm) //=. 
+  split.
+  - move=>B.
+    have Nxp : x != p.
+    - by case: eqP B Nxs'=>// ->->.
+    have : x \in rcons s' p. rewrite mem_rcons inE B orbT. by [].
+    move/S. case=>X; [left|right].
+    - apply/InU=>/=. rewrite validU (In_cond Pm) (negbTE Nxp). rewrite pfVE (In_valid Pm). by [].
+    - apply/InU=>/=. rewrite validU (In_cond Pm) (negbTE Nxp). rewrite pfVE (In_valid Pm). by [].
+    rewrite !InU /=.
+    case; case; case: eqP=>// /eqP Nxp _ X; 
+    suff : x \in rcons s' p by [rewrite mem_rcons inE (negbTE Nxp)].
+    - by apply/S; left.
+    by apply/S; right.
+k
+
+  
+
+    have : x != p /\ x \in s.
+    - 
+
+
+  - move/mem_belast.
+
+    - rewrite /bupd (In_findE (In_marks Pm)). 
+
+
 
 
 admit. 

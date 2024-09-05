@@ -73,7 +73,7 @@ Parameter allocb : forall A, A -> nat -> ST ptr.
 Parameter dealloc : ptr -> ST unit.
 
 Arguments throw {A}.
-Arguments read {A}.
+Arguments read : clear implicits.
 
 (* given program e : ST A, input heap i, postcondition Q *)
 (* vrf' judges if running e in i produces output heap and result *)
@@ -116,7 +116,7 @@ Parameter vrf_try : forall A B (e : ST A) (e1 : A -> ST B)
   vrf i (try e e1 e2) Q.
 Parameter vrf_read : forall A x j (v : A) (Q : post A),
   (valid (x :-> v \+ j) -> Q (Val v) (x :-> v \+ j)) ->
-  vrf (x :-> v \+ j) (read x) Q.
+  vrf (x :-> v \+ j) (read A x) Q.
 Parameter vrf_write : forall A x (v : A) B (u : B) j (Q : post unit),
   (valid (x :-> v \+ j) -> Q (Val tt) (x :-> v \+ j)) ->
   vrf (x :-> u \+ j) (write x v) Q.
@@ -149,7 +149,7 @@ Notation "' x '<--' c1 ';' c2" := (bnd c1 (fun x => c2))
   "'[v' ' x  '<--'  c1 ';' '//' c2 ']'").
 Notation "c1 ';;' c2" := (bnd c1 (fun _ => c2))
   (at level 81, right associativity).
-Notation "'!' x" := (read x) (at level 50).
+Notation "'!' x" := (read _ x) (at level 50).
 Notation "x '::=' e" := (write x e) (at level 60).
 (* using locked for Do, to make the Do definitions opaque *)
 (* otherwise, clients will inline the code of Do, preventing *)

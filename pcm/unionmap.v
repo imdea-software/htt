@@ -597,6 +597,8 @@ Abort.
 (* dom *)
 (*******)
 
+Notation "[ 'dom' f ]" := [mem (dom f)] : fun_scope.
+
 Section DomLemmas.
 Variables (K : ordType) (C : pred K) (V : Type) (U : union_map C V).
 Implicit Types (k : K) (v : V) (f g : U).
@@ -607,7 +609,10 @@ Proof. by rewrite !umEX. Qed.
 Lemma dom0 : dom (Unit : U) = [::].
 Proof. by rewrite !umEX. Qed.
 
-Lemma dom0E f : valid f -> dom f =i pred0 -> f = Unit.
+Lemma dom0E f : 
+        valid f -> 
+        dom f =i pred0 -> 
+        f = Unit.
 Proof.
 rewrite !umEX /UM.valid /UM.dom /UM.empty -{3}[f]tfE !eqE UM.umapE.
 case: (UMC_from f)=>[|f' S] //= _; rewrite fmapE /= {S}.
@@ -844,7 +849,7 @@ Proof. by move=>E /domE D1 /domE D2; apply/domE/domKUni. Qed.
 
 Lemma subdom_filter (f1 : U1) (f2 : U2) : 
         {subset dom f1 <= dom f2} ->
-        dom f1 = filter (mem (dom f1)) (dom f2).
+        dom f1 = filter [dom f1] (dom f2).
 Proof. 
 have Tx : transitive (@ord K) by apply: trans.
 move=>S; apply: (sorted_eq (leT := @ord K))=>//.
@@ -2267,7 +2272,7 @@ Qed.
 Lemma umpreim_pred0 f : um_preim pred0 f =1 pred0.
 Proof. by move=>x; rewrite /um_preim; by case: (find x f). Qed.
 
-Lemma umpreim_dom f : um_preim predT f =1 mem (dom f).
+Lemma umpreim_dom f : um_preim predT f =1 [dom f].
 Proof.
 move=>x; rewrite /um_preim /=.
 case X: (find x f)=>[a|] /=; first by rewrite (find_some X).
@@ -3544,6 +3549,9 @@ Proof. rewrite omfE; apply: omap_subdom. Qed.
 
 Arguments omf_subdom {f x}.
 
+Lemma In_odom f x k : k \In f x -> k.1 \in dom x.
+Proof. by move/In_dom/omf_subdom. Qed.
+
 Lemma omf_cond f x k : k \in dom (f x) -> C k.
 Proof. by move/omf_subdom/dom_cond. Qed.
 
@@ -3780,6 +3788,7 @@ End OmapFunLemmas.
 
 Arguments omf_subdom {K C V V' U U' f x}.
 Arguments In_omf {K C V V' U U'} _ {k v w x}.
+Arguments In_odom {K C V V' U U' f x k} .
 
 (* omap_fun's with different ranges *)
 
@@ -4475,7 +4484,7 @@ Proof. by move=>k; rewrite dom_umfiltkE mem_filter. Qed.
 (* /DEVCOMMENT *)
 Lemma umfiltk_dom f1 f2 :
         valid (f1 \+ f2) -> 
-        um_filterk (mem (dom f1)) (f1 \+ f2) = f1.
+        um_filterk [dom f1] (f1 \+ f2) = f1.
 Proof.
 move=>W; apply/umem_eq; first by rewrite pfVE.
 - by rewrite (validL W).
@@ -4484,7 +4493,7 @@ case=>k v; rewrite In_umfiltX; split=>[|H].
 by split; [apply: In_dom H | apply: InL].
 Qed.
 
-Corollary umfiltk_dom' f : um_filterk (mem (dom f)) f = f.
+Corollary umfiltk_dom' f : um_filterk [dom f] f = f.
 Proof.
 case: (normalP f)=>[->|H]; first by rewrite pfundef.
 by rewrite -{2}[f]unitR umfiltk_dom // unitR.
@@ -4507,7 +4516,7 @@ by move/eq_in_umfiltk=>->; rewrite umfilt_predT.
 Qed.
 
 (* specific consequence of subdom_umfiltkE *)
-Lemma umfiltk_memdomE f : um_filterk (mem (dom f)) f = f.
+Lemma umfiltk_memdomE f : um_filterk [dom f] f = f.
 Proof. by apply/umfiltk_subdomE. Qed.
 
 Lemma find_umfiltk k (p : pred K) f :
@@ -4564,7 +4573,7 @@ by rewrite /obind/oapp /=; case=>k v; case: ifP; case: (omf f _).
 Qed.
 
 Lemma umfiltk_dom_omf V' (U' : union_map C V') (f : omap_fun U U') x :
-        um_filterk (mem (dom x)) (f x) = f x.
+        um_filterk [dom x] (f x) = f x.
 Proof. by rewrite -umfiltk_omf umfiltk_dom'. Qed.
 
 Lemma umfiltkU p k v f :
@@ -4669,7 +4678,7 @@ Qed.
 (* in valid case, we can define the order by means of filter *)
 Lemma umpleqk_pleqE a x :
         valid x -> [pcm a <= x] <->
-                   um_filterk (mem (dom a)) x = a.
+                   um_filterk [dom a] x = a.
 Proof. by move=>W; split=>[|<-] // H; case: H W=>b ->; apply: umfiltk_dom. Qed.
 
 (* join is the least upper bound *)
@@ -4754,7 +4763,7 @@ Qed.
 
 Lemma prec_filtV x1 x2 y1 y2 :
         valid (x1 \+ y1) -> x1 \+ y1 = x2 \+ y2 ->
-        reflect (x1 = um_filterk (mem (dom x1)) x2) (valid (x1 \+ y2)).
+        reflect (x1 = um_filterk [dom x1] x2) (valid (x1 \+ y2)).
 Proof.
 move=>V1 E; case X : (valid (x1 \+ y2)); constructor; last first.
 - case: (prec_domV V1 E) X=>// St _ H; apply: St.

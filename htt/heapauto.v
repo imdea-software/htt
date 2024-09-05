@@ -150,7 +150,7 @@ Variables (A B : Type).
 
 Lemma val_readR v x i (f : form (x :-> v) i) (r : post A) :
         (valid (untag f) -> r (Val v) f) ->
-        vrf f (read x) r.
+        vrf f (read A x) r.
 Proof. by rewrite formE; apply: vrf_read. Qed.
 
 Lemma try_readR e1 e2 v x i (f : form (x :-> v) i) (r : post B) :
