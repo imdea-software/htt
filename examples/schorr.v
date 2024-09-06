@@ -74,36 +74,31 @@ HB.instance Definition _ := OmapFun.copy marked marked.
 Definition omark (g : pregraph) x : option Side :=
   if olabel g x is Some (M m) then Some m else None.
 
-(* marking of children *)
+Lemma In_omark (g : pregraph) x c lks : 
+        (x, (c, lks)) \In g ->
+        omark g x = if c is M m then Some m else None.
+Proof. by rewrite /omark=>/In_olabel=>->. Qed.
+
+
+(* old helpers kept for now, but of unclear utility *)
 
 (*
-(* given marking map m, x is m-child of y iff: *)
-(* - m y = L and x is left child of y *)
-(* - m y = R and x is right child of y *)
-Definition ch (g : pregraph) (x y : nat) := 
-  [|| (olabel g y == Some LL) && (lft g y == x) |
-      (olabel g y == Some RR) && (rgh g y == x)].
-
-Lemma chP (g : pregraph) x y : 
-        reflect [\/ (y, L) \In labels g /\ lft g y = x |
-                    (y, R) \In labels g /\ rgh g y = x]
-                (ch g x y).
-Proof.
-rewrite /ch; case: orP=>H; constructor.
-- by case: H=>H; [left|right]; case/andP: H=>/eqP/In_find H /eqP.
-by case=>[][/In_find/eqP M /eqP G]; apply: H; [left|right]; apply/andP.
-Qed.
+Definition ch (g : pregraph) x y : bool := 
+  if omark g y is Some m then sel2 m g y == x else false.
 
 Lemma chN0 g x y :
         ch g x y ->
         y != null.
-Proof. by case/chP=>[][/In_dom/dom_cond]. Qed.
+Proof. 
+rewrite /ch/omark/olabel find_omf /omfx /=. 
+by case: (dom_find y)=>[//|v] /In_find/In_cond.
+Qed.
 
 Lemma ch_fun g a b x :
         ch g a x ->
         ch g b x ->
         a = b.
-Proof. by case/chP=>[][H <-] /chP [][/(In_fun H) {}H <-]. Qed.
+Proof. by rewrite /ch; case: (omark g x)=>// v /eqP -> /eqP. Qed.
 
 Lemma ch_path g s x :
         x \in s -> 
@@ -117,11 +112,10 @@ Lemma ch_path_uniq g s :
 Proof. by apply: path_uniq; [apply: chN0|apply: ch_fun]. Qed.
 *)
 
-(* node in the stack are marked L or R *)
-(* other direction also holds, but isn't stated explicitly *)
-(* as it's implied by graph_diff (defined below) *)
+
+(* stack contains all and only nodes marked L or R *)
 Definition stack_marked (g : pregraph) (s : seq node) := 
-  forall x, x \in s -> isSome (omark g x).
+  forall x, x \in s = isSome (omark g x).
 
 (* consecutive stack nodes respect marking *)
 Definition stack_consec (g : pregraph) (s : seq node) := 
@@ -139,10 +133,8 @@ Definition graph_diff (g0 g : pregraph) (s : seq node) t :=
       dom g0 = dom g & forall x, 
       (* if x is marked m, then *)
       if omark g x is Some m then
-      (* m-child of x in g is predecessor of x (or null, if stack empty) *)
-        [/\ consec (null :: s) (sel2 m g x) x, 
       (* m-child of x in g0 is successor of x (or t, if x last) *)
-            consec (rcons s t) x (sel2 m g0 x) &
+        [/\ consec (rcons s t) x (sel2 m g0 x) &
       (* graphs agree on children of flipped marking *)
             sel2 (flip m) g x = sel2 (flip m) g0 x] 
       (* otherwise, if x is unmarked or fully marked, then *)
@@ -165,10 +157,26 @@ Definition reach (g : pregraph) (s : seq node) (t : node) :=
 
 Definition shape (g0 g : pregraph) (r p t : node) :=
   fun h => exists s, 
-    [/\ h = lay2 g, p = last null s, r = head t s, 
+    [/\ h = lay2 g, p = last null s, r = head t s, uniq (null :: s),
         stack_marked g s, stack_consec g s,
         graph_diff g0 g s t, reach g s t,
         n_pregraph_axiom 2 g & graph_axiom g].
+
+(* helper lemma of unclear utility *)
+
+(*
+Lemma stack_path g s :
+        stack_marked g s ->
+        stack_consec g s ->
+        uniq (null :: s) ->
+        path (ch g) null s.
+Proof.
+move=>H1 H2 U; apply: consec_path=>//= x y Dx Dy C.
+move: Dy; rewrite H1 /ch; case D : (omark g y)=>[a|//].
+by rewrite -(H2 x y).
+Qed.
+*)
+
 
 Program Definition pop (p t : ptr): 
   STsep {g0 g r} (fun h => 
@@ -182,55 +190,36 @@ Program Definition pop (p t : ptr):
       p ::= (MM, (l, t));;
       ret (r, p)).
 Next Obligation.
-move=>p t [g0][g][r][_][[s [->]] S Sel Dg C Rc Ep Er H G Pm D] /=.
-case/In_marksX: Pm=>lks /[dup] /(In_blinks H) -> Pm.
-have Uq : uniq (null :: s).
-- admit.
-have Ps : p \in s.
-- by rewrite Ep last_change // -Ep (In_cond Pm).
-rewrite Ep in Ps.
-case/rcons_lastP: Ps=>s'.  rewrite -Ep.
-move=>E. subst s.
-clear Ep. 
-have Nxs' : p \notin s'.
-- simpl in Uq. rewrite rcons_uniq in Uq.
-  by case/and3P: Uq.
-
-case: (In_layX2 H Pm)=>h /[dup] E ->; do 3!step; move=>V.
-split=>//; exists s'; split. 
-- by rewrite In_layX3 /= (In_dom Pm) upd_eta E freePtUn ?(validX V).
-- move=>x. 
-  rewrite /bupd (In_findE (In_marks Pm)) omfU ?(In_cond Pm) //=. 
-  split.
-  - move=>B.
-    have Nxp : x != p.
-    - by case: eqP B Nxs'=>// ->->.
-    have : x \in rcons s' p. rewrite mem_rcons inE B orbT. by [].
-    move/S. case=>X; [left|right].
-    - apply/InU=>/=. rewrite validU (In_cond Pm) (negbTE Nxp). rewrite pfVE (In_valid Pm). by [].
-    - apply/InU=>/=. rewrite validU (In_cond Pm) (negbTE Nxp). rewrite pfVE (In_valid Pm). by [].
-    rewrite !InU /=.
-    case; case; case: eqP=>// /eqP Nxp _ X; 
-    suff : x \in rcons s' p by [rewrite mem_rcons inE (negbTE Nxp)].
-    - by apply/S; left.
-    by apply/S; right.
-k
-
-  
-
-    have : x != p /\ x \in s.
-    - 
+move=>p t [g0][g][r][_][[s [->]]] Ep Er /= /andP [U1 U2] 
+Sm Sc Gd Rc G2 G Pm D /=; case/In_labelsX: Pm=>lks /[dup] /(In_links2 G2) -> Pm.
+(* prepare for popping p from the end of s to obtain ss *)
+move: (In_cond Pm)=>/= Np; case/(rcons_lastN Np): Ep=>ss ?; subst s.
+rewrite headI /= in Er; rewrite mem_rcons inE negb_or eq_sym Np /= in U1.
+rewrite rcons_uniq in U2; case/andP: U2=>U2 U3.
+case: (lay2_eta G2 Pm)=>h /[dup] E ->; do !step; move=>V.
+(* the new stack is ss *)
+split=>//; exists ss; split=>//=. 
+- by rewrite lay2CU (In_dom Pm) upd_eta E freePtUn ?(validX V).
+- rewrite (Sc (last null ss) p RR) ?(In_omark Pm) ?consec_rcons //=.
+  by rewrite mem_rcons inE negb_or eq_sym Np U1 rcons_uniq U2.
+- by rewrite U1 U3.
+- move=>x; move: (Sm x); rewrite mem_rcons inE.
+  rewrite /omark/olabel !find_omf find_upd2 (In_dom Pm) /omfx/=.
+  by case: (x =P p) U2=>// -> /negbTE ->. 
+- move=>x y m C; move: (Sm y); rewrite mem_rcons inE.
+  rewrite sel2U /omark/olabel !find_omf find_upd2 (In_dom Pm) /=.  
+  case: (y =P p)=>// /eqP Ny; case: (dom_find y)=>//= [][][] //=.
+  move=>k v /In_find H _ S [<-]; apply: Sc (In_omark H).
+  rewrite -rcons_cons consec_ext ?inE ?S ?orbT //.
+  by rewrite rcons_uniq /= inE negb_or Np U1 U2 U3.
 
 
-  - move/mem_belast.
-
-    - rewrite /bupd (In_findE (In_marks Pm)). 
+UP TO HERE
 
 
 
 
-admit. 
-Admitted.
+
 
 Program Definition swing (p t : ptr):
   STsep {g0 g m r} (fun h =>

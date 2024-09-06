@@ -18,9 +18,9 @@ From pcm Require Import options axioms prelude pred ordtype slice.
 From pcm Require Import seqext pcm unionmap heap.
 From htt Require Import options model heapauto.
 From htt Require Import array.
-
 From mathcomp Require order.
 Import order.Order.NatOrder order.Order.TTheory.
+Local Open Scope order_scope.
 
 (* Brief mathematics of (bubble) array sorting: *)
 (* Theory of permutations built out of (adjacent-element) swaps acting on *)

@@ -14,8 +14,7 @@ limitations under the License.
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path interval order.
 From pcm Require Import options prelude ordtype seqext slice useqord uslice.
-
-Open Scope order_scope.
+Local Open Scope order_scope.
 Import Order.Theory.
 
 (* We assume the sequences are unique and most lemmas do require this *)
@@ -499,7 +498,8 @@ Qed.
 
 Lemma consec_hdswap k1 k2 ks x :
         uniq ks ->
-        k1 \notin ks -> k2 \notin ks ->
+        k1 \notin ks -> 
+        k2 \notin ks ->
         x != k2 ->
         consec (k1::ks) k1 x -> consec (k2::ks) k2 x.
 Proof.
@@ -516,16 +516,13 @@ by apply: contra K1 => /eqP <-.
 Qed.
 
 Lemma consec_hd2 k1 k2 ks :
-        uniq ks ->
-        k1 \notin ks -> k2 \notin ks ->
-        k1 != k2 -> consec [:: k1, k2 & ks] k1 k2.
+        k1 != k2 -> 
+        consec [:: k1, k2 & ks] k1 k2.
 Proof.
-move=>U K1 K2 N; rewrite /consec !sltL eq_sym N /= nilp_hasPn.
+move=>N; rewrite /consec !sltL eq_sym N /= nilp_hasPn.
 apply/hasPn=>z; apply: contraL=>/= _.
-rewrite eqslice_mem_uniq; last first.
-- by rewrite /= inE negb_or N K1 K2.
-rewrite negb_and; apply/orP; right.
-by rewrite in_itv /= (negbTE N) !eqxx /= negb_and ltEnat /= -!leqNgt leqn0 lt0n orbN.
+rewrite eqslice_mem /= eqxx (negbTE N) /= eqxx.
+by apply/hasP; case=>x _; rewrite in_itv; case: x.
 Qed.
 
 (* a useful lemma that collects the case analysis *)
@@ -737,6 +734,36 @@ Proof.
 move=>U K; rewrite iffE consec_rconsEP //.
 case: ifP=>H1 //; case: ifP=>H2 //.
 by split; [case=>->->; rewrite !eq_refl|case/andP=>/eqP -> /eqP ->].
+Qed.
+
+Lemma consec_rcons (s : seq A) a x y :
+        uniq (a :: rcons s y) ->
+        consec (a :: rcons s y) x y <->
+        x = last a s.
+Proof.
+rewrite /= mem_rcons inE negb_or rcons_uniq -andbA.
+case/and4P=>U1 U2 U3 U4.
+rewrite -rcons_cons consec_rconsE; last first.
+- by rewrite inE negb_or eq_sym U1 U3.
+- by rewrite /= U2 U4.
+case: (x =P y)=>[->{x}|/eqP N] /=.
+- rewrite inE negb_or eq_sym U1 mem_rcons inE eqxx /=.
+  split=>// E; move: (mem_last a s).
+  by rewrite -E inE eq_sym (negbTE U1) (negbTE U3).
+rewrite inE negb_or eq_sym U1 U3 /= eqxx /=.
+by split=>[/eqP|->].
+Qed.
+
+Lemma consec_ext (s : seq A) x y p :
+        uniq (rcons s p) ->
+        consec s x y ->
+        y \in s ->
+        consec (rcons s p) x y.
+Proof.
+rewrite rcons_uniq=>/andP [U1 U2] C S. 
+rewrite consec_rconsE //=.
+case: eqP C U1=>[-> /consec_mem ->//|/eqP N].
+by rewrite S.
 Qed.
 
 Lemma consec_behead k ks x y :
@@ -951,3 +978,128 @@ by case=>-> {t T} [ks' -> _]; left; exists ks'.
 Qed.
 
 End ConsecNat.
+
+
+(**********************)
+(* consec, index, nth *)
+(**********************)
+
+Lemma consec_index (A : eqType) (ks : seq A) (x y : A) : 
+        uniq ks ->
+        consec ks x y <-> 
+        (index y ks) = (index x ks).+1.
+Proof.
+move=>U; split.
+- elim: ks x y U=>[|k ks IH] /= x y; first by rewrite consec_nil.
+  case/andP=>U1 U2; rewrite consec_consE // !(eq_sym k).
+  case: (x =P k); case: (y =P k)=>Ex Ey //.
+  - by subst x y; rewrite (negbTE U1).
+  - subst x; case: ifP=>Ky /eqP -> //.
+    by case: ks {Ky Ex U1 U2 IH}=>//= ??; rewrite eqxx.
+  by move/IH=>->.
+elim: ks x y U=>[|k ks IH] //= x y /andP [U1 U2].
+case: (k =P y)=>N; first by subst k; case: eqP.
+move/eqP: N=>N.
+case: (k =P x); last first.
+- move/eqP=>Nx [I]; rewrite consec_consE // eq_sym (negbTE Nx) eq_sym N /=.
+  by apply: IH I.
+move=>?; subst x; case. 
+case: ks {IH} U1 U2 N=>[|a ks] /= U1 U2 N.
+- by rewrite consec_consE //= eqxx eq_sym N eqxx. 
+rewrite inE negb_or in U1; case/andP: U1=>U1 U1'.
+case/andP: U2=>U2 U2'; case: eqP=>// -> _.  
+by rewrite consec_hd2.
+Qed.
+
+(* push nat_scope to the top of scope stacks explicitly *)
+(* because of clash with order_scope *)
+Local Open Scope nat_scope. 
+
+(* consec/nth in hypotheses, i.e., elimination *)
+
+Lemma consec_nthE (A : eqType) (ks : seq A) a (x : A) i : 
+        uniq (a :: ks) ->
+        i < size ks ->
+        consec ks x (nth a ks i.+1) -> 
+        x = nth a ks i.
+Proof.
+rewrite /= =>/andP [U1 U2] N.
+case N1 : (i.+1 < size ks).
+- move/[dup]/consec_mem=>X /consec_index-/(_ U2).
+  by rewrite index_uniq //; case=>->; rewrite nth_index.
+have -> : nth a ks i.+1 = a by rewrite nth_default // leqNgt N1.
+move/negbT: N1; rewrite -leqNgt leq_eqVlt ltnS leqNgt N orbF.
+move/eqP=>S; rewrite (consecP_lastE a) // -nth_last S. 
+by rewrite -subn1 subSS subn0; case/andP=>_ /eqP. 
+Qed.
+
+(* simmilar, but uses consed list *)
+
+Lemma consec_nthE' (A : eqType) (ks : seq A) a (x : A) i : 
+        uniq (a :: ks) ->
+        i < size ks ->
+        consec (a :: ks) x (nth a ks i) -> 
+        x = if i == 0 then a else nth a ks i.-1.
+Proof.
+move/[dup]=>U /= /andP [U1 U2] N.
+move/[dup]/consec_mem=>D /consec_index-/(_ U) /=.
+have X : nth a ks i \in ks by rewrite mem_nth.
+case: (a =P nth _ _ _) U1=>[->|]; first by rewrite X.
+move/eqP=>Y U1; rewrite index_uniq //; case.
+case: (a =P x)=>[->->//|/eqP Na -> /=].
+by rewrite nth_index //; move: D; rewrite inE eq_sym (negbTE Na). 
+Qed.
+
+(* consec/nth in the conclusion; introduction lemma *)
+
+Lemma consec_nthI (A : eqType) (ks : seq A) a i : 
+        uniq (a :: ks) ->
+        i.+1 < size ks ->
+        consec (a :: ks) (nth a ks i) (nth a ks i.+1).
+Proof.
+elim: ks a {3 4}a i=>[|k ks IH] a b i //=.
+rewrite inE negb_or -andbA; case/and4P=>U1 U2 U3 U4.
+rewrite ltnS=>S; rewrite consec_consE //=; last first.
+- by rewrite inE negb_or U1 U2.
+- by rewrite U3 U4.
+rewrite nth_cons; case: i S=>[|i] S /=.
+- rewrite (eq_sym k) (negbTE U1) /= nth0.
+  case: ks {U1 IH} U2 U3 U4 S=>//= c ks U2 U3 U4 S. 
+  - rewrite inE negb_or in U2; case/andP: U2=>U2 U2'. 
+    by rewrite eq_sym U2 consec_consE // eqxx inE eqxx /=.
+case: ifP=>E.
+- have N : nth b ks i \notin ks by rewrite (eqP E). 
+  by rewrite mem_nth // in N; apply: leq_trans S.
+move/negbT: E=>N.
+have M : nth b ks i.+1 \in ks by rewrite mem_nth.
+case: eqP=>X /=; first by rewrite X (negbTE U2) in M.
+by apply: IH=>//=; rewrite U3 U4.
+Qed.
+
+(*******************)
+(* consec and path *)
+(*******************)
+
+Lemma consec_path (A : eqType) a ks (R : rel A) :
+        uniq (a :: ks) ->
+        (forall x y, x \in a::ks -> y \in ks ->
+           consec (a :: ks) x y -> R x y) ->
+        path R a ks.
+Proof.
+move=>U H; apply/(pathP a)=>i S; rewrite nth_cons.
+case: i S=>[|i] S /=; last first.
+- apply: H.
+  - by rewrite inE mem_nth ?orbT //; apply: leq_trans S.
+  - by rewrite mem_nth.
+  by apply: consec_nthI U S.
+case: ks U H S=>[|k ks] //= U H S; apply: H.
+- by rewrite inE eqxx.
+- by rewrite inE eqxx.
+rewrite inE negb_or -andbA in U.
+case/and4P: U=>U1 U2 U3 U4.
+rewrite consec_consE /=; last first.
+- by rewrite inE negb_or U1.
+- by rewrite U3 U4. 
+by rewrite eqxx inE eqxx.
+Qed.
+

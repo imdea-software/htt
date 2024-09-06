@@ -24,6 +24,7 @@ From mathcomp Require Import ssrnat eqtype seq path interval.
 From pcm Require Import axioms options prelude pred finmap rtc seqext.
 From pcm Require Export useqord uslice uconsec pcm morphism unionmap.
 Import order.Order.NatOrder. (* listed last to avoid notation clash *)
+Local Open Scope order_scope.
 
 (************************)
 (* Maps over non-0 nats *)

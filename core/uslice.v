@@ -14,12 +14,10 @@ limitations under the License.
 From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path interval order.
 From pcm Require Import options prelude ordtype seqext slice useqord.
-
 (* We assume the sequences are unique and use the first index,  *)
 (* however most lemmas don't require this condition explicitly. *)
 (* The ones that do are grouped in separate sections.           *)
-
-Open Scope order_scope.
+Local Open Scope order_scope.
 Import Order.Theory.
 
 (* slicing by element index *)

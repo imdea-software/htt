@@ -111,7 +111,7 @@ Section PregraphLemmas.
 Context {A : Type}.
 Implicit Type g : pregraph A.
 
-(* marks lemmas *)
+(* labels lemmas *)
 
 Lemma In_labelsX g x v :
         (x, v) \In labels g <-> 
@@ -121,10 +121,15 @@ rewrite In_omfX; split; last by case=>lks H; exists (v, lks).
 by case; case=>w lks /= H [<-{v}]; exists lks.
 Qed.
 
-Lemma In_labels g x v lks :
-        (x, (v, lks)) \In g ->
-        (x, v) \In labels g.
-Proof. by rewrite In_labelsX; exists lks. Qed.
+Lemma In_labels g x xs :
+        (x, xs) \In g ->
+        (x, xs.1) \In labels g.
+Proof. by case: xs=>v lks; rewrite In_labelsX; exists lks. Qed.
+
+Lemma In_olabel g x xs : 
+        (x, xs) \In g ->
+        olabel g x = Some xs.1.
+Proof. by rewrite /olabel=>/In_labels/In_find ->. Qed.
 
 (* links lemmas *)
 
@@ -1228,7 +1233,7 @@ End NpregraphLemmas.
 (********************)
 
 (* notation for left/right node of x *)
-Notation sel2 m g x := (get_nth g x m).
+Definition sel2 A (m : Side) (g : pregraph A) x := get_nth g x m.
 Notation lft g x := (sel2 LL g x).
 Notation rgh g x := (sel2 RR g x).
 
@@ -1264,6 +1269,49 @@ Notation updR g x r := (upd2 g x None (lft g x) r).
 Notation updCL g x v l := (upd2 g x (Some v) l (rgh g x)).
 (* updating just contents and right link *)
 Notation updCR g x v r := (upd2 g x (Some v) (lft g x) r).
+
+Lemma find_upd2 A (g : pregraph A) x p v lf rg :
+        find x (upd2 g p (Some v) lf rg) = 
+        if p \in dom g then 
+          if x == p then Some (v, [:: lf; rg])
+          else find x g
+        else None.
+Proof.
+rewrite /upd2/labels find_omf /omfx/=. 
+case: (dom_find p)=>[|[k w]]; first by rewrite find_undef.
+by move/In_find=>H _; rewrite findU (In_cond H) (In_valid H).
+Qed.
+
+Lemma find_upd2N A (g : pregraph A) x p lf rg :
+        find x (upd2 g p None lf rg) = 
+        if find p (labels g) is Some v then 
+          if x == p then Some (v, [:: lf; rg])
+          else find x g
+        else None.
+Proof.
+rewrite /upd2/labels find_omf /omfx /=.
+case: (dom_find p)=>[|[k w]]; first by rewrite find_undef.
+by move/In_find=>H _; rewrite findU (In_cond H) (In_valid H).
+Qed.
+
+Lemma sel2U A (g : pregraph A) (x p : node) v lf rg i : 
+        sel2 i (upd2 g p v lf rg) x = 
+        if x == p then 
+          if x \in dom g then nth null [:: lf; rg] i
+          else null
+        else 
+          if (p \in dom g) && (x \in dom g) then sel2 i g x
+          else null.
+Proof.
+rewrite /sel2/get_nth/graph.links/upd2 find_omf/omfx /=.
+case: (x =P p)=>[->|/eqP N].
+- case: (dom_find p)=>[|w /In_find H _]; first by rewrite nth_nil.
+  by case: v=>[v|] /=; rewrite findU eqxx /= (In_cond H) (In_valid H).
+case: (dom_find p g)=>/=; first by rewrite nth_nil.
+case=>k w /In_find H _; case: v=>[v|]; 
+rewrite /oapp findU (negbTE N) (In_cond H);
+by case: (dom_find x g)=>//; rewrite nth_nil.
+Qed.
 
 Lemma In_links2 A (g : pregraph A) (x : node) v lks : 
         n_pregraph_axiom 2 g ->
@@ -1367,16 +1415,6 @@ rewrite omfPtUn /=; case: ifP=>// V; set j := (_ \+ _).
 case: (normalP j)=>[->//|].
 rewrite !validPtUn valid_omap dom_omf_some // in V *.
 by rewrite V.
-Qed.
-
-Lemma sel2U A (g : pregraph A) (x : node) v lf rg i : 
-        sel2 i (upd2 g x v lf rg) x = 
-        if x \notin dom g then null
-        else nth null [:: lf; rg] i.
-Proof.
-rewrite /get_nth/graph.links/upd2 find_omf/omfx /=.
-case: (dom_find x)=>[|w /In_find H _]; first by rewrite nth_nil.
-by case: v=>[v|] /=; rewrite findU eqxx /= (In_cond H) (In_valid H).
 Qed.
 
 (**********)

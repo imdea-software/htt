@@ -15,8 +15,7 @@ From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path interval order.
 From mathcomp Require Import fintype finfun tuple.
 From pcm Require Import options prelude seqext.
-
-Open Scope order_scope.
+Local Open Scope order_scope.
 Import Order.Theory.
 
 (* DEVCOMMENT *)

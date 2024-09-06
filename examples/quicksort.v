@@ -19,9 +19,9 @@ From pcm Require Import options axioms prelude seqext pred ordtype slice.
 From pcm Require Import pcm unionmap heap.
 From htt Require Import options model heapauto.
 From htt Require Import array.
-
 From mathcomp Require order.
 Import order.Order.NatOrder order.Order.TTheory.
+Local Open Scope order_scope.
 
 (* Brief mathematics of quickorting *)
 (* There is some overlap with mathematics developed for bubblesort *)

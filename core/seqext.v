@@ -21,6 +21,10 @@ From pcm Require Import options prelude pred.
 
 (* TODO upstream to mathcomp *)
 
+Lemma head_rcons {A} (s : seq A) (x y : A) : 
+        head x (rcons s y) = head y s.
+Proof. by rewrite headI. Qed.
+
 Lemma rcons_nseq {A} n (x : A) :
         rcons (nseq n x) x = nseq n.+1 x.
 Proof. by elim: n=>//=n ->. Qed.
@@ -1011,6 +1015,12 @@ Proof.
 case: eqP=>[->|N]; first by apply: rcons_lastP.
 by constructor; case=>s' E; elim: N; rewrite E last_rcons.
 Qed.
+
+Lemma rcons_lastN (s : seq A) a p :
+        p != a ->
+        p = last a s -> 
+        exists ss, s = rcons ss p.
+Proof. by move/[swap]=>-> N; apply/rcons_lastX/last_change/N. Qed.
 
 Lemma index_last_size_uniq z (s : seq A) :
         uniq s ->
