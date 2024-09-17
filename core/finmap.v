@@ -1297,6 +1297,7 @@ case: eqP=>// <-{k2}; case E1: (zip_f v1 v2)=>[w|//].
 case E2: (zip' s1 s2)=>[t|//][<-{s}] /=.
 case: eqP=>[_ [<-]|_].
 (* DEVCOMMENT: exists v1, v2 errors! *)
+(* /DEVCOMMENT *)
 - by exists v1; exists v2.
 by case: (filter (predk V x) t) (IH _ _ E2).
 Qed.

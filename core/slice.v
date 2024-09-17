@@ -15,7 +15,8 @@ From Coq Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path interval order.
 From mathcomp Require Import fintype finfun tuple.
 From pcm Require Import options prelude seqext.
-Local Open Scope order_scope.
+
+Open Scope order_scope.
 Import Order.Theory.
 
 (* DEVCOMMENT *)
@@ -23,7 +24,7 @@ Import Order.Theory.
 (* but that changed with mathcomp 2.0 *)
 (* /DEVCOMMENT *)
 Section BSimp_Extension.
-Variables (disp : unit) (T : porderType disp).
+Context disp (T : porderType disp).
 Implicit Types (x y : T) (b c : bool).
 
 Lemma binf_inf b c : (BInfty T b == BInfty T c) = (b == c).

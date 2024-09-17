@@ -253,7 +253,6 @@ Proof. by case: (@tpcm_subproof U). Qed.
 Lemma undef_join (U : tpcm) (x : U) : undef \+ x = undef.
 Proof. by case: (@tpcm_subproof U). Qed.
 
-
 Section TPCMLemmas.
 Variable U : tpcm.
 

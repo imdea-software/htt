@@ -1566,7 +1566,7 @@ Definition id_rel : Rel A := fun x y => y = x.
 Lemma id_rel_refl : forall x, id_rel x x.
 Proof. by []. Qed.
 Lemma id_rel_sym : Symmetric id_rel.
-Proof. by []. Qed.
+Proof. by split. Qed.
 Lemma id_rel_trans : Transitive id_rel.
 Proof. by move=> x y z ->->. Qed.
 Lemma id_rel_func : functional id_rel.

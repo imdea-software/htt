@@ -7,6 +7,11 @@
 -arg -w -arg -notation-overridden
 -arg -w -arg -redundant-canonical-projection
 
+# release-specific arguments
+-arg -w -arg -notation-incompatible-prefix # specific to coq8.20.0 
+-arg -w -arg -deprecated-from-Coq # specific to coq8.21 
+-arg -w -arg -deprecated-dirpath-Coq # specific to coq8.21 
+
 core/options.v
 core/axioms.v
 core/prelude.v

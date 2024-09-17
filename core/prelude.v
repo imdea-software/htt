@@ -1280,7 +1280,7 @@ Lemma onth_tnth {n} (s : n.-tuple A) (i : 'I_n) :
 Proof.
 elim: n s i =>[|n IH] s i; first by case: i.
 case/tupleP: s=>/=x s; case: (unliftP ord0 i)=>[j|]-> /=.
-- by rewrite tnthS.
+- by rewrite tnthS ?add0n.
 by rewrite tnth0.
 Qed.
 

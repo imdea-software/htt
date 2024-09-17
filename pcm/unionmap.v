@@ -543,7 +543,6 @@ Abort.
 
 (* /DEVCOMMENT *)
 
-
 (***************)
 (* Finite sets *)
 (***************)
@@ -589,7 +588,7 @@ Notation "# x" := (ptsT (fset _) x tt) (at level 30, format "# x").
 
 (* DEVCOMMENT *)
 (* test *)
-(* /DECOMMENT *)
+(* /DEVCOMMENT *)
 Lemma xx : #1 \+ #2 = Unit. 
 Abort.
 
@@ -937,10 +936,10 @@ Proof. by rewrite validUnHE has_sym. Qed.
 Lemma validFUn k f1 f2 :
         valid (f1 \+ f2) -> valid (free f1 k \+ f2).
 Proof.
-case: validUn=>// V1 V2 H _; case: validUn=>//; last 1 first.
-- by move=>k'; rewrite domF inE; case: eqP=>// _ /H/negbTE ->.
-by rewrite validF V1.
-by rewrite V2.
+case: validUn=>// V1 V2 H _; case: validUn=>//.
+- by rewrite validF V1.
+- by rewrite V2.
+by move=>k'; rewrite domF inE; case: eqP=>// _ /H/negbTE ->.
 Qed.
 
 Lemma validUnF k f1 f2 :
@@ -4633,7 +4632,6 @@ Lemma mapv_omapv f g (x : U) :
 Proof. exact: mapv_omapvE. Qed.
 
 End OmapMembershipLemmas.
-
 
 (************************)
 (* PCM-induced ordering *)
