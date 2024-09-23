@@ -1028,10 +1028,4 @@ HB.instance Definition _ :=
   isContFun.Build (S1*S2)%type (T1*T2)%type (f1 \* f2) prod_is_cont.
 End ProdCont.
 
-(* DEVCOMMENT *)
-(* TODO: *)
-(* 1. limit of a chain of continuous functions is a continuous function *)
-(* 2. CPO of continuous functions should be the subCPO of functions *)
-(* 3. kleene_lfp is a continuous operation *)
-(* /DEVCOMMENT *)
 

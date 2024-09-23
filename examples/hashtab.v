@@ -22,9 +22,6 @@ From htt Require Import array kvmaps.
 (* hash table is array of buckets, i.e. KV maps *)
 (* bucket indices are provided by the hash function *)
 (* using dynaming kv-maps for buckets *)
-(* DEVCOMMENT: *)
-(*  it's possible to develop this with static buckers *)
-(* /DEVCOMMENT *)
 
 Module Type Hashtab_sig.
 Parameter root : forall {K : ordType} {V : Type} (buckets : dkvm K V)
