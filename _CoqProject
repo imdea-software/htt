@@ -1,5 +1,3 @@
--Q core pcm
--Q pcm pcm
 -Q examples htt
 -Q htt htt
 -docroot docs # where the documentation should go
@@ -12,29 +10,6 @@
 -arg -w -arg -deprecated-from-Coq # specific to coq8.21 
 -arg -w -arg -deprecated-dirpath-Coq # specific to coq8.21 
 
-core/options.v
-core/axioms.v
-core/prelude.v
-core/pred.v
-core/auto.v
-core/seqext.v
-core/slice.v
-core/uslice.v
-core/useqord.v
-core/uconsec.v
-core/ordtype.v
-core/seqperm.v
-core/finmap.v
-core/rtc.v
-pcm/pcm.v
-pcm/autopcm.v
-pcm/morphism.v
-pcm/invertible.v
-pcm/unionmap.v
-pcm/natmap.v
-pcm/automap.v
-pcm/heap.v
-pcm/mutex.v
 htt/options.v
 htt/domain.v
 htt/model.v
@@ -58,4 +33,3 @@ examples/congmath.v
 examples/congprog.v
 examples/tree.v	
 examples/union_find.v
-examples/graph.v
