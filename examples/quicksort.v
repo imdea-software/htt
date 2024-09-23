@@ -28,31 +28,6 @@ Local Open Scope order_scope.
 (* but the development is repeated here to make the files *)
 (* self-contained *)
 
-Lemma perm_onC {T : finType} (S1 S2 : {set T}) (u1 u2 : {perm T}) :
-        perm_on S1 u1 -> 
-        perm_on S2 u2 ->
-        [disjoint S1 & S2] ->
-        commute u1 u2.
-Proof.
-move=> pS1 pS2 S12; apply/permP => t; rewrite !permM.
-case/boolP : (t \in S1) => tS1.
-- have /[!disjoint_subset] /subsetP {}S12 := S12.
-  by rewrite !(out_perm pS2) //; apply: S12; rewrite // perm_closed.
-case/boolP : (t \in S2) => tS2.
-- have /[1!disjoint_sym] /[!disjoint_subset] /subsetP {}S12 := S12.
-  by rewrite !(out_perm pS1) //; apply: S12; rewrite // perm_closed.
-by rewrite (out_perm pS1) // (out_perm pS2) // (out_perm pS1).
-Qed.
-
-Lemma tperm_on {T : finType} (x y : T) : 
-        perm_on [set x; y] (tperm x y).
-Proof.
-apply/subsetP => z /[!inE]; case: tpermP => [->|->|];
-by rewrite eqxx // orbT.
-Qed.
-
-(****)
-
 Lemma leq_choose a b : 
         a < b -> 
         sumbool (a.+1 == b) (a.+1 < b).
