@@ -24,7 +24,7 @@ for f in "$srcdir"/*.mustache; do
             mustache='{{ dune }}'
             bool=$(get_yaml meta.yml <<<"$mustache")
             if [ -n "$bool" ] && [ "$bool" != false ]; then
-                mkdir -p -v theories && target="theories/$target"
+                mkdir -p -v htt && target="htt/$target"
             else
                 continue
             fi
