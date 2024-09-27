@@ -2,7 +2,7 @@
 
 (coq.theory
  (name htt)
- (package coq-htt-core)
+ (package coq-htt)
  (synopsis "Hoare Type Theory")
  (flags :standard
    -w -notation-overridden
