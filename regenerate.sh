@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 TMP=$(mktemp -d); git clone https://github.com/coq-community/templates.git $TMP
-$TMP/generate.sh README.md coq-htt.opam dune-project
+$TMP/generate.sh README.md coq-htt-core.opam dune-project
 
 echo "Proceeding with customized generation..."
 

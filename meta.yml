@@ -1,7 +1,7 @@
 fullname: Hoare Type Theory
 shortname: htt
 organization: imdea-software
-opam_name: coq-htt
+opam_name: coq-htt-core
 community: false
 action: true
 dune: true
