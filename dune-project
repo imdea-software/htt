@@ -1,3 +1,3 @@
 (lang dune 3.6)
 (using coq 0.6)
-(name coq-htt-core)
+(name htt)
