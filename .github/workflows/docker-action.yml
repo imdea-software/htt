@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: coq-community/docker-coq-action@v1
         with:
-          opam_file: 'coq-htt-examples.opam'
+          opam_file: 'coq-htt.opam'
           custom_image: ${{ matrix.image }}
 
 
