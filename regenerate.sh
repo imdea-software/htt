@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 TMP=$(mktemp -d); git clone https://github.com/coq-community/templates.git $TMP
-$TMP/generate.sh README.md coq-htt.opam dune-project
+$TMP/generate.sh README.md coq-htt-core.opam dune-project
 
 echo "Proceeding with customized generation..."
 
@@ -24,7 +24,7 @@ for f in "$srcdir"/*.mustache; do
             mustache='{{ dune }}'
             bool=$(get_yaml meta.yml <<<"$mustache")
             if [ -n "$bool" ] && [ "$bool" != false ]; then
-                mkdir -p -v theories && target="theories/$target"
+                mkdir -p -v htt && target="htt/$target"
             else
                 continue
             fi

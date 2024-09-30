@@ -1,4 +1,5 @@
-# This file was generated from `meta.yml`, please do not edit manually.
+; This file was generated from `meta.yml`, please do not edit manually.
+
 name: Docker CI
 
 on:
@@ -32,7 +33,7 @@ jobs:
 {{/ submodule }}
       - uses: coq-community/docker-coq-action@v1
         with:
-          opam_file: 'coq-htt-examples.opam'
+          opam_file: 'coq-htt.opam'
 {{! Change delimiters to avoid the next line being parsed as mustache syntax. }}
 {{=<% %>=}}
           custom_image: ${{ matrix.image }}

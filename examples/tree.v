@@ -1,11 +1,24 @@
+(*
+Copyright 2023 IMDEA Software Institute
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*)
+
+From HB Require Import structures.
 From mathcomp Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype ssrnat seq bigop choice.
 From pcm Require Import pred prelude seqext.
-From htt Require Import interlude.
 
 (* arbitrarily branching tree *)
 Inductive tree A := TNode of A & seq (tree A).
-Arguments TNode [A].
+Arguments TNode {A}.
 
 Section Tree.
 Context {A : Type}.
@@ -16,26 +29,18 @@ Definition ch (t : tree A) := let: TNode _ ts := t in ts.
 Lemma tree_ext (t : tree A) : TNode (rt t) (ch t) = t.
 Proof. by case: t. Qed.
 
-(* a leaf is a node with an empty list *)
+(* leaf is a node with an empty list *)
 Definition lf a : tree A := TNode a [::].
 
 Lemma tree_ind' (P : tree A -> Prop) :
-  (forall a l, All P l -> P (TNode a l)) ->
-  forall t, P t.
-Proof.
-move=> indu; fix H 1.
-elim => a l; apply indu.
-by elim: l.
-Qed.
+        (forall a l, All P l -> P (TNode a l)) ->
+        forall t, P t.
+Proof. by move=>indu; fix H 1; elim => a l; apply indu; elim: l. Qed.
 
 Lemma tree_rec' (P : tree A -> Type) :
-  (forall a l, AllT P l -> P (TNode a l)) ->
-  forall t, P t.
-Proof.
-move=>indu; fix H 1.
-elim => a l; apply: indu.
-by elim: l.
-Qed.
+       (forall a l, AllT P l -> P (TNode a l)) ->
+       forall t, P t.
+Proof. by move=>indu; fix H 1; elim => a l; apply: indu; elim: l. Qed.
 
 (* custom induction principles *)
 
@@ -52,7 +57,7 @@ Fixpoint preorder (t : tree A) : seq A :=
   let: TNode a ts := t in
   foldl (fun s t => s ++ preorder t) [::a] ts.
 
-Corollary foldl_cat {B C} z (fs : seq B) (a : B -> seq C):
+Lemma foldl_cat {B C} z (fs : seq B) (a : B -> seq C):
         foldl (fun s t => s ++ a t) z fs =
         z ++ foldl (fun s t => s ++ a t) [::] fs.
 Proof.
@@ -60,7 +65,9 @@ apply/esym/fusion_foldl; last by rewrite cats0.
 by move=>x y; rewrite catA.
 Qed.
 
-Lemma preorderE t : preorder t = rt t :: \big[cat/[::]]_(c <- ch t) (preorder c).
+Lemma preorderE t : 
+        preorder t = 
+        rt t :: \big[cat/[::]]_(c <- ch t) (preorder c).
 Proof.
 case: t=>a cs /=; rewrite foldl_cat /=; congr (_ :: _).
 elim: cs=>/= [| c cs IH]; first by rewrite big_nil.
@@ -95,8 +102,8 @@ Qed.
 
 End EncodeDecodeTree.
 
-Definition tree_eqMixin (A : eqType) := PcanEqMixin (@pcancel_tree A).
-Canonical tree_eqType (A : eqType) := Eval hnf in EqType _ (@tree_eqMixin A).
+HB.instance Definition _ (A : eqType) := 
+  Equality.copy (tree A) (pcan_type (pcancel_tree A)).
 
 Section TreeEq.
 Context {A : eqType}.
@@ -108,12 +115,11 @@ Fixpoint mem_tree (t : tree A) : pred A :=
 Definition tree_eqclass := tree A.
 Identity Coercion tree_of_eqclass : tree_eqclass >-> tree.
 Coercion pred_of_tree (t : tree_eqclass) : {pred A} := mem_tree t.
-
 Canonical tree_predType := ssrbool.PredType (pred_of_tree : tree A -> pred A).
-(* The line below makes mem_tree a canonical instance of topred. *)
-Canonical mem_tree_predType := ssrbool.PredType mem_tree.
 
-Lemma in_tnode a t ts : (t \in TNode a ts) = (t == a) || has (fun q => t \in q) ts.
+Lemma in_tnode a t ts : 
+        (t \in TNode a ts) = 
+        (t == a) || has (fun q => t \in q) ts.
 Proof. by []. Qed.
 
 (* frequently used facts about membership in a tree *)
@@ -135,7 +141,7 @@ Lemma in_preorder t : preorder t =i t.
 Proof.
 elim/tree_ind1: t=>t cs IH x.
 rewrite preorderE in_tnode /= inE; case: eqVneq=>//= N.
-rewrite big_cat_mem_seq; apply: eq_in_has=>z Hz.
+rewrite big_cat_mem_has; apply: eq_in_has=>z Hz.
 by rewrite IH //; apply/mem_seqP.
 Qed.
 
@@ -148,7 +154,7 @@ Qed.
 
 End TreeEq.
 
-Arguments in_tnode2 [A x y a ts].
+Arguments in_tnode2 {A x y a ts}.
 #[export] Hint Resolve in_tnode1 : core.
 
 (* a simplified induction principle for eq types *)

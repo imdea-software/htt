@@ -1,26 +1,35 @@
--Q . htt
--arg "-w -notation-overridden,-local-declaration,-redundant-canonical-projection,-projection-no-head-constant"
+-Q examples htt
+-Q htt htt
+-docroot docs # where the documentation should go
 
-theories/options.v
-theories/interlude.v
-theories/domain.v
-theories/model.v
-theories/heapauto.v
+-arg -w -arg -notation-overridden
+-arg -w -arg -redundant-canonical-projection
+
+# release-specific arguments
+-arg -w -arg -notation-incompatible-prefix # specific to coq8.20.0 
+-arg -w -arg -deprecated-from-Coq # specific to coq8.21 
+-arg -w -arg -deprecated-dirpath-Coq # specific to coq8.21 
+
+htt/options.v
+htt/domain.v
+htt/model.v
+htt/heapauto.v
 examples/exploit.v
 examples/gcd.v
+examples/counter.v
 examples/llist.v
-examples/array.v
-examples/bubblesort.v
-examples/quicksort.v
-examples/stack.v
 examples/dlist.v
+examples/array.v
 examples/queue.v
 examples/cyclic.v
+examples/stack.v
 examples/bintree.v
 examples/bst.v
 examples/kvmaps.v
 examples/hashtab.v
-examples/counter.v
+examples/bubblesort.v
+examples/quicksort.v
 examples/congmath.v
-examples/tree.v
+examples/congprog.v
+examples/tree.v	
 examples/union_find.v

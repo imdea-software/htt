@@ -1,7 +1,7 @@
 fullname: Hoare Type Theory
 shortname: htt
 organization: imdea-software
-opam_name: coq-htt
+opam_name: coq-htt-core
 community: false
 action: true
 dune: true
@@ -58,6 +58,8 @@ authors:
   initial: false
 - name: Alexander Gryzlov
   initial: false
+- name: Marcos Grandury
+  initial: false
 
 publications:
 - pub_url: https://software.imdea.org/~aleks/papers/reflect/reflect.pdf
@@ -78,36 +80,32 @@ license:
   file: LICENSE
 
 supported_coq_versions:
-  text: Coq 8.15 to 8.17
-  opam: '{ (>= "8.15" & < "8.19~") | (= "dev") }'
+  text: Coq 8.19 to 8.20
+  opam: '{ (>= "8.19" & < "8.21~") | (= "dev") }'
 
 tested_coq_opam_versions:
-- version: '1.17.0-coq-8.15'
+- version: '2.2.0-coq-8.19'
   repo: 'mathcomp/mathcomp'
-- version: '1.17.0-coq-8.18'
+- version: '2.2.0-coq-8.20'
   repo: 'mathcomp/mathcomp'
-# - version: 'coq-dev'
-#  repo: 'mathcomp/mathcomp-dev'
+- version: 'latest-coq-dev'
+  repo: 'mathcomp/mathcomp'
 
 dependencies:
 - opam:
     name: coq-mathcomp-ssreflect
-    version: '{ (>= "1.17.0" & < "1.18~") | (= "dev") }'
+    version: '{ (>= "2.2.0" & < "2.3~") | (= "dev") }'
   description: |-
-    [MathComp ssreflect 1.17](https://math-comp.github.io)
+    [MathComp ssreflect 2.2](https://math-comp.github.io)
 - opam:
     name: coq-mathcomp-algebra
   description: |-
     [MathComp algebra](https://math-comp.github.io)
 - opam:
-    name: coq-mathcomp-fingroup
-  description: |-
-    [MathComp fingroup](https://math-comp.github.io)
-- opam:
     name: coq-fcsl-pcm
-    version: '{ (>= "1.8.0" & < "1.9~") | (= "dev") }'
+    version: '{ (>= "2.0.0" & < "2.1~") | (= "dev") }'
   description: |-
-    [FCSL-PCM 1.8](https://github.com/imdea-software/fcsl-pcm)
+    [FCSL-PCM 2.0](https://github.com/imdea-software/fcsl-pcm)
 
 namespace: htt
 
