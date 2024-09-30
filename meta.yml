@@ -101,6 +101,10 @@ dependencies:
     name: coq-mathcomp-algebra
   description: |-
     [MathComp algebra](https://math-comp.github.io)
+- opam: 
+    name: coq-mathcomp-fingroup
+  description: |-
+    [MathComp fingroup](https://math-comp.github.io)
 - opam:
     name: coq-fcsl-pcm
     version: '{ (>= "2.0.0" & < "2.1~") | (= "dev") }'

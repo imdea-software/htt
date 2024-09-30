@@ -43,6 +43,7 @@ that HTT implements Separation logic as a shallow embedding in Coq.
 - Additional dependencies:
   - [MathComp ssreflect 2.2](https://math-comp.github.io)
   - [MathComp algebra](https://math-comp.github.io)
+  - [MathComp fingroup](https://math-comp.github.io)
   - [FCSL-PCM 2.0](https://github.com/imdea-software/fcsl-pcm)
   - [Dune](https://dune.build) 2.5 or later
 - Coq namespace: `htt`
