@@ -1,5 +1,3 @@
-# This file was generated from `meta.yml`, please do not edit manually.
-
 name: Docker CI
 
 on:
@@ -22,12 +20,34 @@ jobs:
           - 'mathcomp/mathcomp:latest-coq-dev'
       fail-fast: false
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: coq-community/docker-coq-action@v1
         with:
-          opam_file: 'coq-htt.opam'
           custom_image: ${{ matrix.image }}
-
+          custom_script: |
+            {{before_install}}
+            startGroup "Build htt-core dependencies"
+              opam pin add -n -y -k path coq-htt-core .
+              opam update -y
+              opam install -y -j $(nproc) coq-htt-core --deps-only
+            endGroup
+            startGroup "Build htt-core"
+              opam install -y -v -j $(nproc) coq-htt-core
+              opam list
+            endGroup
+            startGroup "Build htt dependencies"
+              opam pin add -n -y -k path coq-htt .
+              opam update -y
+              opam install -y -j $(nproc) coq-htt --deps-only
+            endGroup
+            startGroup "Build coq-htt"
+              opam install -y -v -j $(nproc) coq-htt
+              opam list
+            endGroup
+            startGroup "Uninstallation test"
+              opam remove -y coq-htt
+              opam remove -y coq-htt-core
+            endGroup
 
 # See also:
 # https://github.com/coq-community/docker-coq-action#readme
