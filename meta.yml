@@ -72,7 +72,7 @@ maintainers:
 
 opam-file-maintainer: fcsl@software.imdea.org
 
-opam-file-version: dev
+opam-file-version: 2.0.1
 
 license:
   fullname: Apache-2.0
@@ -94,7 +94,7 @@ tested_coq_opam_versions:
 dependencies:
 - opam:
     name: coq-mathcomp-ssreflect
-    version: '{ (>= "2.2.0" & < "2.3~") | (= "dev") }'
+    version: '{ (>= "2.2.0" & < "2.4~") | (= "dev") }'
   description: |-
     [MathComp ssreflect 2.2](https://math-comp.github.io)
 - opam:
