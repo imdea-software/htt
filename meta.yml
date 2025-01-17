@@ -72,7 +72,7 @@ maintainers:
 
 opam-file-maintainer: fcsl@software.imdea.org
 
-opam-file-version: 2.0.1
+opam-file-version: 2.1.0
 
 license:
   fullname: Apache-2.0
@@ -88,8 +88,8 @@ tested_coq_opam_versions:
   repo: 'mathcomp/mathcomp'
 - version: '2.3.0-coq-8.20'
   repo: 'mathcomp/mathcomp'
-- version: 'latest-coq-dev'
-  repo: 'mathcomp/mathcomp'
+- version: 'coq-dev'
+  repo: 'mathcomp/mathcomp-dev'
 
 dependencies:
 - opam:
@@ -107,9 +107,9 @@ dependencies:
     [MathComp fingroup](https://math-comp.github.io)
 - opam:
     name: coq-fcsl-pcm
-    version: '{ (>= "2.0.0" & < "2.1~") | (= "dev") }'
+    version: '{ (>= "2.1.0" & < "2.2~") | (= "dev") }'
   description: |-
-    [FCSL-PCM 2.0](https://github.com/imdea-software/fcsl-pcm)
+    [FCSL-PCM 2.1](https://github.com/imdea-software/fcsl-pcm)
 
 namespace: htt
 

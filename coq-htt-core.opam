@@ -3,7 +3,7 @@
 
 opam-version: "2.0"
 maintainer: "fcsl@software.imdea.org"
-version: "2.0.1"
+version: "2.1.0"
 
 homepage: "https://github.com/imdea-software/htt"
 dev-repo: "git+https://github.com/imdea-software/htt.git"
@@ -38,7 +38,7 @@ depends: [
   "coq-mathcomp-ssreflect" { (>= "2.2.0" & < "2.4~") | (= "dev") }
   "coq-mathcomp-algebra" 
   "coq-mathcomp-fingroup" 
-  "coq-fcsl-pcm" { (>= "2.0.0" & < "2.1~") | (= "dev") }
+  "coq-fcsl-pcm" { (>= "2.1.0" & < "2.2~") | (= "dev") }
 ]
 
 tags: [

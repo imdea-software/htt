@@ -64,7 +64,7 @@ Lemma lseg_empty (xs : seq A) p q :
         Unit \In lseg p q xs -> 
         p = q /\ xs = [::].
 Proof.
-by case: xs=>[|x xs][] //= r [h][/esym/umap0E][/unitbP]; rewrite um_unitbU.
+by case: xs=>[|x xs][] //= r [h][/esym/join0I][/unitbP]; rewrite um_unitbU.
 Qed.
 
 (* reformulation of the specification *)
