@@ -35,7 +35,7 @@ depends: [
   "coq-mathcomp-ssreflect" { (>= "2.2.0" & < "2.4~") | (= "dev") }
   "coq-mathcomp-algebra" 
   "coq-mathcomp-fingroup" 
-  "coq-fcsl-pcm" { (>= "2.0.0" & < "2.1~") | (= "dev") }
+  "coq-fcsl-pcm" { (>= "2.1.0" & < "2.2~") | (= "dev") }
   "coq-htt-core" {= version}
 ]
 
