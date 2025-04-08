@@ -23,6 +23,7 @@ From mathcomp Require order.
 Import order.Order.NatOrder order.Order.TTheory.
 Local Open Scope order_scope.
 
+
 (* Brief mathematics of quickorting *)
 (* There is some overlap with mathematics developed for bubblesort *)
 (* but the development is repeated here to make the files *)

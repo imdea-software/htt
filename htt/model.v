@@ -1233,6 +1233,29 @@ Notation "[ 'tryE' x1 , .. , xn ]" :=
   (tryE (existT _ x1 .. (existT _ xn tt) ..))
   (at level 0, format "[ 'tryE'  x1 ,  .. ,  xn ]").
 
+(* backward symbolic execution by one step *)
+Lemma bnd_vrf G A B (pq : A -> spec G B) (g : G) (e1 : ST A) 
+          (e2 : forall x, STspec G (pq x)) (Q : post B) i :
+        vrf i e1 (fun x m => 
+          match x with 
+            Val v => (pq v g).1 m
+          | Exn e => valid m -> Q (Exn e) m
+          end) ->
+        (forall v y m, (pq v g).2 y m -> valid m -> Q y m) ->
+        vrf i (bnd e1 e2) Q.
+Proof.
+move=>H1 H2; apply/vrf_bnd/vrf_post/H1=>/= y m V.
+by case: y=>// y H; apply: gE H _ _ => v h; apply: H2. 
+Qed.
+
+Arguments bnd_vrf {G A B pq} g {e1 e2 Q}.
+
+Notation "[bnd_vrf]" := (bnd_vrf tt) (at level 0). 
+Notation "[ 'bnd_vrf' x1 , .. , xn ]" :=
+  (bnd_vrf (existT _ x1 .. (existT _ xn tt) ..))
+(at level 0, format "[ 'bnd_vrf'  x1 ,  .. ,  xn ]").
+
+
 (* Common special case for framing on `Unit`, i.e. passing an *)
 (* empty heap to the routine. For more sophisticated framing  *)
 (* variants see the `heapauto` module.                        *)
