@@ -39,7 +39,7 @@ that HTT implements Separation logic as a shallow embedding in Coq.
   - Alexander Gryzlov
   - Marcos Grandury
 - License: [Apache-2.0](LICENSE)
-- Compatible Coq versions: Coq 8.19 to 8.20
+- Compatible Coq versions: 8.19 or later
 - Additional dependencies:
   - [MathComp ssreflect 2.2-2.3](https://math-comp.github.io)
   - [MathComp algebra](https://math-comp.github.io)
