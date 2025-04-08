@@ -35,7 +35,7 @@ build: [make "-C" "htt" "-j%{jobs}%"]
 install: [make "-C" "htt" "install"]
 depends: [
   "dune" {>= "3.6"}
-  "coq" { (>= "8.19" & < "8.21~") | (= "dev") }
+  "coq" { (>= "8.19" & < "9.1~") | (= "dev") }
   "coq-mathcomp-ssreflect" { (>= "2.2.0" & < "2.4~") | (= "dev") }
   "coq-mathcomp-algebra" 
   "coq-mathcomp-fingroup" 
