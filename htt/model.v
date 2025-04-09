@@ -1326,10 +1326,10 @@ Definition vfun' A (f : A -> heap -> Prop) : post A :=
   fun y i => if y is Val v then f v i else False.
 
 Notation "[ 'vfun' x => p ]" := (vfun' (fun x => p))
-  (at level 0, x name, format "[ 'vfun'  x  =>  p ]") : fun_scope.
+  (at level 0, x name, format "[ 'vfun'  x  =>  p ]") : function_scope.
 Notation "[ 'vfun' x : aT => p ]" := (vfun' (fun (x : aT) => p))
-  (at level 0, x name, only parsing) : fun_scope.
+  (at level 0, x name, only parsing) : function_scope.
 Notation "[ 'vfun' x i => p ]" := (vfun' (fun x i => p))
-  (at level 0, x name, format "[ 'vfun'  x  i  =>  p ]") : fun_scope.
+  (at level 0, x name, format "[ 'vfun'  x  i  =>  p ]") : function_scope.
 Notation "[ 'vfun' ( x : aT ) i => p ]" := (vfun' (fun (x : aT) i => p))
-  (at level 0, x name, only parsing) : fun_scope.
+  (at level 0, x name, only parsing) : function_scope.
