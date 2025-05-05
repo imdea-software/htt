@@ -11,16 +11,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 *)
 
-From Coq Require Import ssreflect ssrbool ssrfun.
+From mathcomp Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path fintype tuple.
-From mathcomp Require Import finfun fingroup perm interval.
+From mathcomp Require Import finfun fingroup perm order interval.
 From pcm Require Import options axioms prelude pred ordtype slice.
 From pcm Require Import seqext pcm unionmap heap.
-From htt Require Import options model heapauto.
-From htt Require Import array.
-From mathcomp Require order.
-Import order.Order.NatOrder order.Order.TTheory.
+From htt Require Import options model heapauto array.
+Import Order.NatOrder Order.TTheory.
 Local Open Scope order_scope.
+Local Open Scope nat_scope.
 
 (* Brief mathematics of (bubble) array sorting: *)
 (* Theory of permutations built out of (adjacent-element) swaps acting on *)
@@ -114,13 +113,13 @@ Proof. by rewrite slice_xL // onth_codom1S. Qed.
 
 (* TODO notation fails *)
 Lemma codom1_ax_rcons (f : {ffun 'I_n.+1 -> A}) (a : itv_bound nat) (i : 'I_n) :
-        order.Order.le a (BLeft (i : nat)) ->
+        Order.le a (BLeft (i : nat)) ->
         &:(fgraph f) (Interval a (BRight (i : nat))) =
         rcons (&:(fgraph f) (Interval a (BLeft (i : nat)))) (f (Wo i)).
 Proof. by move=>H; rewrite slice_xR //= onth_codom1 /=. Qed.
 
 Lemma codom1_ax_rcons2 (f : {ffun 'I_n.+1 -> A}) (a : itv_bound nat) (i : 'I_n) :
-        order.Order.le a (BLeft (i : nat)) ->
+        Order.le a (BLeft (i : nat)) ->
                       &:(fgraph f) (Interval a (BRight i.+1)) =
         rcons (rcons (&:(fgraph f) (Interval a (BLeft (i : nat)))) 
               (f (Wo i))) (f (So i)).
