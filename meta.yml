@@ -88,15 +88,23 @@ tested_coq_opam_versions:
   repo: 'mathcomp/mathcomp'
 - version: '2.3.0-coq-8.20'
   repo: 'mathcomp/mathcomp'
+- version: '2.4.0-rocq-prover-9.0'
+  repo: 'mathcomp/mathcomp'
 - version: 'rocq-prover-dev'
   repo: 'mathcomp/mathcomp-dev'
 
+
 dependencies:
 - opam:
-    name: coq-mathcomp-ssreflect
-    version: '{ (>= "2.2.0" & < "2.4~") | (= "dev") }'
+    name: coq-hierarchy-builder
+    version: '{ (>= "1.7.0" & < "1.10~") | (= "dev") }'
   description: |-
-    [MathComp ssreflect 2.2-2.3](https://math-comp.github.io)
+    [Hierarchy Builder 1.7.0 or later](https://github.com/math-comp/hierarchy-builder)
+- opam:
+    name: coq-mathcomp-ssreflect
+    version: '{ (>= "2.2.0" & < "2.5~") | (= "dev") }'
+  description: |-
+    [MathComp ssreflect 2.2 or later](https://math-comp.github.io)
 - opam:
     name: coq-mathcomp-algebra
   description: |-

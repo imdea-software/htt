@@ -36,6 +36,7 @@ install: [make "-C" "htt" "install"]
 depends: [
   "dune" {>= "3.6"}
   "coq" { (>= "8.19" & < "9.1~") | (= "dev") }
+  "coq-hierarchy-builder" { (>= "1.7.0" & < "1.10~") | (= "dev") }
   "coq-mathcomp-ssreflect" { (>= "2.2.0" & < "2.5~") | (= "dev") }
   "coq-mathcomp-algebra" 
   "coq-mathcomp-fingroup" 
