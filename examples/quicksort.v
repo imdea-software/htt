@@ -13,16 +13,13 @@ limitations under the License.
 
 From mathcomp Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype seq path fintype tuple finfun.
-From mathcomp Require Import finset fingroup perm.
-From mathcomp Require Import interval.
+From mathcomp Require Import finset fingroup perm order interval.
 From pcm Require Import options axioms prelude seqext pred ordtype slice.
 From pcm Require Import pcm unionmap heap.
-From htt Require Import options model heapauto.
-From htt Require Import array.
-From mathcomp Require order.
-Import order.Order.NatOrder order.Order.TTheory.
+From htt Require Import options model heapauto array.
+Import Order.NatOrder Order.TTheory.
 Local Open Scope order_scope.
-
+Local Open Scope nat_scope.
 
 (* Brief mathematics of quickorting *)
 (* There is some overlap with mathematics developed for bubblesort *)
@@ -150,7 +147,7 @@ Lemma perm_on_fgraph (i : interval nat) (p : 'S_n) (f : {ffun 'I_n -> A}) :
                 &:(fgraph          f ) i.
 Proof.
 case: i=>i j H.
-case/boolP: (order.Order.lt i j)=>[Hij|]; last first.
+case/boolP: (Order.lt i j)=>[Hij|]; last first.
 - by rewrite -leNgt => H12; rewrite !itv_swapped_bnd.
 move: (perm_fgraph p f).
 rewrite {1}(slice_extrude (fgraph (pffun p f)) (i:=Interval i j)) //=.
@@ -510,7 +507,7 @@ move: (ltn_ord v); rewrite ltnS leq_eqVlt; case/orP=>[/eqP Ev|Nv].
   move: Sl Hpl; rewrite Eh Ev Epr mul1g => Sl Hpl.
   rewrite slice_xR; last by rewrite bnd_simp leEnat; move: Hvl; rewrite Ev.
   rewrite {22}(_ : n = (ord_max : 'I_n.+1)) // onth_codom /= sorted_rconsE //=.
-  move: Sl; rewrite slice_oPR /order.Order.lt/= lt0n -{1}Ev Nv0.
+  move: Sl; rewrite slice_oPR /Order.lt/= lt0n -{1}Ev Nv0.
   move=>->; rewrite andbT; move: Al; rewrite Ev.
   have ->: pffun (pl * p) f ord_max = pffun p f ord_max.
   - rewrite !ffunE permM (out_perm Hpl) // inE negb_and -!ltnNge /=.
@@ -569,7 +566,7 @@ apply/and5P; split=>//.
   apply/ordW; move/allP: Ah=>/(_ y); apply.
   move: Hy; congr (_ = _); move: y; apply: perm_mem.
   by rewrite pffunEM; apply: perm_on_fgraph.
-- by rewrite slice_oPR /order.Order.lt/= lt0n Nv0 in Sl.
+- by rewrite slice_oPR /Order.lt/= lt0n Nv0 in Sl.
 have HS: subpred (ord (pffun p f v)) (oleq (pffun p f v)).
 - by move=>z /ordW.
 move/(sub_all HS): Ah; congr (_ = _); apply/esym/perm_all.
