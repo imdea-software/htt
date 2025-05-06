@@ -31,12 +31,12 @@ variables). The connection reconciles dependent types with effects of state and 
 establishes Separation logic as a type theory for such effects. In implementation terms, it means
 that HTT implements Separation logic as a shallow embedding in Coq."""
 
-build: [make "-C" "htt" "-j%{jobs}%"]
-install: [make "-C" "htt" "install"]
+build: ["dune" "build" "-p" name "-j" jobs]
 depends: [
   "dune" {>= "3.6"}
   "coq" { (>= "8.19" & < "9.1~") | (= "dev") }
-  "coq-mathcomp-ssreflect" { (>= "2.2.0" & < "2.4~") | (= "dev") }
+  "coq-hierarchy-builder" { (>= "1.7.0" & < "1.10~") | (= "dev") }
+  "coq-mathcomp-ssreflect" { (>= "2.2.0" & < "2.5~") | (= "dev") }
   "coq-mathcomp-algebra" 
   "coq-mathcomp-fingroup" 
   "coq-fcsl-pcm" { (>= "2.1.0" & < "2.2~") | (= "dev") }
