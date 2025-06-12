@@ -12,7 +12,7 @@ limitations under the License.
 *)
 
 From HB Require Import structures.
-From Coq Require Import Recdef Setoid ssreflect ssrbool ssrfun.
+From Stdlib Require Import Recdef Setoid ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype choice ssrnat seq bigop fintype finfun.
 From pcm Require Import options prelude ordtype finmap pred seqext.
 

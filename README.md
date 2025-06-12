@@ -39,13 +39,13 @@ that HTT implements Separation logic as a shallow embedding in Coq.
   - Alexander Gryzlov
   - Marcos Grandury
 - License: [Apache-2.0](LICENSE)
-- Compatible Coq versions: 8.19 or later
+- Compatible Coq versions: 9.0 or later
 - Additional dependencies:
   - [Hierarchy Builder 1.7.0 or later](https://github.com/math-comp/hierarchy-builder)
   - [MathComp ssreflect 2.2 or later](https://math-comp.github.io)
   - [MathComp algebra](https://math-comp.github.io)
   - [MathComp fingroup](https://math-comp.github.io)
-  - [FCSL-PCM 2.1](https://github.com/imdea-software/fcsl-pcm)
+  - [FCSL-PCM 2.2](https://github.com/imdea-software/fcsl-pcm)
   - [Dune](https://dune.build) 3.6 or later
 - Coq namespace: `htt`
 - Related publication(s):

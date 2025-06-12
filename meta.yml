@@ -72,7 +72,7 @@ maintainers:
 
 opam-file-maintainer: fcsl@software.imdea.org
 
-opam-file-version: 2.1.0
+opam-file-version: 2.2.0
 
 license:
   fullname: Apache-2.0
@@ -80,14 +80,10 @@ license:
   file: LICENSE
 
 supported_coq_versions:
-  text: 8.19 or later
-  opam: '{ (>= "8.19" & < "9.1~") | (= "dev") }'
+  text: 9.0 or later
+  opam: '{ (>= "9.0" & < "9.1~") | (= "dev") }'
 
 tested_coq_opam_versions:
-- version: '2.2.0-coq-8.19'
-  repo: 'mathcomp/mathcomp'
-- version: '2.3.0-coq-8.20'
-  repo: 'mathcomp/mathcomp'
 - version: '2.4.0-rocq-prover-9.0'
   repo: 'mathcomp/mathcomp'
 - version: 'rocq-prover-dev'
@@ -102,7 +98,7 @@ dependencies:
     [Hierarchy Builder 1.7.0 or later](https://github.com/math-comp/hierarchy-builder)
 - opam:
     name: coq-mathcomp-ssreflect
-    version: '{ (>= "2.2.0" & < "2.5~") | (= "dev") }'
+    version: '{ (>= "2.4.0" & < "2.5~") | (= "dev") }'
   description: |-
     [MathComp ssreflect 2.2 or later](https://math-comp.github.io)
 - opam:
@@ -115,9 +111,9 @@ dependencies:
     [MathComp fingroup](https://math-comp.github.io)
 - opam:
     name: coq-fcsl-pcm
-    version: '{ (>= "2.1.0" & < "2.2~") | (= "dev") }'
+    version: '{ (>= "2.2.0" & < "2.3~") | (= "dev") }'
   description: |-
-    [FCSL-PCM 2.1](https://github.com/imdea-software/fcsl-pcm)
+    [FCSL-PCM 2.2](https://github.com/imdea-software/fcsl-pcm)
 
 namespace: htt
 

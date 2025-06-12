@@ -1,6 +1,6 @@
 opam-version: "2.0"
 maintainer: "fcsl@software.imdea.org"
-version: "2.1.0"
+version: "2.2.0"
 
 homepage: "https://github.com/imdea-software/htt"
 dev-repo: "git+https://github.com/imdea-software/htt.git"
@@ -32,11 +32,11 @@ build: [make "-C" "examples" "-j%{jobs}%"]
 install: [make "-C" "examples" "install"]
 depends: [
   "dune" {>= "3.6"}
-  "coq" { (>= "8.19" & < "9.1~") | (= "dev") }
-  "coq-mathcomp-ssreflect" { (>= "2.2.0" & < "2.5~") | (= "dev") }
+  "coq" { (>= "9.0" & < "9.1~") | (= "dev") }
+  "coq-mathcomp-ssreflect" { (>= "2.4.0" & < "2.5~") | (= "dev") }
   "coq-mathcomp-algebra" 
   "coq-mathcomp-fingroup" 
-  "coq-fcsl-pcm" { (>= "2.1.0" & < "2.2~") | (= "dev") }
+  "coq-fcsl-pcm" { (>= "2.2.0" & < "2.3~") | (= "dev") }
   "coq-htt-core" {= version}
 ]
 

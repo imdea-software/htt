@@ -1292,12 +1292,32 @@ move=>Hp Hv Hx; apply/vrf_bnd/(gU _ Hp).
 by move=>ex m H V _; apply: Hx.
 Qed.
 
+(* variant of stepU that adds the new heap to the right *)
+Lemma stepV G A B (pq : spec G A) (e : STspec G pq) (e2 : A -> ST B)
+             i (Q : post B) g :
+        (pq g).1 Unit ->
+        (forall x m, (pq g).2 (Val x) m -> vrf (i \+ m) (e2 x) Q) ->
+        (forall x m, (pq g).2 (Exn x) m ->
+           valid (i \+ m) -> Q (Exn x) (i \+ m)) ->
+        vrf i (bnd e e2) Q.
+Proof.
+move=>H1 H2 H3; apply: stepU H1 _ _ =>x m H1; rewrite !(joinC m).
+- by apply: H2.
+by apply: H3.
+Qed.
+
 Arguments stepU {G A B pq e e2 i Q}. 
+Arguments stepV {G A B pq e e2 i Q}. 
 
 Notation "[stepU]" := (stepU tt) (at level 0).
 Notation "[ 'stepU' x1 , .. , xn ]" :=
   (stepU (existT _ x1 .. (existT _ xn tt) ..))
   (at level 0, format "[ 'stepU'  x1 ,  .. ,  xn ]").
+
+Notation "[stepV]" := (stepV tt) (at level 0).
+Notation "[ 'stepV' x1 , .. , xn ]" :=
+  (stepU (existT _ x1 .. (existT _ xn tt) ..))
+  (at level 0, format "[ 'stepV'  x1 ,  .. ,  xn ]").
 
 (* combination of gU + vrf_try *)
 Lemma tryU G A B (pq : spec G A) (e : STspec G pq)
