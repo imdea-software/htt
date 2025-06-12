@@ -100,7 +100,7 @@ dependencies:
     name: coq-mathcomp-ssreflect
     version: '{ (>= "2.4.0" & < "2.5~") | (= "dev") }'
   description: |-
-    [MathComp ssreflect 2.2 or later](https://math-comp.github.io)
+    [MathComp ssreflect 2.4 or later](https://math-comp.github.io)
 - opam:
     name: coq-mathcomp-algebra
   description: |-
