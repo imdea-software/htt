@@ -303,8 +303,8 @@ case: oleqP=>Hfp.
   - step=>_; split.
     - rewrite Sbo_eq; apply/andP; split=>//.
       by apply/leq_ltn_trans/Hj.
-    exists (tperm i j); rewrite Sbo_eq; split=>//.
-    - rewrite -(eqP Hj1).
+    exists (tperm i j); rewrite Sbo_eq; split=>//.  
+    - rewrite -(eqP Hj1).      
       apply/(subset_trans (tperm_on i j))/subsetP=>/= x; rewrite !inE ltnS.
       by case/orP=>/eqP->; rewrite leqnn // andbT.
     - rewrite slice_oSR slice_xR; last by rewrite bnd_simp.

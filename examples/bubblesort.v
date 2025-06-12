@@ -16,7 +16,8 @@ From mathcomp Require Import ssrnat eqtype seq path fintype tuple.
 From mathcomp Require Import finfun fingroup perm order interval.
 From pcm Require Import options axioms prelude pred ordtype slice.
 From pcm Require Import seqext pcm unionmap heap.
-From htt Require Import options model heapauto array.
+From htt Require Import options model heapauto.
+From htt Require Import array.
 Import Order.NatOrder Order.TTheory.
 Local Open Scope order_scope.
 Local Open Scope nat_scope.

@@ -1,9 +1,0 @@
-(coq.theory
- (name htt)
- (package coq-htt)
- (synopsis "Hoare Type Theory with examples")
- (flags :standard
-   -w -notation-overridden
-   -w -local-declaration
-   -w -redundant-canonical-projection
-   -w -projection-no-head-constant))

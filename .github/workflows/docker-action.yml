@@ -17,8 +17,6 @@ jobs:
     strategy:
       matrix:
         image:
-          - 'mathcomp/mathcomp:2.2.0-coq-8.19'
-          - 'mathcomp/mathcomp:2.3.0-coq-8.20'
           - 'mathcomp/mathcomp:2.4.0-rocq-prover-9.0'
           - 'mathcomp/mathcomp-dev:rocq-prover-dev'
       fail-fast: false
