@@ -10,8 +10,6 @@ Follow the instructions on https://github.com/coq-community/templates to regener
 [docker-action-link]: https://github.com/imdea-software/htt/actions/workflows/docker-action.yml
 
 
-
-
 Hoare Type Theory (HTT) is a verification system for reasoning about sequential heap-manipulating
 programs based on Separation logic.
 
@@ -130,3 +128,10 @@ The original version of HTT can be found [here](https://software.imdea.org/~alek
   Kasper Svendsen, Lars Birkedal and Aleksandar Nanevski. TLCA 2011.
 
   A semantic model for HTT, with large sigma types.
+
+* [Verifying Graph Algorithms in Separation Logic: A Case for an
+  Algebraic Approach](https://software.imdea.org/~aleks/icfp25/paper-sub.pdf)
+
+  Marcos Grandury, Aleksandar Nanevski and Alexander Gryzlov. ICFP 2025.
+
+  The paper on verifying graphs algorithms using PCMs and their morphism.

@@ -19,6 +19,9 @@ From pcm Require Import unionmap heap autopcm automap.
 From htt Require Import options model heapauto llist array.
 From htt Require Import kvmaps hashtab congmath.
 
+(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+Set SsrOldRewriteGoalsOrder.  
+
 (***********************************)
 (* Congruence closure verification *)
 (***********************************)

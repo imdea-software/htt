@@ -16,6 +16,9 @@ From Stdlib Require Import Recdef Setoid ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype choice ssrnat seq bigop fintype finfun.
 From pcm Require Import options prelude ordtype finmap pred seqext.
 
+(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+Set SsrOldRewriteGoalsOrder.  
+
 (**********************)
 (* Congruence closure *)
 (**********************)

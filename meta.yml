@@ -81,10 +81,12 @@ license:
 
 supported_coq_versions:
   text: 9.0 or later
-  opam: '{ (>= "9.0" & < "9.1~") | (= "dev") }'
+  opam: '{ (>= "9.0" & < "9.2~") | (= "dev") }'
 
 tested_coq_opam_versions:
 - version: '2.4.0-rocq-prover-9.0'
+  repo: 'mathcomp/mathcomp'
+- version: '2.5.0-rocq-prover-9.1'
   repo: 'mathcomp/mathcomp'
 - version: 'rocq-prover-dev'
   repo: 'mathcomp/mathcomp-dev'
@@ -93,12 +95,12 @@ tested_coq_opam_versions:
 dependencies:
 - opam:
     name: coq-hierarchy-builder
-    version: '{ (>= "1.7.0" & < "1.10~") | (= "dev") }'
+    version: '{ (>= "1.7.0" & < "1.11~") | (= "dev") }'
   description: |-
     [Hierarchy Builder 1.7.0 or later](https://github.com/math-comp/hierarchy-builder)
 - opam:
     name: coq-mathcomp-ssreflect
-    version: '{ (>= "2.4.0" & < "2.5~") | (= "dev") }'
+    version: '{ (>= "2.4.0" & < "2.6~") | (= "dev") }'
   description: |-
     [MathComp ssreflect 2.4 or later](https://math-comp.github.io)
 - opam:

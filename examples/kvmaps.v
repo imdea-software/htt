@@ -22,6 +22,9 @@ From pcm Require Import options axioms pred ordtype finmap seqext.
 From pcm Require Import pcm unionmap heap autopcm automap.
 From htt Require Import options model heapauto.
 
+(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+Set SsrOldRewriteGoalsOrder.  
+
 (* Dynamic KV map is determined by its root pointer(s). *)
 (* Functions such insert and remove may modify *)
 (* the root, and will correspondingly return the new one. *)
