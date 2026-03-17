@@ -27,7 +27,7 @@ From htt Require Import options model heapauto.
 Record array (I : finType) (T : Type) : Set := Array {orig :> ptr}.
 Arguments Array {I T}.
 
-Definition array_for (I : finType) (T : Type) of phant (I -> T) := array I T.
+Definition array_for (I : finType) (T : Type) & phant (I -> T) := array I T.
 Identity Coercion array_for_array : array_for >-> array.
 Notation "{ 'array' aT }" := (array_for (Phant aT))
   (at level 0, format "{ 'array'  '[hv' aT ']' }") : type_scope.

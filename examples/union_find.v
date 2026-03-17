@@ -17,6 +17,9 @@ From pcm Require Import options axioms pred seqext.
 From pcm Require Import prelude pcm unionmap natmap heap autopcm automap.
 From htt Require Import options model heapauto tree.
 
+(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+Set SsrOldRewriteGoalsOrder.  
+
 (**************)
 (**************)
 (* Union-find *)

@@ -21,6 +21,9 @@ Import Order.NatOrder Order.TTheory.
 Local Open Scope order_scope.
 Local Open Scope nat_scope.
 
+(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+Set SsrOldRewriteGoalsOrder.  
+
 (* Brief mathematics of quickorting *)
 (* There is some overlap with mathematics developed for bubblesort *)
 (* but the development is repeated here to make the files *)

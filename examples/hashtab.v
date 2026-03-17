@@ -19,6 +19,9 @@ From pcm Require Import pcm unionmap heap autopcm.
 From htt Require Import options model heapauto.
 From htt Require Import array kvmaps.
 
+(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+Set SsrOldRewriteGoalsOrder.  
+
 (* hash table is array of buckets, i.e. KV maps *)
 (* bucket indices are provided by the hash function *)
 (* using dynaming kv-maps for buckets *)

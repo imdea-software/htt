@@ -16,6 +16,9 @@ From Stdlib Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype.
 From pcm Require Import options axioms pred prelude.
 
+(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
+Set SsrOldRewriteGoalsOrder.  
+
 (**************************************************)
 (* This file develops some basic domain theory of *)
 (* posets, complete lattices, complete partial    *)
@@ -208,7 +211,7 @@ Definition lattice_axiom (T : poset) (sup : Pred T -> T) :=
       forall (s : Pred T) x,
         (forall y, y \In s -> y <== x) -> sup s <== x].  
 
-HB.mixin Record isLattice T of Poset T := {
+HB.mixin Record isLattice T & Poset T := {
   sup : Pred T -> T; 
   lattice_subproof : lattice_axiom sup}.
 
@@ -602,7 +605,7 @@ Definition cpo_axiom (T : poset) (bot : T) (lim : chain T -> T) :=
       forall (s : chain T) x,
         (forall y, y \In s -> y <== x) -> lim s <== x].
 
-HB.mixin Record isCPO T of Poset T := {
+HB.mixin Record isCPO T & Poset T := {
   bot : T; 
   lim_op : chain T -> T; 
   cpo_subproof: cpo_axiom bot lim_op}.
@@ -610,7 +613,7 @@ HB.mixin Record isCPO T of Poset T := {
 #[short(type="cpo")]
 HB.structure Definition CPO := {T of Poset T & isCPO T}.
 
-Definition limx (D : cpo) (s : chain D) of phantom (Pred _) s := lim_op s.
+Definition limx (D : cpo) (s : chain D) & phantom (Pred _) s := lim_op s.
 Notation lim s := (limx (Phantom (Pred _) s)).
 
 Section Repack.
@@ -854,7 +857,7 @@ Definition contfun_axiom (D1 D2 : cpo) (f : mono_fun D1 D2) :=
   forall s : chain D1, f (lim s) <== lim (Image f s).  
 
 HB.mixin Record isContFun (D1 D2 : cpo) (f : D1 -> D2) 
-  of @MonoFun D1 D2 f := {contfun_subproof : contfun_axiom f}.
+  & @MonoFun D1 D2 f := {contfun_subproof : contfun_axiom f}.
 
 #[short(type="cont_fun")]
 HB.structure Definition ContFun (D1 D2 : cpo) := 
