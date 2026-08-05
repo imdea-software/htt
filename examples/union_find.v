@@ -240,7 +240,7 @@ Lemma tlay_rt x (p : ptr) t r :
         if x == rt t then p = r else (p != x) && (p \in t).
 Proof.
 elim/tree_ind1: t r=>a ts IH r; rewrite tlayE /= => /[dup]/In_find/In_valid V.
-rewrite findPtUn2 // in_tnode; case: eqVneq=>[_ [/inj_pair2]|N] //.
+rewrite findPtUn2 // in_tnode; case: eqVneq=>[_ [/inj_dyn]|N] //.
 case/big_find_someX=>t T /(IH _ T) H; case: ifP H N=>[_ ->|_].
 - by rewrite eqxx // eq_sym =>->.
 by case/andP=>-> H _; case: orP=>//; elim; right; apply/hasPIn; exists t.
