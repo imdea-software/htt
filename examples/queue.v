@@ -24,7 +24,7 @@ Definition EmptyQueue : exn := exn_from_nat 100.
 Module Queue.
 Section Queue.
 Variable T : Type.
-Notation queue := (queue T).
+Abbreviation queue := (queue T).
 
 (* queue is singly-linked list split into *)
 (* the initial segment and the last node *)

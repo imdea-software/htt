@@ -84,7 +84,7 @@ Parameter vrf' : forall A, ST A -> heap -> post A -> Prop.
 
 (* in practice it's more convenient to order the arguments as *)
 (* initial heap, program, postcondition *)
-Notation vrf i e Q := (vrf' e i Q).
+Abbreviation vrf i e Q := (vrf' e i Q).
 
 Parameter vrfV : forall A e i (Q : post A),
   (valid i -> vrf i e Q) -> vrf i e Q.
@@ -340,7 +340,7 @@ Definition vrf' (e : ST A) (i : heap) (Q : post A) :=
     exists (pf : i \In pre_of e), forall y m,
       prog_of e _ V pf y m -> Q y m.
 
-Notation vrf i e Q := (vrf' e i Q).
+Abbreviation vrf i e Q := (vrf' e i Q).
 
 Definition has_spec (e : ST A) :=
   forall g i, (s g).1 i -> vrf i e (s g).2.
@@ -403,7 +403,7 @@ HB.instance Definition _ := isLattice.Build STspec stspsup_is_lattice.
 
 End STspecDef.
 
-Notation vrf i e Q := (vrf' e i Q).
+Abbreviation vrf i e Q := (vrf' e i Q).
 
 (* required vrf lemmas *)
 
@@ -455,8 +455,8 @@ End VrfLemmas.
 
 Section Fix.
 Variables (G A : Type) (B : A -> Type) (pq : forall x, spec G (B x)).
-Notation tp := (forall x, STspec (pq x)).
-Notation lat := (dfun_lattice (fun x => STspec (pq x))).
+Abbreviation tp := (forall x, STspec (pq x)).
+Abbreviation lat := (dfun_lattice (fun x => STspec (pq x))).
 Variable f : tp -> tp.
 
 (* fixed point constructor over monotone closure *)
@@ -714,7 +714,7 @@ have J : x :-> v \+ j \In read_pre.
 - split; first by rewrite domPtUnE.
   by exists v; rewrite findPtUn.
 exists J=>_ _ [w [->->]].
-rewrite findPtUn //; case=>/inj_pair2 {w}<-.
+rewrite findPtUn //; case=>/inj_tagK {w}<-.
 by apply: H.
 Qed.
 
@@ -987,7 +987,7 @@ Lemma dealloc_mono (p1 p2 : ptr) :
 Proof. by move=>->. Qed.
 
 Variables (G : Type) (C : A -> Type) (pq : forall x, spec G (C x)).
-Notation lat := (dfun_lattice (fun x => STspec (pq x))).
+Abbreviation lat := (dfun_lattice (fun x => STspec (pq x))).
 
 Lemma fix_mono (f1 f2 : lat -> lat) : 
         f1 <== f2 -> 

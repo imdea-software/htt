@@ -22,9 +22,6 @@ Import Order.NatOrder Order.TTheory.
 Local Open Scope order_scope.
 Local Open Scope nat_scope.
 
-(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-Set SsrOldRewriteGoalsOrder.  
-
 (* Brief mathematics of (bubble) array sorting: *)
 (* Theory of permutations built out of (adjacent-element) swaps acting on *)
 (* finite functions from bounded nats to ordered values. *)
@@ -128,7 +125,7 @@ Lemma codom1_ax_rcons2 (f : {ffun 'I_n.+1 -> A}) (a : itv_bound nat) (i : 'I_n) 
         rcons (rcons (&:(fgraph f) (Interval a (BLeft (i : nat)))) 
               (f (Wo i))) (f (So i)).
 Proof.
-move=>H; rewrite slice_xR; last first.
+move=>H; rewrite slice_xR.
 - by apply: ltW; case: a H=>[[] ax|ab] //; rewrite !bnd_simp ltEnat /= =>/ltnW.
 by rewrite onth_codom1S /= slice_oSR codom1_ax_rcons.
 Qed.
@@ -194,7 +191,7 @@ Proof.
 move=>Hx0 Hx1.
 suff E: {in &:(enum 'I_n.+1) i, f =1 pffun (swnx x) f}.
 - by rewrite !fgraph_codom /= !codomE /= -2!slice_map /=; move/eq_in_map: E.
-move=>/= y; rewrite slice_uniq_memE /=; last by exact: enum_uniq.
+move=>/= y; rewrite slice_uniq_memE /=; first by exact: enum_uniq.
 case: i Hx0 Hx1=>i j Hx0 Hx1 /=.
 case/and3P=>_; rewrite /swnx size_enum_ord index_enum_ord =>Hy1 Hy2.
 rewrite ffunE; case: tpermP=>// Ey; move: Hy1 Hy2; rewrite {y}Ey /=.
@@ -282,7 +279,7 @@ Proof.
 move=>H; move: (perm_swnx f i).
 set f' : {ffun 'I_n.+1 -> A} := pffun (swnx i) f.
 rewrite {1}(slice_uxou (fgraph f) k.+1) {1}(slice_uxou (fgraph f') k.+1).
-by rewrite swnx_oa /=; [rewrite perm_cat2r | rewrite ltnS].
+by rewrite swnx_oa /=; [rewrite ltnS|rewrite perm_cat2r].
 Qed.
 End SwapNextEq.
 
@@ -728,13 +725,13 @@ apply: [stepE f]=>//= sw m [p][Hm Hsw]; case: decP=>H.
   - rewrite Sbo_eq.
     case: sw Hsw=>/=; case=>Ep Hf; rewrite {p}Ep ?pffunE1 in Hm *.
     (* swap happened before the call *)
-    - rewrite So_eq swnx_oa; last by rewrite ltnS; apply: ltnW.
+    - rewrite So_eq swnx_oa; first by rewrite ltnS; apply: ltnW.
       rewrite swnx_Skk /=; split=>//.
       - rewrite (@allrel_in_l _ _ _ _ &:(codom f) `]-oo, k.+1]) //.
         by apply/perm_mem; rewrite perm_sym; apply: perm_swnx_ux.
       - by rewrite ltnS leqnn.
-      rewrite allrel1r slice_oSR (slice_split (x:=ls) _ true); 
-        last by rewrite in_itv.
+      rewrite allrel1r slice_oSR (slice_split (x:=ls) _ true).
+      - by rewrite in_itv.
       rewrite /= all_cat; apply/andP; split.
       - rewrite swnx_ao //; move: Hai.
         by rewrite codom1_ax_rcons // allrel_rconsr; case/andP.
@@ -777,13 +774,13 @@ step=>Vm; exists p; case: sw Hsw=>/=; case=>Ep Hf.
     move: Hsi; rewrite codom1_ax_rcons // sorted_rconsE //=. 
     case/andP => Halsi _.
     move: Hils; rewrite leq_eqVlt; case/orP=>[/eqP <-|Hlsi] //.
-    rewrite (slice_split (x:=ls) _ true); last by rewrite in_itv.
+    rewrite (slice_split (x:=ls) _ true); first by rewrite in_itv.
     by rewrite /= all_cat Hals.
   rewrite Ep swnx_xu_cons /= (path_sortedE (@otrans A)) Hsk andbT.
   by move: Hak; rewrite codom1_ax_rcons2 // !allrel_rconsl -!andbA; case/and3P.
 (* swap didn't happen on last iteration *)
 rewrite {p}Ep pffunE1 /= in Hm *.
-rewrite (slice_split (x:=i) (i:=`[ls:nat, +oo[) _ false); last first. 
+rewrite (slice_split (x:=i) (i:=`[ls:nat, +oo[) _ false).
 - by rewrite in_itv /= andbT.
 split=>//=.
 - rewrite allrel_catr Hai /= -slice_oSL codom1_xu_cons allrel_consr.
@@ -860,7 +857,7 @@ Qed.
 Next Obligation.
 move=>a [f][] h /= E.
 apply: [gE f]=>//=.
-rewrite (@itv_overL _ _ _ +oo) /=; first by split=>//; exact: allrel0r.
+rewrite (@itv_overL _ _ _ +oo) /=; last by split=>//; exact: allrel0r.
 by rewrite leEnat addn1 size_codom /= card_ord.
 Qed.
 

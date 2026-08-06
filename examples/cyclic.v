@@ -32,7 +32,7 @@ Definition BufferEmpty : exn := exn_from_nat 20.
 Module Buffer.
 Section Buffer.
 Variable T : Type.
-Notation buffer := (buffer T).
+Abbreviation buffer := (buffer T).
 
 (* the active part of the buffer is specified by a given list *)
 (* the inactive part by another arbitrary list *)
@@ -174,7 +174,7 @@ Qed.
 (* version that overwrites data in a cyclic fashion *)
 (* checking that capacity != 0 is the client's problem *)
 (* so it can be dealt with globally *)
-Program Definition overwrite (x : T) (b : buffer) :
+Program Definition overewrite (x : T) (b : buffer) :
   STsep {xs} (fun h => 0 < capacity b /\ h \In shape b xs,
              [vfun _ => shape b (drop ((size xs).+1 - capacity b) 
                                 (rcons xs x))]) :=

@@ -24,7 +24,7 @@ Definition EmptyStack := exn_from_nat 25.
 Module Stack.
 Section Stack.
 Variable T : Type.
-Notation stack := (stack T).
+Abbreviation stack := (stack T).
 
 (* stack is a pointer to a singly-linked list *)
 Definition shape s (xs : seq T) :=

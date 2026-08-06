@@ -19,9 +19,6 @@ From pcm Require Import pcm unionmap heap autopcm.
 From htt Require Import options model heapauto.
 From htt Require Import array kvmaps.
 
-(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-Set SsrOldRewriteGoalsOrder.  
-
 (* hash table is array of buckets, i.e. KV maps *)
 (* bucket indices are provided by the hash function *)
 (* using dynaming kv-maps for buckets *)
@@ -55,9 +52,9 @@ Definition null_root K V buckets n hash :
 Section HashTab.
 Context (K : ordType) (V : Type) {buckets : dkvm K V}
         {n : nat} {hash : K -> 'I_n}.
-Notation KVshape := (@dkvm_shape _ _ buckets). 
-Notation table := (table KVshape).
-Notation root := (root buckets hash).
+Abbreviation KVshape := (@dkvm_shape _ _ buckets). 
+Abbreviation table := (table KVshape).
+Abbreviation root := (root buckets hash).
 
 (* hash table is specified by a single finMap *)
 (* which is the "flattening" of all buckets *)
@@ -159,7 +156,7 @@ case: decP=>[pf H|]; last first.
   (* free the array *)
   apply: [gE]=>//=; exists tf.
   (* h2 is empty *)
-  move: H; rewrite (eq_sepit (s2 := set0)).  
+  move: H; rewrite (eq_sepit (s2 := set0)); last first.
   - by rewrite sepit0=>->; rewrite unitR.
   by move=>y; rewrite Ek in_set in_set0 leqNgt ltn_ord.
 (* k < n, read from array *)
@@ -295,7 +292,7 @@ End HashTab.
 End HashTab.
 
 (* hash table is (static) KV map *)
-Notation hashtab := HashTab.root.
+Abbreviation hashtab := HashTab.root.
 HB.instance Definition _ K V (buckets : dkvm K V) n (hash : K -> 'I_n) := 
   isKVM.Build K V (hashtab buckets hash) HashTab.null_root 
      HashTab.new HashTab.free HashTab.insert HashTab.remove HashTab.lookup.

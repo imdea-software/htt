@@ -22,9 +22,6 @@ From pcm Require Import options axioms pred ordtype finmap seqext.
 From pcm Require Import pcm unionmap heap autopcm automap.
 From htt Require Import options model heapauto.
 
-(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-Set SsrOldRewriteGoalsOrder.  
-
 (* Dynamic KV map is determined by its root pointer(s). *)
 (* Functions such insert and remove may modify *)
 (* the root, and will correspondingly return the new one. *)
@@ -107,7 +104,7 @@ Definition root (K : ordType) (V : Type) := ptr.
 Definition null_root K V : @root K V := null.
 Section AssocList.
 Variables (K : ordType) (V : Type).
-Notation fmap := (finMap K V).
+Abbreviation fmap := (finMap K V).
 
 (* single entry of the map as a triple of heap cells *)
 Definition entry (p q : ptr) (k : K) (v : V) : heap :=
@@ -205,7 +202,8 @@ case: s2 O1=>xs; elim: xs h1 y h2 s1 H1=>/=.
 move=>[k' v'] xs; rewrite /fcat /= => IH /= h1 y h2 s1 H1 srt O2 H2.
 case: H2=>z[h'][-> H']; rewrite joinA; apply: IH; first 1 last.
 - by apply/path_sorted/srt.
-- move=>H0; rewrite (allrel_in_l (xs':=k'::supp s1) _); last by apply: supp_ins.
+- move=>H0; rewrite (allrel_in_l (xs':=k'::supp s1) _).
+  - by apply: supp_ins.
   rewrite allrel_consl order_path_min //=.
   by apply/allrel_sub_r/O2=>?; rewrite inE orbC=>->.
 - by move=>?; apply: H'.
@@ -368,14 +366,15 @@ step; case: eqP=>[|/eqP] Ek.
   (* k = k' - element is found, run the deallocations *)
 - do 4!step; rewrite !unitL; do 2![step]=>_.
   (* pull out fml ++ (k->v) *)
-  rewrite Efr -fcat_srem; last by rewrite supp_ins inE negb_or E.
+  rewrite Efr -fcat_srem; first by rewrite supp_ins inE negb_or E.
   (* drop the element in the spec *)
-  rewrite rem_ins {1}Ek eq_refl rem_supp; 
-    last by rewrite Ek; apply: notin_path.
+  rewrite rem_ins {1}Ek eq_refl rem_supp.
+  - by rewrite Ek; apply: notin_path.
   (* heap shape is respected *)
   rewrite joinC; apply/shape_fcat/Hr'; last by apply: shape_seg_rcons.
   (* the ordering is respected as well *)
-  rewrite (allrel_in_l (xs':=k::supp fml) _); last by apply: supp_ins.
+  rewrite (allrel_in_l (xs':=k::supp fml) _). 
+  - by apply: supp_ins.
   rewrite allrel_consl order_path_min //=.
   by apply/(allrel_trans (z:=k))/order_path_min=>//=.
 (* k <> k', now branch on order comparison *)
@@ -385,8 +384,8 @@ case: ifP=>Ho0.
   (* prove that all conditions are respected *)
   - exists (ins k v fml), (behd fmr), k', v'; do!split=>//.
       (* new focus comes after fml ++ old focus *)
-    - rewrite (eq_all_r (s2:=k::supp fml)) /= ?Ho' /=; 
-        last by apply: supp_ins.
+    - rewrite (eq_all_r (s2:=k::supp fml)) /= ?Ho' /=.
+      - by apply: supp_ins.
       by apply/sub_all/Ol=>? /trans; apply.
       (* new focus comes before the new suffix *)
     - by apply: order_path_min.
@@ -401,13 +400,13 @@ case: ifP=>Ho0.
   by rewrite fcat_inss // -?fcat_sins // in Hm; apply: notin_path.
 (* k' is bigger than k, abort *)
 move: (connex Ek); rewrite {}Ho0 orbC /= =>Ho0.
-step=>_; rewrite rem_supp.
+step=>_; rewrite rem_supp; last 1 first.
 - (* the shape is preserved *)
   rewrite joinC; apply: shape_fcat; first 1 last.
   - by apply: shape_seg_rcons.
   - by rewrite Efr; apply: shape_cons=>//; apply: order_path_min.
-  (* ordering is preserved *)
-  rewrite (allrel_in_l (xs':=k::supp fml) _); last by apply: supp_ins.
+- (* ordering is preserved *)
+  rewrite (allrel_in_l (xs':=k::supp fml) _); first by apply: supp_ins.
   rewrite allrel_consl Or /=.
   by apply/(allrel_trans (z:=k))=>//; exact: trans.
 (* the element wasn't found *)
@@ -436,7 +435,7 @@ case: ifP=>Ho0.
 - step; apply: [stepE fm]=>//=; last by move=>_ ??; step.
   (* invariants and shape are satisfied *)
   exists nil, (behd fm), k, v; do!split=>//.
-  - by rewrite fcat_inss; [rewrite fcat0s|apply/notin_path/all_path_supp].
+  - by rewrite fcat_inss; [apply/notin_path/all_path_supp|rewrite fcat0s].
   by exists Unit, (entry x next k v \+ h'); split=>//; [rewrite unitL | vauto].
 (* k' is bigger than k, abort *)
 move: (connex Ek); rewrite {}Ho0 orbC /= =>Ho0.
@@ -523,7 +522,7 @@ case: eqP=>[|/eqP] Ec.
   rewrite fcats0 unitR [X in _ \+ entry _ _ _ _ \+ X]joinA.
   (* shape and ordering invariants are satisfied *)
   apply/shape_seg_rcons/shape_seg_rcons=>//.
-  rewrite (eq_all_r (s2:=k::supp fml)) /= ?Ho0 /=; last by apply: supp_ins.
+  rewrite (eq_all_r (s2:=k::supp fml)) /= ?Ho0 /=; first by apply: supp_ins.
   by apply/sub_all/Ol=>? /trans; apply.
 (* cur <> null, pull out the head entry from fmr *)
 case: (shape_cont Ec Hr)=>k'[v'][next][hr'][Efr Or' {hr Hr Ec}-> Hr']. 
@@ -540,8 +539,9 @@ step; case: eqP=>[|/eqP] Ek.
   apply: shape_fcat; first 1 last.
   - by apply: shape_seg_rcons.
   - by apply: shape_cons=>//; rewrite Ek.
-  rewrite (allrel_in_l (xs':=k::supp fml) _); last by apply: supp_ins.
-  rewrite (allrel_in_r (ys':=k0::supp (behd fmr)) _ _); last by apply: supp_ins.
+  rewrite (allrel_in_l (xs':=k::supp fml) _); first by apply: supp_ins.
+  rewrite (allrel_in_r (ys':=k0::supp (behd fmr)) _ _).
+  - by apply: supp_ins.
   rewrite allrel_consl allrel_consr /= Ho0 Or'' /=; apply/andP; split.
   - by apply/sub_all/Ol=>? /trans; apply.
   by apply: (allrel_trans (z:=k))=>//; exact: trans.
@@ -552,7 +552,8 @@ case: ifP=>Ho'0.
   (* prove that all conditions are respected *)
   - exists (ins k v fml), (behd fmr), k', v'; do!split=>//.
     (* new focus comes after fml ++ old focus *)
-    - rewrite (eq_all_r (s2:=k::supp fml)) /= ?Ho' /=; last by apply: supp_ins.
+    - rewrite (eq_all_r (s2:=k::supp fml)) /= ?Ho' /=.  
+      - by apply: supp_ins.
       by apply/sub_all/Ol=>? /trans; apply.
     (* the needed key is not in fml ++ old focus *)
     - rewrite supp_ins inE negb_or andbC El /=.
@@ -562,7 +563,7 @@ case: ifP=>Ho'0.
     by rewrite joinC; split=>//; [apply: shape_seg_rcons | vauto].
   (* reassemble the spec, as insertions of old and new foci commute *)
   move=>_ m Hm _; rewrite Efr.
-  rewrite fcat_inss // in Hm; first by rewrite -fcat_sins in Hm.
+  rewrite fcat_inss // in Hm; last by rewrite -fcat_sins in Hm.
   by apply/notin_path/all_path_supp.
 (* k' is bigger than k, insert at this position *)
 move: (connex Ek); rewrite {}Ho'0 orbC /= =>Ho0'.
@@ -577,8 +578,8 @@ rewrite Efr -fcat_sins; apply: shape_fcat; first 1 last.
   apply/order_path_min=>//; apply/path_supp_ins=>//.
   by apply/path_le/all_path_supp/Or'.
 (* ordering is respected *)
-rewrite (allrel_in_l (xs':=k::supp fml) _); last by apply: supp_ins.
-rewrite (allrel_in_r (ys':=k0::k'::supp (behd fmr)) _ _); last first.
+rewrite (allrel_in_l (xs':=k::supp fml) _); first by apply: supp_ins.
+rewrite (allrel_in_r (ys':=k0::k'::supp (behd fmr)) _ _).
 - by move=>?; rewrite ?(supp_ins,inE).
 rewrite allrel_consl !allrel_consr /= Ho0 Ho' Or'' /=; apply/and3P; split.
 - by apply/sub_all/Ol=>? /trans; apply.
@@ -609,7 +610,7 @@ case: ifP=>Ho0.
 - step; apply: [stepE fm]=>//=; last by move=>_ ??; step.
   (* invariants are respected *)
   exists nil, (behd fm), k, v; do!split=>//.
-  - by rewrite fcat_inss; [rewrite fcat0s|apply/notin_path/all_path_supp].
+  - by rewrite fcat_inss; [apply/notin_path/all_path_supp|rewrite fcat0s].
   by exists Unit, (entry x next k v \+ h'); split=>//; [rewrite unitL|vauto].
 (* k' is bigger than k, insert after the head *)
 move: (connex Ek); rewrite {}Ho0 orbC /= =>Ho0.
@@ -627,7 +628,7 @@ End AssocList.
 End DAList.
 
 (* association list is dynamic KV map *)
-Notation dalist := DAList.root.
+Abbreviation dalist := DAList.root.
 HB.instance Definition _ K V := 
   isDKVM.Build K V (dalist K V) DAList.null_root 
      DAList.new DAList.free DAList.insert DAList.remove DAList.lookup.
@@ -662,7 +663,7 @@ Module AList : AList_sig.
 Section AssocList.
 Definition root : ordType -> Type -> Set := fun _ _ => ptr.
 Variables (K : ordType) (V : Type).
-Notation fmap := (finMap K V).
+Abbreviation fmap := (finMap K V).
 Definition null_root : root K V := null.
 
 Definition shape (x : ptr) (f : fmap) : Pred heap := 
@@ -745,7 +746,7 @@ End AssocList.
 End AList.
 
 (* association list is (static) KV map *)
-Notation alist := AList.root.
+Abbreviation alist := AList.root.
 HB.instance Definition _ K V := 
   isKVM.Build K V (alist K V) AList.null_root 
      AList.new AList.free AList.insert AList.remove AList.lookup.

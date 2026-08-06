@@ -21,9 +21,6 @@ Import Order.NatOrder Order.TTheory.
 Local Open Scope order_scope.
 Local Open Scope nat_scope.
 
-(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-Set SsrOldRewriteGoalsOrder.  
-
 (* Brief mathematics of quickorting *)
 (* There is some overlap with mathematics developed for bubblesort *)
 (* but the development is repeated here to make the files *)
@@ -104,8 +101,8 @@ suff E: {in &:(enum 'I_n) i, f =1 pffun p f}.
 - by rewrite !fgraph_codom /= !codomE /= -2!slice_map /=; move/eq_in_map: E.
 move=>/= y Hy; rewrite ffunE (@out_perm _ s) //.
 apply/negbT/(disjointFl Hd); rewrite inE in_itv.
-case: {Hd}i Hy=>i j; rewrite slice_memE1 /=; last first.
-- by rewrite count_uniq_mem; [exact: leq_b1|exact: enum_uniq].
+case: {Hd}i Hy=>i j; rewrite slice_memE1 /=.
+- by rewrite count_uniq_mem; [exact: enum_uniq|exact: leq_b1].
 case/and3P=>_; rewrite size_enum_ord index_enum_ord.
 case: j=>[[] jx|[]]; case: i=>[[] ix|[]];
   rewrite ?andbF ?andbT /= ?addn0 ?addn1 // leEnat ltEnat /=.
@@ -155,20 +152,20 @@ case/boolP: (Order.lt i j)=>[Hij|]; last first.
 move: (perm_fgraph p f).
 rewrite {1}(slice_extrude (fgraph (pffun p f)) (i:=Interval i j)) //=.
 rewrite {1}(slice_extrude (fgraph f) (i:=Interval i j)) //=.
-rewrite (perm_on_notin (i:=Interval -oo i) f H); last first.
+rewrite (perm_on_notin (i:=Interval -oo i) f H).
 - rewrite disjoint_subset; apply/subsetP=>/= z.
   rewrite inE=>Hz; rewrite 2!inE; apply/negP=>Hz2.
-  suff: (z : nat) \notin order.Order.meet (Interval -oo i) (Interval i j).
+  suff: (z : nat) \notin Order.meet (Interval -oo i) (Interval i j).
   - by move/negP; apply; rewrite in_itvI Hz2.
-  rewrite /order.Order.meet /= /order.Order.join /= /order.Order.meet /=.
+  rewrite /Order.meet /= /Order.join /= /Order.meet /=.
   move/ltW: Hij; rewrite bound_leEmeet=>/eqP->.
   by rewrite itv_ge // -leNgt.
-rewrite (perm_on_notin (i:=Interval j +oo) f H); last first.
+rewrite (perm_on_notin (i:=Interval j +oo) f H).
 - rewrite disjoint_subset; apply/subsetP=>/= z.
   rewrite inE=>Hz; rewrite 3!inE; apply/negP=>Hz2.
-  suff: (z : nat) \notin order.Order.meet (Interval i j) (Interval j +oo).
+  suff: (z : nat) \notin Order.meet (Interval i j) (Interval j +oo).
   - by move/negP; apply; rewrite in_itvI Hz.
-  rewrite /order.Order.meet /= /order.Order.meet /=.
+  rewrite /Order.meet /= /Order.meet /=.
   move: (bound_lex1 j); rewrite bound_leEmeet=>/eqP->.
   move/ltW: Hij; rewrite leEjoin=>/eqP->.
   by rewrite itv_ge // -leNgt.
@@ -310,7 +307,7 @@ case: oleqP=>Hfp.
     - rewrite -(eqP Hj1).      
       apply/(subset_trans (tperm_on i j))/subsetP=>/= x; rewrite !inE ltnS.
       by case/orP=>/eqP->; rewrite leqnn // andbT.
-    - rewrite slice_oSR slice_xR; last by rewrite bnd_simp.
+    - rewrite slice_oSR slice_xR; first by rewrite bnd_simp.
       rewrite onth_codom ffunE tpermL /= all_rcons Hfp /=.
       rewrite tperm_notin // in_itv /= negb_and leEnat ltEnat /= -leqNgt.
       - by rewrite leqnn orbT.
@@ -318,8 +315,8 @@ case: oleqP=>Hfp.
     rewrite -(eqP Hj1) /= slice_oSR.
     move: Hi; rewrite leq_eqVlt; case/orP=>[/eqP->|Hi].
     - by rewrite itv_swapped_bnd // bnd_simp ltEnat /= ltnS.
-    rewrite slice_xR; last by rewrite bnd_simp.
-    move: Aj; rewrite slice_xL; last by rewrite bnd_simp.
+    rewrite slice_xR; first by rewrite bnd_simp.
+    move: Aj; rewrite slice_xL; first by rewrite bnd_simp.
     rewrite !onth_codom /=; case/andP=>Hpi Aj.
     rewrite all_rcons; apply/andP; split.
     - by rewrite ffunE tpermR.
@@ -328,7 +325,7 @@ case: oleqP=>Hfp.
   (* j+1 < hi, loop *)
   apply: [gE (pffun (tperm i j) f)]=>//=.
   - split=>//; rewrite !Sbo_eq; first by apply/ltnW.
-    - rewrite slice_oSR slice_xR; last by rewrite bnd_simp.
+    - rewrite slice_oSR slice_xR; first by rewrite bnd_simp.
       rewrite onth_codom ffunE tpermL /= all_rcons Hfp /=.
       rewrite tperm_notin // in_itv /= negb_and leEnat ltEnat /= -leqNgt.
       - by rewrite leqnn orbT.
@@ -336,8 +333,8 @@ case: oleqP=>Hfp.
     rewrite slice_oSR.
     move: Hi; rewrite leq_eqVlt; case/orP=>[/eqP->|Hi].
     - by rewrite itv_swapped_bnd // bnd_simp ltEnat /= ltnS.
-    rewrite slice_xR; last by rewrite bnd_simp.
-    move: Aj; rewrite slice_xL; last by rewrite bnd_simp.
+    rewrite slice_xR; first by rewrite bnd_simp.
+    move: Aj; rewrite slice_xL; first by rewrite bnd_simp.
     rewrite !onth_codom /=; case/andP=>Hpi Aj.
     rewrite all_rcons; apply/andP; split.
     - by rewrite ffunE tpermR.
@@ -358,11 +355,11 @@ case: (leq_choose Hj)=>Hj1.
   step=>_; split.
   - by rewrite leqnn /= -(eqP Hj1); apply: ltnW.
   exists 1%g; rewrite pffunE1; split=>//; first by exact: perm_on1.
-  rewrite -(eqP Hj1) slice_oSR slice_xR; last by rewrite bnd_simp.
+  rewrite -(eqP Hj1) slice_oSR slice_xR; first by rewrite bnd_simp.
   by rewrite onth_codom /= all_rcons Hfp.
 (* j+1 < hi, loop *)
 apply: [gE f]=>//=; split=>//.
-rewrite Sbo_eq slice_oSR slice_xR; last by rewrite bnd_simp.
+rewrite Sbo_eq slice_oSR slice_xR; first by rewrite bnd_simp.
 by rewrite onth_codom /= all_rcons Hfp.
 Qed.
 Next Obligation.
@@ -398,18 +395,18 @@ exists (tperm v hi * p)%g; split=>//.
   apply/(subset_trans Pm)/subsetP=>x; rewrite !inE.
   by case/andP=>->/ltnW->.
 - by rewrite pffunEM.
-- rewrite pffunEM ffunE tpermL ffunE (out_perm Pm); last first.
+- rewrite pffunEM ffunE tpermL ffunE (out_perm Pm).
   - by rewrite inE negb_and -!ltnNge leqnn orbT.
   rewrite tperm_notin // in_itv negb_and /= leEnat ltEnat /= -leqNgt.
   - by rewrite leqnn orbT.
   by case/andP: Hi=>_ ->; rewrite orbT.
-rewrite pffunEM ffunE tpermL ffunE (out_perm Pm); last first.
+rewrite pffunEM ffunE tpermL ffunE (out_perm Pm).
 - by rewrite inE negb_and -!ltnNge leqnn orbT.
 case/andP: Hi=>_; rewrite leq_eqVlt; case/orP=>[/eqP->|Hi].
 - by rewrite slice_kk.
-move: Ah; rewrite slice_xL; last by rewrite bnd_simp.
+move: Ah; rewrite slice_xL; first by rewrite bnd_simp.
 rewrite onth_codom /=; case/andP=>Hg Ha.
-rewrite slice_xR; last by rewrite bnd_simp.
+rewrite slice_xR; first by rewrite bnd_simp.
 rewrite onth_codom /= all_rcons; apply/andP; split.
 - by rewrite ffunE tpermR.
 by rewrite tperm_notin // in_itv negb_and /= ltEnat /= -!leqNgt leqnn // orbT.
@@ -508,7 +505,7 @@ move: (ltn_ord v); rewrite ltnS leq_eqVlt; case/orP=>[/eqP Ev|Nv].
     apply/subset_leqif_cards/subsetP=>/= z.
     by rewrite !inE -eqn_leq =>/eqP E; apply/eqP/ord_inj.
   move: Sl Hpl; rewrite Eh Ev Epr mul1g => Sl Hpl.
-  rewrite slice_xR; last by rewrite bnd_simp leEnat; move: Hvl; rewrite Ev.
+  rewrite slice_xR; first by rewrite bnd_simp leEnat; move: Hvl; rewrite Ev.
   rewrite {22}(_ : n = (ord_max : 'I_n.+1)) // onth_codom /= sorted_rconsE //=.
   move: Sl; rewrite slice_oPR /Order.lt/= lt0n -{1}Ev Nv0.
   move=>->; rewrite andbT; move: Al; rewrite Ev.
@@ -525,7 +522,7 @@ move: (ltn_ord v); rewrite ltnS leq_eqVlt; case/orP=>[/eqP Ev|Nv].
   by case/andP=>->/= Hz; apply: (leq_ltn_trans Hz); rewrite ltn_predL lt0n -Ev.
 (* the general case *)
 rewrite Nv in Hpr Sr.
-rewrite (slice_split _ true (x:=v) (i:=`[l : nat, h : nat])) /=; last first.
+rewrite (slice_split _ true (x:=v) (i:=`[l : nat, h : nat])) /=.
 - by rewrite in_itv /= leEnat; apply/andP.
 rewrite (slice_xL (x:=v)) // onth_codom /=.
 have -> : pffun (pr * (pl * p)) f v = pffun p f v.
@@ -538,16 +535,16 @@ have -> : pffun (pr * (pl * p)) f v = pffun p f v.
     by apply/(subset_trans Hpl)/subsetP=>/= z; rewrite !inE=>->.
   rewrite (out_perm Hmul) // inE negb_or !negb_and -leqNgt -!ltnNge leqnn /=.
   by rewrite andbT ltn_predL lt0n Nv0 orbT.
-rewrite {1}pffunEM (perm_on_notin _ Hpr); last first.
+rewrite {1}pffunEM (perm_on_notin _ Hpr).
 - rewrite disjoint_subset; apply/subsetP=>/= z.
   rewrite 3!inE in_itv /= negb_and leEnat ltEnat /= -leqNgt -ltnNge.
   by case/andP=>/ltnW-> _; rewrite orbT.
 rewrite slice_oSL in Sr.
-rewrite mulgA (perm_onC Hpr Hpl) in Sr *; last first.
+rewrite mulgA (perm_onC Hpr Hpl) in Sr *.
 - rewrite disjoint_subset; apply/subsetP=>/= z; rewrite !inE negb_and -!ltnNge.
   case/andP=>Hz _; apply/orP; right.
   by apply/leq_ltn_trans/Hz; exact: leq_pred.
-rewrite -mulgA (pffunEM _ (pr * p)%g) (perm_on_notin _ Hpl) in Sr *; last first.
+rewrite -mulgA (pffunEM _ (pr * p)%g) (perm_on_notin _ Hpl) in Sr *.
 - rewrite disjoint_subset; apply/subsetP=>/= z.
   rewrite 3!inE in_itv /= negb_and leEnat /= -leqNgt -ltnNge.
   case/andP=>_ Hz; apply/orP; left; apply: (leq_trans Hz).

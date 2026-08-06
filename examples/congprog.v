@@ -19,9 +19,6 @@ From pcm Require Import unionmap heap autopcm automap.
 From htt Require Import options model heapauto llist array.
 From htt Require Import kvmaps hashtab congmath.
 
-(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-Set SsrOldRewriteGoalsOrder.  
-
 (***********************************)
 (* Congruence closure verification *)
 (***********************************)
@@ -36,7 +33,7 @@ Set SsrOldRewriteGoalsOrder.
 (* The associated math properties used in the verification are *)
 (* proved in the accompanying file congmath.v *)
 
-Notation finE := finset.inE.
+Abbreviation finE := finset.inE.
 
 (*************)
 (* Signature *)
@@ -78,7 +75,7 @@ End CongrSig.
 Module Congr : CongrSig.
 Section Congr.
 Variable s : seq constant.
-Notation symb := (symb s).
+Abbreviation symb := (symb s).
 
 (* the lookup table is represented as a hash table with 10 buckets *)
 Local Definition K : Set := symb * symb.
@@ -128,11 +125,11 @@ Definition root := ptrs.
 
 Section ShapePredicates.
 Variable rt : ptrs.
-Notation r := (let: Ptrs r _ _ _ _ := rt in r).
-Notation clist := (let: Ptrs _ clist _ _ _ := rt in clist).
-Notation ulist := (let: Ptrs _ _ ulist _ _ := rt in ulist).
-Notation htb := (let: Ptrs _ _ _ htb _ := rt in htb).
-Notation p := (let: Ptrs _ _ _ _ p := rt in p).
+Abbreviation r := (let: Ptrs r _ _ _ _ := rt in r).
+Abbreviation clist := (let: Ptrs _ clist _ _ _ := rt in clist).
+Abbreviation ulist := (let: Ptrs _ _ ulist _ _ := rt in ulist).
+Abbreviation htb := (let: Ptrs _ _ _ htb _ := rt in htb).
+Abbreviation p := (let: Ptrs _ _ _ _ p := rt in p).
 
 (* Data structure's layout in the heap *)
 
@@ -189,12 +186,12 @@ step=>x; step; apply: [stepX f]@hc=>//= [[m]] Em.
 apply: [gE]=>//=; split=>//.
 eexists [ffun z => if z == ith k pf then x else f z].
 rewrite (_ : _ \+ _ = m \+ (x :-> ith k pf \+ 
-  x.+1 :-> null \+ hct)); last by heap_congr.
+  x.+1 :-> null \+ hct)); first by heap_congr.
 hhauto; rewrite (sepitS (ith k pf)) finE /= indx_ith ltnSn. 
 rewrite /ctab/table !ffunE eqxx; hhauto.
 apply: tableP2 Hct=>// a. 
-- by rewrite !finE ltnS indx_injE; case: ltngtP.
-by rewrite !finE !ffunE indx_injE; case: eqP=>// ->; rewrite ltnn.
+- by rewrite !finE ltnS inj_indxE; case: ltngtP.
+by rewrite !finE !ffunE inj_indxE; case: eqP=>// ->; rewrite ltnn.
 Qed.
 Next Obligation. 
 case=>_ ->; apply: [stepE]=>//= rx hr Er; apply: [stepU]=>//= cl hc Ec. 
@@ -208,7 +205,7 @@ step=>px; step; exists d; split; last by case: (initP s).
 split=>[a b|/=]; first by rewrite !ffunE !inE. 
 exists f, [ffun s => null].
 rewrite (_ : px :-> null \+ _ = hr \+ ((hc' \+ hrest) \+ (hu \+ Unit \+ 
-  (ht \+ (px :-> null \+ Unit))))); last by rewrite unitR; heap_congr. 
+  (ht \+ (px :-> null \+ Unit))))); first by rewrite unitR; heap_congr. 
 hhauto; rewrite /sepit sepitseq_emp // => k.
 by rewrite /utab/table !ffunE; split=>//; case=>_ ->.
 Qed.
@@ -218,15 +215,15 @@ Qed.
 
 Section Internal.
 Variable rt : ptrs.
-Notation ashape' := (ashape rt).
-Notation bshape' := (bshape rt).
-Notation shape' := (shape rt).
+Abbreviation ashape' := (ashape rt).
+Abbreviation bshape' := (bshape rt).
+Abbreviation shape' := (shape rt).
 
-Notation r := (let: Ptrs r _ _ _ _ := rt in r).
-Notation clist := (let: Ptrs _ clist _ _ _ := rt in clist).
-Notation ulist := (let: Ptrs _ _ ulist _ _ := rt in ulist).
-Notation htb := (let: Ptrs _ _ _ htb _ := rt in htb).
-Notation p := (let: Ptrs _ _ _ _ p := rt in p).
+Abbreviation r := (let: Ptrs r _ _ _ _ := rt in r).
+Abbreviation clist := (let: Ptrs _ clist _ _ _ := rt in clist).
+Abbreviation ulist := (let: Ptrs _ _ ulist _ _ := rt in ulist).
+Abbreviation htb := (let: Ptrs _ _ _ htb _ := rt in htb).
+Abbreviation p := (let: Ptrs _ _ _ _ p := rt in p).
 
 Definition cT (a' b' : symb) : Type :=
   forall x : unit, STsep {D}
@@ -267,7 +264,7 @@ apply: [stepX ct, th]@th=>//= _ _ [->->].
 apply: vrfV=>V; case: (ct a' =P null) Cta=>[/[dup] Ea' ->|/eqP Na'].
 - case/(lseq_null (validX V))=>/= ->->{cta V}; step=>{}V; exists ct, ut.
   rewrite (_ : rh \+ _ = rh \+ (th \+ (Unit \+ 
-    (ctb \+ ctx)) \+ h)); last by heap_congr.
+    (ctb \+ ctx)) \+ h)); first by heap_congr.
   rewrite -fin_eta; hhauto; rewrite (sepitT1 a'); hhauto.
   - by rewrite /ctab/table ffunE eqxx /= /= Ea'.
   rewrite (sepitS b') !finE eq_sym N; hhauto.
@@ -286,7 +283,7 @@ set cv2 := [ffun z => if z == a' then (behead (class d a'))
 apply: [gE (Data r1 cv2 (use d) (lookup d) (pending d), ct2, ut)]=>/=; 
 last by move=>?? [].
 - rewrite (_ : rh1 \+ _ = rh1 \+ (th2 \+ (cta' \+ (ct a' :-> a \+ 
-    ((ct a').+1 :-> ct b' \+ ctb) \+ ctx)) \+ h)); last by heap_congr.
+    ((ct a').+1 :-> ct b' \+ ctb) \+ ctx)) \+ h)); first by heap_congr.
   hhauto; rewrite (sepitT1 a'); hhauto. 
   - by rewrite /ctab/table/ct2/cv2 !ffunE /= eqxx.
   rewrite (sepitS b') !finE eq_sym N; hhauto.
@@ -353,7 +350,7 @@ apply: [stepX ut, ru]@ru=>//= _ _ [->->]; apply: vrfV=>V.
 case: (ut a' =P null) Ua=>[/[dup] Ea' ->|/eqP Na' {V}].
 - case/(lseq_null (validX V))=>/= {V} Eu1 ->{ha'}; step.
   rewrite (_ : rh \+ _ = rh \+ (cth \+ (ru \+ (Unit \+ (hb' \+ h)) \+ 
-    (ht \+ (p:-> p' \+ hp))))); last by heap_congr.
+    (ht \+ (p:-> p' \+ hp))))); first by heap_congr.
   rewrite /join_use Eu Eu1 cats0 -/d1; split=>//=; exists ct, ut.
   hhauto; rewrite (sepitT1 a'); hhauto; first by rewrite /utab/table Ea' Eu1.
   by rewrite (sepitS b') !finE eq_sym N; hhauto.    
@@ -378,7 +375,7 @@ case: v Eqv=>[[[e1 e2 e3]]|] /= /esym Eqv.
   rewrite /bshape'/class_inv/ashape/d2 (join_useT (t:=a1')) //= Eqv -/d1 /=.  
   rewrite (_ : _ \+ _ = rh \+ (cth \+ ((ru \+ (hh \+ (hb' \+ h))) \+ (ht \+ 
      (p :-> q \+ (q :-> comp_pend c e \+ 
-    (q.+1 :-> r0 \+ hp))))))); last by heap_congr.
+    (q.+1 :-> r0 \+ hp))))))); first by heap_congr.
   case: Htc=>x [y][->] X1 X2; hhauto; [eauto|eauto|exact: Ut2|].
   rewrite (sepitT1 a'); hhauto.
   - by rewrite /utab/table/ut2 !ffunE /= eqxx.
@@ -393,8 +390,8 @@ apply: [gE d]=>[||??[]] //=; exists (don ++ [:: c]).
 rewrite -/d2 Eu2 -catA; do 2!split=>//.
 rewrite /bshape'/class_inv/ashape/d2 (join_useT (t:=a1')) //= Eqv -/d1 /=.  
 rewrite (_ : _ \+ _ = rh \+ (cth \+ ((ru \+ (hh \+ ((ut a' :-> c \+
- ((ut a').+1 :-> ut2 b' \+ hb')) \+ h))) \+ (ht \+ (p :-> p' \+ hp))))); 
-  last by heap_congr.
+ ((ut a').+1 :-> ut2 b' \+ hb')) \+ h))) \+ (ht \+ (p :-> p' \+ hp))))).
+ - by heap_congr.
 case: Htc=>x [y][->] X1 X2; hhauto; [eauto|eauto|exact: Ut3|].
 rewrite (sepitT1 a'); hhauto.
 - by rewrite /utab/table/ut3 ffunE /= (negbTE N) /ut2 !ffunE /= eqxx. 
@@ -501,8 +498,8 @@ set d1:=Data (rep d) (class d) (use d) (lookup d) (simp_pend a b :: pending d).
 step; apply: [gE d1]=>//=.
 - rewrite Ep /= in Hp; case: Hp=>->{r0} ->{hp}.
   rewrite (_ : _ \+ _ = hr \+ (hc \+ (hu \+ hu' \+ (ht \+ 
-    (p :-> x \+ (x :-> simp_pend a b \+ (x.+1 :-> null \+ Unit))))))); 
-  last by heap_congr.
+    (p :-> x \+ (x :-> simp_pend a b \+ (x.+1 :-> null \+ Unit))))))).
+  - by heap_congr.
   by split=>//=; exists ct, ut; hhauto; rewrite Ep.
 case=>m Hm _.
 have L: propagate_inv d1 by apply: propagate_pendP PI.
@@ -523,8 +520,8 @@ case: v Ev=>[[[e0 e1 e2]]|] Ev.
   step; apply: [stepX pending d]@hp=>//= x _ [x1][{}hp][-> {}Hp]. 
   step; apply: [gE d1]=>//=.
   - rewrite (_ : _ \+ _ = hr \+ (hc \+ (hu \+ hu' \+ (ht \+ (p :-> x \+ 
-      (x :-> comp_pend cx ex \+ (x.+1 :-> x1 \+ hp))))))); 
-    last by heap_congr.
+      (x :-> comp_pend cx ex \+ (x.+1 :-> x1 \+ hp))))))).
+    - by heap_congr.
     by split=>//; exists ct, ut; hhauto.
   case=>m Hm _.
   have L : propagate_inv d1 by apply: propagate_pendP PI.
@@ -549,7 +546,7 @@ case E : (rep d c2 == rep d c1).
   apply: [gX ut1]@hu=>//= [[]] {Hu}hu Hu _.
   rewrite (_ : _ \+ _ = hr \+ (hc \+ (hu \+ (v :-> cx \+ 
     (v.+1 :-> x' \+ (x' :-> cx \+ (x'.+1 :-> r1 \+ hu''))) \+ 
-      hu2) \+ (ht \+ (p :-> q \+ hp))))); last by heap_congr.
+      hu2) \+ (ht \+ (p :-> q \+ hp))))); first by heap_congr.
   exists d1; split=>//; last first.
   - split; first by apply: propagate_nopendP.
     by rewrite -Erel propagate_clos_nopendP.
@@ -565,7 +562,7 @@ apply: [gX ut1]@hu=>//= [[]] {Hu}hu Hu _.
 rewrite (_ : _ \+ _ = hr \+ (hc \+ (hu \+ 
   (x :-> cx \+ (x.+1 :-> r0 \+ hu'') \+
   ((v :-> cx \+ (v.+1 :-> x' \+ hu1) \+ hu3))) \+
-  ((ht \+ (p :-> q \+ hp)))))); last by heap_congr.
+  ((ht \+ (p :-> q \+ hp)))))); first by heap_congr.
 exists d1; split; last first.
 - split; first by apply: propagate_nopendP.
   split; first by rewrite /d1.

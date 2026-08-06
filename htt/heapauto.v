@@ -444,11 +444,11 @@ Qed.
 
 Arguments gX {G A s} g m {m0 j tm k wh r2 e fm fu f fg Q}.
 
-Notation "[gX] @ m" := (gX tt m erefl) (at level 0).
+Notation "[gX] @ m" := (gX tt m erefl) (at level 1).
 
 Notation "[ 'gX' x1 , .. , xn ] @ m" :=
   (gX (existT _ x1 .. (existT _ xn tt) ..) m erefl)
-  (at level 0, format "[ 'gX'  x1 ,  .. ,  xn ] @  m").
+  (at level 1, format "[ 'gX'  x1 ,  .. ,  xn ] @  m").
 
 Definition heapPCM : pcm := heap.
 
@@ -474,10 +474,10 @@ Qed.
 
 Arguments stepX [G A B s] g m {m0 j tm k wh r2 e e2 fm fu f fg Q}.
 
-Notation "[stepX] @ m" := (stepX tt m erefl) (at level 0).
+Notation "[stepX] @ m" := (stepX tt m erefl) (at level 1).
 Notation "[ 'stepX' x1 , .. , xn ] @ m" :=
   (stepX (existT _ x1 .. (existT _ xn tt) ..) m erefl)
-  (at level 0, format "[ 'stepX'  x1 ,  .. ,  xn ] @ m").
+  (at level 1, format "[ 'stepX'  x1 ,  .. ,  xn ] @ m").
 
 (* combination of gX + vrf_try *)
 Lemma tryX G A B (s : spec G A) g (m : heap) m0 j tm k wh r2
@@ -500,10 +500,10 @@ Qed.
 
 Arguments tryX {G A B s} g m {m0 j tm k wh r2 e e1 e2 fm fu f fg Q}.
 
-Notation "[tryX] @ m" := (stepX tt m erefl) (at level 0).
+Notation "[tryX] @ m" := (stepX tt m erefl) (at level 1).
 Notation "[ 'tryX' x1 , .. , xn ] @ m" :=
   (tryX (existT _ x1 .. (existT _ xn tt) ..) m erefl)
-  (at level 0, format "[ 'tryX'  x1 ,  .. ,  xn ] @  m").
+  (at level 1, format "[ 'tryX'  x1 ,  .. ,  xn ] @  m").
 
 (**************************************)
 (* Simplified ghost lemma automations *)
@@ -528,10 +528,10 @@ Qed.
 
 Arguments gR {G A s} g m {r e f Q}.
 
-Notation "[gR] @ m" := (gR tt m) (at level 0).
+Notation "[gR] @ m" := (gR tt m) (at level 1).
 Notation "[ 'gR' x1 , .. , xn ] @ m" :=
   (gR (existT _ x1 .. (existT _ xn tt) ..) m)
-  (at level 0, format "[ 'gR'  x1 ,  .. ,  xn ] @  m").
+  (at level 1, format "[ 'gR'  x1 ,  .. ,  xn ] @  m").
 
 (* combination of gR + vrf_bind *)
 Lemma stepR G A B (s : spec G A) g i j (e : STspec G s) (e2 : A -> ST B)
@@ -549,10 +549,10 @@ Qed.
 
 Arguments stepR {G A B s} g i {j e e2 f Q}.
 
-Notation "[stepR] @ i" := (stepR tt i) (at level 0).
+Notation "[stepR] @ i" := (stepR tt i) (at level 1).
 Notation "[ 'stepR' x1 , .. , xn ] @ i" :=
   (stepR (existT _ x1 .. (existT _ xn tt) ..) i)
-  (at level 0, format "[ 'stepR'  x1 ,  .. ,  xn ] @  i").
+  (at level 1, format "[ 'stepR'  x1 ,  .. ,  xn ] @  i").
 
 (* combination of gR + vrf_try *)
 Lemma tryR G A B (s : spec G A) g i j (e : STspec G s) 
@@ -571,10 +571,10 @@ Qed.
 
 Arguments tryR {G A B s} g i {j e e1 e2 f Q}.
 
-Notation "[tryR] @ i" := (tryR tt i) (at level 0).
+Notation "[tryR] @ i" := (tryR tt i) (at level 1).
 Notation "[ 'tryR' x1 , .. , xn ] @ i" :=
   (tryR (existT _ x1 .. (existT _ xn tt) ..) i)
-  (at level 0, format "[ 'tryR'  x1 ,  .. ,  xn ] @  i").
+  (at level 1, format "[ 'tryR'  x1 ,  .. ,  xn ] @  i").
 
 (* The following is brittle, and should eventually be substituted *)
 (* with overloaded lemmas. For now, sticking with the hack *)
