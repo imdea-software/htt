@@ -39,7 +39,7 @@ that HTT implements Separation logic as a shallow embedding in Rocq.
   - Alexander Gryzlov
   - Marcos Grandury
 - License: [Apache-2.0](LICENSE)
-- Compatible Rocq/Coq versions: none
+- Compatible Rocq/Coq versions: 9.2 
 - Additional dependencies:
   - Rocq Core compiler engine
   - Rocq Standard Library components
@@ -48,6 +48,7 @@ that HTT implements Separation logic as a shallow embedding in Rocq.
   - [MathComp algebra](https://math-comp.github.io)
   - [MathComp fingroup](https://math-comp.github.io)
   - [FCSL-PCM 2.3 or later](https://github.com/imdea-software/fcsl-pcm)
+  - [Dune](https://dune.build) 3.6 or later
 - Rocq/Coq namespace: `htt`
 - Related publication(s):
   - [Structuring the verification of heap-manipulating programs](https://software.imdea.org/~aleks/papers/reflect/reflect.pdf) doi:[10.1145/1706299.1706331](https://doi.org/10.1145/1706299.1706331)
