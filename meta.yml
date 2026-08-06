@@ -72,7 +72,7 @@ maintainers:
 
 opam-file-maintainer: fcsl@software.imdea.org
 
-opam-file-version: 2.2.0
+opam-file-version: 2.3.0
 
 license:
   fullname: Apache-2.0

@@ -39,7 +39,7 @@ that HTT implements Separation logic as a shallow embedding in Rocq.
   - Alexander Gryzlov
   - Marcos Grandury
 - License: [Apache-2.0](LICENSE)
-- Compatible Rocq/Coq versions: 9.2 
+- Compatible Rocq/Coq versions: 9.2
 - Additional dependencies:
   - Rocq Core compiler engine
   - Rocq Standard Library components
