@@ -714,7 +714,7 @@ have J : x :-> v \+ j \In read_pre.
 - split; first by rewrite domPtUnE.
   by exists v; rewrite findPtUn.
 exists J=>_ _ [w [->->]].
-rewrite findPtUn //; case=>/inj_tagK <-.
+rewrite findPtUn //; case=>/inj_tagK <-{w}.
 by apply: H.
 Qed.
 
