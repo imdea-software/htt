@@ -6,12 +6,12 @@
 # pre-makefile::, this-clean:: and __always__:: may be extended      #
 # Additionally, the following variables may be customized:           #
 SUBDIRS?=
-ROCQBIN?=$(dir $(shell which rocq))
-ROCQMAKEFILE?=$(ROCQBIN)rocq_makefile
-ROCQDEP?=$(ROCQBIN)rocq dep
-ROCQPROJECT?=_RocqProject
-ROCQMAKEOPTIONS?=
-ROCQMAKEFILEOPTIONS?=
+COQBIN?=$(dir $(shell which coqtop))
+COQMAKEFILE?=$(COQBIN)coq_makefile
+COQDEP?=$(COQBIN)coqdep
+COQPROJECT?=_CoqProject
+COQMAKEOPTIONS?=
+COQMAKEFILEOPTIONS?=
 V?=
 VERBOSE?=V
 ######################################################################
@@ -22,28 +22,28 @@ VERBOSE?=V
 
 H:= $(if $(VERBOSE),,@)  # not used yet
 TOP     = $(dir $(lastword $(MAKEFILE_LIST)))
-ROCQMAKE = $(MAKE) -f Makefile.rocq $(ROCQMAKEOPTIONS)
-BRANCH_rocq:= $(shell $(ROCQBIN)rocq top -v | head -1 | grep -E '(trunk|master)' \
+COQMAKE = $(MAKE) -f Makefile.coq $(COQMAKEOPTIONS)
+BRANCH_coq:= $(shell $(COQBIN)coqtop -v | head -1 | grep -E '(trunk|master)' \
 	      | wc -l | sed 's/ *//g')
 
-# rocq version:
-ifneq "$(BRANCH_rocq)" "0"
-ROCQVVV:= dev
+# coq version:
+ifneq "$(BRANCH_coq)" "0"
+COQVVV:= dev
 else
-ROCQVVV:=$(shell $(ROCQBIN)rocq top --print-version | cut -d" " -f1)
+COQVVV:=$(shell $(COQBIN)coqtop --print-version | cut -d" " -f1)
 endif
 
-ROCQV:= $(shell echo $(ROCQVVV) | cut -d"." -f1)
-ROCQVV:= $(shell echo $(ROCQVVV) | cut -d"." -f1-2)
+COQV:= $(shell echo $(COQVVV) | cut -d"." -f1)
+COQVV:= $(shell echo $(COQVVV) | cut -d"." -f1-2)
 
 # all: ---------------------------------------------------------------
 all: config build
 
-# Makefile.rocq: ------------------------------------------------------
+# Makefile.coq: ------------------------------------------------------
 .PHONY: pre-makefile
 
-Makefile.rocq: pre-makefile $(ROCQPROJECT) Makefile
-	$(ROCQMAKEFILE) $(ROCQMAKEFILEOPTIONS) -f $(ROCQPROJECT) -o Makefile.rocq
+Makefile.coq: pre-makefile $(COQPROJECT) Makefile
+	$(COQMAKEFILE) $(COQMAKEFILEOPTIONS) -f $(COQPROJECT) -o Makefile.coq
 
 # Global config, build, clean and distclean --------------------------
 config: sub-config this-config
@@ -59,27 +59,27 @@ distclean: sub-distclean this-distclean
 
 this-config:: __always__
 
-this-build:: this-config Makefile.rocq
-	+$(ROCQMAKE)
+this-build:: this-config Makefile.coq
+	+$(COQMAKE)
 
 this-distclean:: this-clean
-	rm -f Makefile.rocq Makefile.rocq.conf Makefile.rocq
+	rm -f Makefile.coq Makefile.coq.conf Makefile.coq
 
 this-clean:: __always__
-	@if [ -f Makefile.rocq ]; then $(ROCQMAKE) cleanall; fi
+	@if [ -f Makefile.coq ]; then $(COQMAKE) cleanall; fi
 
 # Install target -----------------------------------------------------
 .PHONY: install
 
-install: __always__ Makefile.rocq
-	$(ROCQMAKE) install
-# counting lines of Rocq code -----------------------------------------
+install: __always__ Makefile.coq
+	$(COQMAKE) install
+# counting lines of Coq code -----------------------------------------
 .PHONY: count
 
-ROCQFILES = $(shell grep '.v$$' $(ROCQPROJECT))
+COQFILES = $(shell grep '.v$$' $(COQPROJECT))
 
 count:
-	@rocq wc $(ROCQFILES) | tail -1 | \
+	@coqwc $(COQFILES) | tail -1 | \
 	  awk '{printf ("%d (spec=%d+proof=%d)\n", $$1+$$2, $$1, $$2)}'
 # Additionally cleaning backup (*~) files ----------------------------
 this-distclean::
@@ -95,5 +95,5 @@ sub-%: __always__
 endif
 
 # Make of individual .vo ---------------------------------------------
-%.vo: __always__ Makefile.rocq
-	+$(ROCQMAKE) $@
+%.vo: __always__ Makefile.coq
+	+$(COQMAKE) $@
