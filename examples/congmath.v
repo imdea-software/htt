@@ -16,9 +16,6 @@ From Stdlib Require Import Recdef Setoid ssreflect ssrbool ssrfun.
 From mathcomp Require Import eqtype choice ssrnat seq bigop fintype finfun.
 From pcm Require Import options prelude ordtype finmap pred seqext.
 
-(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-Set SsrOldRewriteGoalsOrder.  
-
 (**********************)
 (* Congruence closure *)
 (**********************)
@@ -148,7 +145,7 @@ Qed.
 
 HB.instance Definition _ s := hasDecEq.Build (@exp s) (@eqexpP s).
 
-Notation rel_exp s := (Pred (exp s * exp s)).
+Abbreviation rel_exp s := (Pred (exp s * exp s)).
 
 (****************************************)
 (* Congruence relations over expression *)
@@ -157,9 +154,9 @@ Notation rel_exp s := (Pred (exp s * exp s)).
 (* R is monotone if it is preserved by application *)
 Section Congruence.
 Variable s : seq constant.
-Notation symb := (symb s).
-Notation exp := (exp s).
-Notation rel_exp := (rel_exp s).
+Abbreviation symb := (symb s).
+Abbreviation exp := (exp s).
+Abbreviation rel_exp := (rel_exp s).
 
 Definition Reflexive (r : rel_exp) := 
   forall x, (x, x) \In r.
@@ -242,7 +239,7 @@ Lemma clos_clos (R Q : rel_exp) :
 Proof.
 case=>e1 e2; split=>H1 C H2 H3; apply: H1 =>// [[x y]] H4.
 - by case: H4=>H4; [apply: H4=>// [[x1 y1]] H4|]; apply: H2; [left | right].
-case: H4=>H4; apply: H2; [left | right]=>//.
+case: H4=>H4; apply: H2; [left|right=>//].
 by move=>C0 H5 _; apply: H5.
 Qed.
 
@@ -335,9 +332,9 @@ Proof. by apply: closE. Qed.
 
 Section Structures.
 Variable s : seq constant.
-Notation symb := (symb s).
-Notation exp := (exp s).
-Notation rel_exp := (rel_exp s).
+Abbreviation symb := (symb s).
+Abbreviation exp := (exp s).
+Abbreviation rel_exp := (rel_exp s).
 
 (* Equations in canonical form, as required by the congruence closure     *)
 (* algorithm. An equation is in canonical form if it is an equation       *)
@@ -526,10 +523,10 @@ Hint Resolve uniq_reps rep_in_reps clos_rep cong_rel : core.
 
 Section MathModel.
 Variable s : seq constant.
-Notation symb := (symb s).
-Notation exp := (exp s).
-Notation rel_exp := (rel_exp s).
-Notation data := (data s).
+Abbreviation symb := (symb s).
+Abbreviation exp := (exp s).
+Abbreviation rel_exp := (rel_exp s).
+Abbreviation data := (data s).
 
 (* termination metric is the number of equations in the use and pending lists *)
 Definition metric (D : data) : nat :=
@@ -644,7 +641,7 @@ elim: old_use D E=>[|[[c c1] c2] old_use IH] D E H1 H2 H3 /=.
 move: (mem_split_uniq H2 (uniq_reps D))=>[s1][s2][L1 L2 L3].
 have L4 : undup (map (rep D) (enum predT)) = reps D by [].
 case: (fnd _ _)=>[[[d d1] d2]|]; last first.
-- rewrite IH //=; last by rewrite ffunE eq_refl E.
+- rewrite IH //=; first by rewrite ffunE eq_refl E.
   rewrite -addSnnS; congr plus.
   rewrite /metric /= -addnS {1}/reps L4 /=; congr plus.
   rewrite -(filter_predC1 H1).
@@ -656,7 +653,7 @@ case: (fnd _ _)=>[[[d d1] d2]|]; last first.
   case S1: (x == b')=>//=.
   case S2: (x == a')=>//=.
   by rewrite ffunE S1 S2.
-rewrite IH //=; last by rewrite ffunE eq_refl E.
+rewrite IH //=; first by rewrite ffunE eq_refl E.
 rewrite /metric /reps /= L4 addnAC addSnnS -addnAC; congr (_ + _ + _).
 rewrite -(filter_predC1 H1).
 rewrite !big_filter L1 !(perm_big _ (permEl (perm_catCA _ [::b'] _))) /=.
@@ -694,9 +691,9 @@ Proof.
 - move=>D e p' eq E.
   by rewrite /metric eq addSn; apply: ltP; apply: ltnSn.
 move=>D e p' eq H.
-rewrite join_use_metric ?H //; last first.
-- by rewrite join_class_eq ?mem_filter ?rep_in_reps //= ?(eq_sym (rep D (pendR e))) H.
+rewrite join_use_metric ?H //.
 - by rewrite join_class_eq ?mem_filter ?rep_in_reps ?H //= eq_refl.
+- by rewrite join_class_eq ?mem_filter ?rep_in_reps //= ?(eq_sym (rep D (pendR e))) H.
 rewrite -join_class_metric ?H ?rep_in_reps //.
 by apply: ltP; rewrite /metric /reps /= eq /= addSn.
 Qed.
@@ -723,11 +720,11 @@ End MathModel.
 
 Section Invariants.
 Variable s : seq constant.
-Notation symb := (symb s).
-Notation exp := (exp s).
-Notation rel_exp := (rel_exp s).
-Notation data := (data s).
-Notation pend2eq := (@pend2eq s).
+Abbreviation symb := (symb s).
+Abbreviation exp := (exp s).
+Abbreviation rel_exp := (rel_exp s).
+Abbreviation data := (data s).
+Abbreviation pend2eq := (@pend2eq s).
 Implicit Type D : data.
 
 (* the rep function is idempotent *)
@@ -879,13 +876,13 @@ End Invariants.
 
 Section MathModelProofs.
 Variable s : seq constant.
-Notation symb := (symb s).
-Notation exp := (exp s).
-Notation rel_exp := (rel_exp s).
-Notation data := (data s).
-Notation pend2eq := (@pend2eq s).
-Notation symb2eq := (@symb2eq s).
-Notation closure := (@closure s).
+Abbreviation symb := (symb s).
+Abbreviation exp := (exp s).
+Abbreviation rel_exp := (rel_exp s).
+Abbreviation data := (data s).
+Abbreviation pend2eq := (@pend2eq s).
+Abbreviation symb2eq := (@symb2eq s).
+Abbreviation closure := (@closure s).
 Implicit Type D : data.
 
 (* first some basic rewrite rules *)
@@ -1701,9 +1698,9 @@ Section NoPend.
 Variables (d : data) (c c1 c2 : symb).
 Hypotheses (PI : propagate_inv d)
            (Ev : fnd (rep d c1, rep d c2) (lookup d) = None).
-Notation u1' := [ffun z => if z == rep d c1 then (c, c1, c2) :: use d z
+Abbreviation u1' := [ffun z => if z == rep d c1 then (c, c1, c2) :: use d z
                            else use d z].
-Notation u2' := [ffun z => if z == rep d c2 then (c, c1, c2) :: u1' z
+Abbreviation u2' := [ffun z => if z == rep d c2 then (c, c1, c2) :: u1' z
                            else u1' z].
 
 Lemma propagate_nopendP :

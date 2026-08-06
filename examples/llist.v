@@ -158,7 +158,7 @@ elim: l1 l2 p h => [|x1 xt IH] /= l2 p h V.
 - by case=>->->; case/lseq_null.
 case=>q1 /= [h1][E] H; rewrite {}E in H V *.
 case/(lseq_pos (defPt_nullO V))=>x2 [q2][h2][->] /=.
-do 2![case/(cancel V)=>/inj_dyn<-{}V].
+do 2![case/(cancel V)=>/inj_dyn <-{}V].
 by move=><- /(IH (behead l2) _ _ V H)=>->.
 Qed.
 

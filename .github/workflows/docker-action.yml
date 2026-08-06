@@ -9,6 +9,7 @@ on:
   pull_request:
     branches:
       - '**'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -17,8 +18,7 @@ jobs:
     strategy:
       matrix:
         image:
-          - 'mathcomp/mathcomp:2.4.0-rocq-prover-9.0'
-          - 'mathcomp/mathcomp:2.5.0-rocq-prover-9.1'
+          - 'mathcomp/mathcomp:2.6.0-rocq-prover-9.2'
           - 'mathcomp/mathcomp-dev:rocq-prover-dev'
       fail-fast: false
     steps:

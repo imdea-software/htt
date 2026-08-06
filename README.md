@@ -10,6 +10,8 @@ Follow the instructions on https://github.com/coq-community/templates to regener
 [docker-action-link]: https://github.com/imdea-software/htt/actions/workflows/docker-action.yml
 
 
+
+
 Hoare Type Theory (HTT) is a verification system for reasoning about sequential heap-manipulating
 programs based on Separation logic.
 
@@ -27,7 +29,7 @@ sequential composition, and the type for monadic unit combines the Hoare rules f
 program (in a small-footprint variant) and for variable assignment (adapted for functional
 variables). The connection reconciles dependent types with effects of state and exceptions and
 establishes Separation logic as a type theory for such effects. In implementation terms, it means
-that HTT implements Separation logic as a shallow embedding in Coq.
+that HTT implements Separation logic as a shallow embedding in Rocq.
 
 ## Meta
 
@@ -37,15 +39,17 @@ that HTT implements Separation logic as a shallow embedding in Coq.
   - Alexander Gryzlov
   - Marcos Grandury
 - License: [Apache-2.0](LICENSE)
-- Compatible Coq versions: 9.0 or later
+- Compatible Rocq/Coq versions: 9.2
 - Additional dependencies:
+  - Rocq Core compiler engine
+  - Rocq Standard Library components
+  - [MathComp ssreflect 2.6 or later](https://math-comp.github.io)
   - [Hierarchy Builder 1.7.0 or later](https://github.com/math-comp/hierarchy-builder)
-  - [MathComp ssreflect 2.4 or later](https://math-comp.github.io)
   - [MathComp algebra](https://math-comp.github.io)
   - [MathComp fingroup](https://math-comp.github.io)
-  - [FCSL-PCM 2.2](https://github.com/imdea-software/fcsl-pcm)
+  - [FCSL-PCM 2.3 or later](https://github.com/imdea-software/fcsl-pcm)
   - [Dune](https://dune.build) 3.6 or later
-- Coq namespace: `htt`
+- Rocq/Coq namespace: `htt`
 - Related publication(s):
   - [Structuring the verification of heap-manipulating programs](https://software.imdea.org/~aleks/papers/reflect/reflect.pdf) doi:[10.1145/1706299.1706331](https://doi.org/10.1145/1706299.1706331)
 
@@ -129,9 +133,9 @@ The original version of HTT can be found [here](https://software.imdea.org/~alek
 
   A semantic model for HTT, with large sigma types.
 
-* [Verifying Graph Algorithms in Separation Logic: A Case for an
-  Algebraic Approach](https://software.imdea.org/~aleks/icfp25/paper-sub.pdf)
+* [Verifying Graph Algorithms in Separation Logic: A Case for an Algebraic Approach](https://software.imdea.org/~aleks/icfp25/paper-sub.pdf)
 
   Marcos Grandury, Aleksandar Nanevski and Alexander Gryzlov. ICFP 2025.
 
-  The paper on verifying graphs algorithms using PCMs and their morphism.
+  Development of PCM of graphs and their morphisms. 
+  Concise verification of Schorr-Waite graph algorith, and union-find datastructure.

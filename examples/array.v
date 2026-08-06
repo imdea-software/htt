@@ -63,7 +63,7 @@ End ArraySig.
 Module Array : ArraySig.
 Section Array.
 Context {I : finType} {T : Type}.
-Notation array := {array I -> T}.
+Abbreviation array := {array I -> T}.
 
 (* array is specified by finite function *)
 Definition shape (a : array) (f : {ffun I -> T}) : Pred heap :=

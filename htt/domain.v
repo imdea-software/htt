@@ -16,9 +16,6 @@ From Stdlib Require Import ssreflect ssrbool ssrfun.
 From mathcomp Require Import ssrnat eqtype.
 From pcm Require Import options axioms pred prelude.
 
-(* change Set to Unset when porting the file, then remove the line when requiring MathComp >= 2.6 *)
-Set SsrOldRewriteGoalsOrder.  
-
 (**************************************************)
 (* This file develops some basic domain theory of *)
 (* posets, complete lattices, complete partial    *)
@@ -104,7 +101,7 @@ End IdealDef.
 
 Section SubPoset.
 Variables (T : poset) (s : Pred T).
-Local Notation tp := {x : T | x \In s}.
+Local Abbreviation tp := {x : T | x \In s}.
 
 Definition sub_leq (p1 p2 : tp) := sval p1 <== sval p2.
 
@@ -122,7 +119,7 @@ End SubPoset.
 
 Section ProdPoset.
 Variables A B : poset.
-Local Notation tp := (A * B)%type.
+Local Abbreviation tp := (A * B)%type.
 
 Definition poset_prod_leq := 
   [fun p1 p2 : tp => p1.1 <== p2.1 /\ p1.2 <== p2.2].
@@ -141,7 +138,7 @@ End ProdPoset.
 
 Section FunPoset.
 Variable (A : Type) (B : poset).
-Local Notation tp := (A -> B).
+Local Abbreviation tp := (A -> B).
 
 Definition poset_fun_leq := [fun p1 p2 : tp => forall x, p1 x <== p2 x].
 
@@ -158,7 +155,7 @@ End FunPoset.
 
 Section DFunPoset.
 Variables (A : Type) (B : A -> poset).
-Local Notation tp := (forall x, B x).
+Local Abbreviation tp := (forall x, B x).
 
 Definition poset_dfun_leq := [fun p1 p2 : tp => forall x, p1 x <== p2 x].
 
@@ -342,7 +339,7 @@ End BasicProperties.
 (* subset lattice *)
 Section SubLattice.
 Variables (T : lattice) (s : Pred T) (C : sup_closed s).
-Local Notation tp := {x : T | x \In s}.
+Local Abbreviation tp := {x : T | x \In s}.
 
 Definition lattice_sub_sup' (u : Pred tp) : T :=
   sup [Pred x : T | exists y, y \In u /\ x = sval y].
@@ -362,7 +359,7 @@ End SubLattice.
 (* product *)
 Section ProdLattice.
 Variables (A B : lattice).
-Local Notation tp := (A * B)%type.
+Local Abbreviation tp := (A * B)%type.
 
 Definition lattice_prod_sup (s : Pred tp) : tp :=
             (sup [Pred p | exists f, p = f.1 /\ f \In s],
@@ -379,7 +376,7 @@ End ProdLattice.
 (* functions into latice form lattice *)
 Section FunLattice.
 Variables (A : Type) (B : lattice).
-Local Notation tp := (A -> B).
+Local Abbreviation tp := (A -> B).
 
 Definition lattice_fun_sup (s : Pred tp) : tp :=
   fun x => sup [Pred p | exists f, f \In s /\ p = f x].
@@ -395,7 +392,7 @@ End FunLattice.
 (* dependent functions into a lattice form a lattice *)
 Section DFunLattice.
 Variables (A : Type) (B : A -> lattice).
-Local Notation tp := (dfun_poset B).
+Local Abbreviation tp := (dfun_poset B).
 
 Definition lattice_dfun_sup (s : Pred tp) : tp :=
   fun x => sup [Pred p | exists f, f \In s /\ p = f x].
@@ -614,7 +611,7 @@ HB.mixin Record isCPO T & Poset T := {
 HB.structure Definition CPO := {T of Poset T & isCPO T}.
 
 Definition limx (D : cpo) (s : chain D) & phantom (Pred _) s := lim_op s.
-Notation lim s := (limx (Phantom (Pred _) s)).
+Abbreviation lim s := (limx (Phantom (Pred _) s)).
 
 Section Repack.
 Variable D : cpo.
@@ -786,7 +783,7 @@ Lemma chain_closI (s1 s2 : Pred T) :
        chain_closed s1 -> chain_closed s2 -> chain_closed (PredI s1 s2).
 Proof.
 move=>[H1 S1][H2 S2]; split=>// d H.
-by split; [apply: S1 | apply: S2]=>// x; case/H.
+by split; [apply: S1| apply: S2]; move=>x /H [].
 Qed.
 
 End AdmissibleClosure.
@@ -806,7 +803,7 @@ Qed.
 
 Section SubCPO.
 Variables (D : cpo) (s : Pred D) (C : chain_closed s).
-Local Notation tp := {x : D | x \In s}.
+Local Abbreviation tp := {x : D | x \In s}.
 
 Definition subcpo_bot := exist _ (@bot D) (proj1 C).
 Lemma subcpo_limX (u : chain tp) : lim (Image sval u) \In s.
@@ -856,8 +853,8 @@ Proof. by []. Qed.
 Definition contfun_axiom (D1 D2 : cpo) (f : mono_fun D1 D2) := 
   forall s : chain D1, f (lim s) <== lim (Image f s).  
 
-HB.mixin Record isContFun (D1 D2 : cpo) (f : D1 -> D2) 
-  & @MonoFun D1 D2 f := {contfun_subproof : contfun_axiom f}.
+HB.mixin Record isContFun (D1 D2 : cpo) (f : D1 -> D2) &
+  @MonoFun D1 D2 f := {contfun_subproof : contfun_axiom f}.
 
 #[short(type="cont_fun")]
 HB.structure Definition ContFun (D1 D2 : cpo) := 
@@ -941,10 +938,10 @@ by apply: poset_trans (N n) _; apply: limP; exists n.
 Qed.
 
 Module Exports.
-Notation kleene_lfp := kleene_lfp.
-Notation kleene_lfp_fixed := kleene_lfp_fixed.
-Notation kleene_lfp_least := kleene_lfp_least.
-Notation kleene_lfp_mono := kleene_lfp_mono.
+Abbreviation kleene_lfp := kleene_lfp.
+Abbreviation kleene_lfp_fixed := kleene_lfp_fixed.
+Abbreviation kleene_lfp_least := kleene_lfp_least.
+Abbreviation kleene_lfp_mono := kleene_lfp_mono.
 End Exports.
 
 End Kleene.
