@@ -4,7 +4,7 @@ organization: imdea-software
 opam_name: coq-htt-core
 community: false
 action: true
-dune: true
+dune: false
 coqdoc: false
 
 synopsis: >-
