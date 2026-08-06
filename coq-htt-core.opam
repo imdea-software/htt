@@ -29,14 +29,14 @@ sequential composition, and the type for monadic unit combines the Hoare rules f
 program (in a small-footprint variant) and for variable assignment (adapted for functional
 variables). The connection reconciles dependent types with effects of state and exceptions and
 establishes Separation logic as a type theory for such effects. In implementation terms, it means
-that HTT implements Separation logic as a shallow embedding in Coq."""
+that HTT implements Separation logic as a shallow embedding in Rocq."""
 
 build: [make "-C" "htt" "-j%{jobs}%"]
 install: [make "-C" "htt" "install"]
 depends: [
   "dune" {>= "3.23"}
   "rocq-core" { (>= "9.2" & < "9.3~") | (= "dev") }
-  "rocq-stdlib"
+  "rocq-stdlib" 
   "rocq-mathcomp-ssreflect" { (>= "2.6.0" & < "2.7~") | (= "dev") }
   "rocq-hierarchy-builder" { (>= "1.7.0" & < "1.11~") | (= "dev") }
   "rocq-mathcomp-algebra" 
