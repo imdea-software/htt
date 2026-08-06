@@ -1,0 +1,99 @@
+# -*- Makefile -*-
+
+######################################################################
+# USAGE:                                                             #
+# The rules this-config::, this-build::, this-distclean::,           #
+# pre-makefile::, this-clean:: and __always__:: may be extended      #
+# Additionally, the following variables may be customized:           #
+SUBDIRS?=
+ROCQBIN?=$(dir $(shell which rocq))
+ROCQMAKEFILE?=$(ROCQBIN)rocq_makefile
+ROCQDEP?=$(ROCQBIN)rocq dep
+ROCQPROJECT?=_RocqProject
+ROCQMAKEOPTIONS?=
+ROCQMAKEFILEOPTIONS?=
+V?=
+VERBOSE?=V
+######################################################################
+
+# local context: -----------------------------------------------------
+.PHONY: all config build clean distclean __always__
+.SUFFIXES:
+
+H:= $(if $(VERBOSE),,@)  # not used yet
+TOP     = $(dir $(lastword $(MAKEFILE_LIST)))
+ROCQMAKE = $(MAKE) -f Makefile.rocq $(ROCQMAKEOPTIONS)
+BRANCH_rocq:= $(shell $(ROCQBIN)rocq top -v | head -1 | grep -E '(trunk|master)' \
+	      | wc -l | sed 's/ *//g')
+
+# rocq version:
+ifneq "$(BRANCH_rocq)" "0"
+ROCQVVV:= dev
+else
+ROCQVVV:=$(shell $(ROCQBIN)rocq top --print-version | cut -d" " -f1)
+endif
+
+ROCQV:= $(shell echo $(ROCQVVV) | cut -d"." -f1)
+ROCQVV:= $(shell echo $(ROCQVVV) | cut -d"." -f1-2)
+
+# all: ---------------------------------------------------------------
+all: config build
+
+# Makefile.rocq: ------------------------------------------------------
+.PHONY: pre-makefile
+
+Makefile.rocq: pre-makefile $(ROCQPROJECT) Makefile
+	$(ROCQMAKEFILE) $(ROCQMAKEFILEOPTIONS) -f $(ROCQPROJECT) -o Makefile.rocq
+
+# Global config, build, clean and distclean --------------------------
+config: sub-config this-config
+
+build: sub-build this-build
+
+clean: sub-clean this-clean
+
+distclean: sub-distclean this-distclean
+
+# Local config, build, clean and distclean ---------------------------
+.PHONY: this-config this-build this-distclean this-clean
+
+this-config:: __always__
+
+this-build:: this-config Makefile.rocq
+	+$(ROCQMAKE)
+
+this-distclean:: this-clean
+	rm -f Makefile.rocq Makefile.rocq.conf Makefile.rocq
+
+this-clean:: __always__
+	@if [ -f Makefile.rocq ]; then $(ROCQMAKE) cleanall; fi
+
+# Install target -----------------------------------------------------
+.PHONY: install
+
+install: __always__ Makefile.rocq
+	$(ROCQMAKE) install
+# counting lines of Rocq code -----------------------------------------
+.PHONY: count
+
+ROCQFILES = $(shell grep '.v$$' $(ROCQPROJECT))
+
+count:
+	@rocq wc $(ROCQFILES) | tail -1 | \
+	  awk '{printf ("%d (spec=%d+proof=%d)\n", $$1+$$2, $$1, $$2)}'
+# Additionally cleaning backup (*~) files ----------------------------
+this-distclean::
+	rm -f $(shell find . -name '*~')
+
+# Make in SUBDIRS ----------------------------------------------------
+ifdef SUBDIRS
+sub-%: __always__
+	@set -e; for d in $(SUBDIRS); do +$(MAKE) -C $$d $(@:sub-%=%); done
+else
+sub-%: __always__
+	@true
+endif
+
+# Make of individual .vo ---------------------------------------------
+%.vo: __always__ Makefile.rocq
+	+$(ROCQMAKE) $@
