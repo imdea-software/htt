@@ -158,17 +158,17 @@ rewrite {1}(slice_extrude (fgraph f) (i:=Interval i j)) //=.
 rewrite (perm_on_notin (i:=Interval -oo i) f H); last first.
 - rewrite disjoint_subset; apply/subsetP=>/= z.
   rewrite inE=>Hz; rewrite 2!inE; apply/negP=>Hz2.
-  suff: (z : nat) \notin order.Order.meet (Interval -oo i) (Interval i j).
+  suff: (z : nat) \notin Order.meet (Interval -oo i) (Interval i j).
   - by move/negP; apply; rewrite in_itvI Hz2.
-  rewrite /order.Order.meet /= /order.Order.join /= /order.Order.meet /=.
+  rewrite /Order.meet /= /Order.join /= /Order.meet /=.
   move/ltW: Hij; rewrite bound_leEmeet=>/eqP->.
   by rewrite itv_ge // -leNgt.
 rewrite (perm_on_notin (i:=Interval j +oo) f H); last first.
 - rewrite disjoint_subset; apply/subsetP=>/= z.
   rewrite inE=>Hz; rewrite 3!inE; apply/negP=>Hz2.
-  suff: (z : nat) \notin order.Order.meet (Interval i j) (Interval j +oo).
+  suff: (z : nat) \notin Order.meet (Interval i j) (Interval j +oo).
   - by move/negP; apply; rewrite in_itvI Hz.
-  rewrite /order.Order.meet /= /order.Order.meet /=.
+  rewrite /Order.meet /= /Order.meet /=.
   move: (bound_lex1 j); rewrite bound_leEmeet=>/eqP->.
   move/ltW: Hij; rewrite leEjoin=>/eqP->.
   by rewrite itv_ge // -leNgt.

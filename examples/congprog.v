@@ -193,8 +193,8 @@ rewrite (_ : _ \+ _ = m \+ (x :-> ith k pf \+
 hhauto; rewrite (sepitS (ith k pf)) finE /= indx_ith ltnSn. 
 rewrite /ctab/table !ffunE eqxx; hhauto.
 apply: tableP2 Hct=>// a. 
-- by rewrite !finE ltnS indx_injE; case: ltngtP.
-by rewrite !finE !ffunE indx_injE; case: eqP=>// ->; rewrite ltnn.
+- by rewrite !finE ltnS inj_indxE; case: ltngtP.
+by rewrite !finE !ffunE inj_indxE; case: eqP=>// ->; rewrite ltnn.
 Qed.
 Next Obligation. 
 case=>_ ->; apply: [stepE]=>//= rx hr Er; apply: [stepU]=>//= cl hc Ec. 
