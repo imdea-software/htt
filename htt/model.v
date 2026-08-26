@@ -134,9 +134,21 @@ Parameter vrf_dealloc : forall x A (v : A) j (Q : post unit),
 Definition has_spec G A (s : spec G A) (e : ST A) :=
   forall g i, (s g).1 i -> vrf i e (s g).2.
 
+(* want this structure, but must work around rocq bug *)
+(*
 Structure STspec G A (s : spec G A) := STprog {
   model :> ST A;
   _ : model \In has_spec s}.
+*)
+
+Parameter STspec : forall G A, spec G A -> Type.
+Parameter STprog : forall G A (s : spec G A) (model : ST A),
+  model \In has_spec s -> STspec s.
+Parameter model : forall G A (s : spec G A), 
+  STspec s -> ST A.
+Coercion model : STspec >-> ST.
+Parameter model_has_spec : forall G A (s : spec G A) (e : STspec s),
+  exists pf : model e \In has_spec s, e = STprog pf.
 
 Arguments STspec G [A] s.
 
@@ -170,6 +182,7 @@ Parameter ffix : forall G A (B : A -> Type) (s : forall x : A, spec G (B x)),
   ((forall x : A, STspec G (s x)) -> forall x : A, STspec G (s x)) ->
   forall x : A, STspec G (s x).
 End VrfSig.
+
 
 (********************************)
 (* Definition of the Hoare type *)
@@ -345,9 +358,17 @@ Abbreviation vrf i e Q := (vrf' e i Q).
 Definition has_spec (e : ST A) :=
   forall g i, (s g).1 i -> vrf i e (s g).2.
 
-Structure STspec := STprog {
-  model :> ST A;
-  _ : model \In has_spec}.
+Structure STspec' := STprog' {
+  model' :> ST A;
+  _ : model' \In has_spec}.
+
+Definition STspec := STspec'. 
+Definition STprog : forall model : ST A, 
+  model \In has_spec -> STspec := STprog'. 
+Definition model : STspec -> ST A := model'.
+Lemma model_has_spec : forall e : STspec,
+  exists pf : model e \In has_spec, e = STprog pf.
+Proof. by case=>m pf; exists pf. Qed.
 
 Lemma modelE e1 e2 : e1 = e2 <-> model e1 = model e2.
 Proof.
@@ -1181,8 +1202,8 @@ Lemma gE G A (pq : spec G A) (e : STspec G pq) g (Q : post A) i :
            valid m -> Q (Exn x) m) ->
         vrf i e Q.
 Proof.
-case: e=>e /= /[apply] Hp Hv He; apply: vrfV=>V /=.
-by apply/vrf_post/Hp; case=>[v|ex] m Vm H; [apply: Hv | apply: He].
+case: (model_has_spec e)=>pf E /pf Hp Hv He; apply: vrfV=>V /=.
+by apply/vrf_post/Hp; case=>[v|ex] m Vm H; [apply: Hv|apply: He].
 Qed.
 
 Arguments gE {G A pq e} g {Q}.
@@ -1268,9 +1289,8 @@ Lemma gU G A (pq : spec G A) (e : STspec G pq) i (Q : post A) g :
            valid (m \+ i) -> Q (Exn x) (m \+ i)) ->
         vrf i e Q.
 Proof.
-case: e=>e /= /[apply] Hp Hv Hx; rewrite -(unitL i).
-apply/vrf_frame/vrf_post/Hp.
-by case=>[x|ex] n _ =>[/Hv|/Hx].
+case: (model_has_spec e)=>pf E /pf Hp Hv Hx; rewrite -(unitL i).
+by apply/vrf_frame/vrf_post/Hp; case=>[x|ex] n _ =>[/Hv|/Hx].
 Qed.
 
 Notation "[gU]" := (gU tt) (at level 0).

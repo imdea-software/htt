@@ -435,7 +435,8 @@ Lemma gX G A (s : spec G A) g (m : heap) m0 j tm k wh r2
            valid (untag (f n)) -> Q (Exn x) (f n)) ->
         vrf (PullX.unpack fg) e Q.
 Proof.
-case: e=>e /= H; case: fu=>_ ->/= Em Hp Hv Hx; rewrite -{}Em in Hp.
+case: (model_has_spec e)=>/= H E.
+case: fu=>_ ->/= Em Hp Hv Hx; rewrite -{}Em in Hp.
 rewrite (pullX (Syntactify.untag fm)) formE joinCA joinA.
 apply: vrfV=>/validL/Hp/H V.
 apply/vrf_frame/vrf_post/V.
@@ -520,7 +521,7 @@ Lemma gR G A (s : spec G A) g m r (e : STspec G s)
            valid (untag (f n)) -> Q (Exn x) (f n)) ->
         vrf (f m) e Q.
 Proof.
-case: e=>e /= H Hp Hv Hx; rewrite formE.
+case: (model_has_spec e)=>/= H E Hp Hv Hx; rewrite formE.
 apply: vrfV=>/validL/Hp/H V.
 apply/vrf_frame/vrf_post/V.
 by case=>[x|ex] n _ =>[/Hv|/Hx]; rewrite formE.
